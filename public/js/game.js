@@ -8,6 +8,7 @@ const CHARACTERS = [
     class: 'Brawler',
     icon: '🐉',
     color: '#FF4500',
+    sprite: { src: '/assets/sprites/dragonfist.png', scale: 1.85 },
     speed: 5, jumpPower: 14, maxHp: 120,
     skills: [
       { id: 'punch', name: 'Dragon Punch', icon: '👊', key: 'Z', damage: 25, range: 60, cooldown: 300, type: 'melee', color: '#FF4500' },
@@ -227,10 +228,23 @@ let skillCooldowns = {};
 let scores = {};
 let isAlive = true;
 let respawnTimer = null;
+const spriteImages = {};
+
+function preloadSpriteAssets() {
+  if (typeof Image === 'undefined') return;
+  CHARACTERS.forEach(ch => {
+    if (!ch.sprite?.src || spriteImages[ch.id]) return;
+    const img = new Image();
+    img.src = ch.sprite.src;
+    spriteImages[ch.id] = img;
+  });
+}
 
 // Input
 const keys = {};
 let lastInputSent = 0;
+
+preloadSpriteAssets();
 
 // ============================================================
 //  CHARACTER GRID (MENU)
@@ -1571,6 +1585,85 @@ function drawCharacterDetails(ctx, ch, w, h, color, run) {
   ctx.restore();
 }
 
+function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
+  const nameW = Math.max(70, plateW);
+  drawRoundRect(ctx, centerX - nameW / 2, topY - 24 * sy, nameW, 20 * sy, 4);
+  ctx.fillStyle = 'rgba(7,5,6,0.72)';
+  ctx.fill();
+  ctx.strokeStyle = isMe ? withAlpha('#F5E182', 0.8) : 'rgba(255,255,255,0.14)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.font = `700 ${Math.max(9, 11 * Math.min(sx, sy))}px Cinzel, serif`;
+  ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(p.name, centerX, topY - 8 * sy);
+
+  const bw = nameW - 10;
+  const bh = Math.max(4, 4 * sy);
+  const bx = centerX - bw / 2;
+  const by = topY - 10 * sy;
+  drawRoundRect(ctx, bx, by, bw, bh, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fill();
+  const hpPct = Math.max(0, p.hp / (p.maxHp || 100));
+  drawRoundRect(ctx, bx, by, bw * hpPct, bh, 3);
+  ctx.fillStyle = hpPct > 0.6 ? '#39D36A' : hpPct > 0.3 ? '#FFB02E' : '#FF3D46';
+  ctx.fill();
+
+  if (isMe) {
+    ctx.fillStyle = '#F5E182';
+    ctx.font = `${8 * Math.min(sx, sy)}px Cinzel, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('▲', centerX, by - 4);
+  }
+}
+
+function drawSpritePlayer(ctx, p, sx, sy, isMe) {
+  const ch = p.charData;
+  const img = spriteImages[ch?.id];
+  if (!img || !img.complete || !img.naturalWidth) return false;
+
+  const x = p.x * sx;
+  const y = p.y * sy;
+  const w = p.width * sx;
+  const h = p.height * sy;
+  const footX = x + w / 2;
+  const footY = y + h + 2 * sy;
+  const drawH = h * (ch.sprite?.scale || 1.7);
+  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const t = Date.now() * 0.012;
+  const bob = p.state === 'idle' ? Math.sin(t) * 1.6 * sy : 0;
+  const lean = p.state === 'run' ? p.facing * 0.06 : 0;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.46)';
+  ctx.beginPath();
+  ctx.ellipse(footX, footY + 2 * sy, drawW * 0.38, 8 * sy, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (isMe) {
+    const aura = ctx.createRadialGradient(footX, footY - drawH * 0.45, 0, footX, footY - drawH * 0.45, drawW * 0.95);
+    aura.addColorStop(0, withAlpha(ch.color || '#F5E182', 0.18));
+    aura.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(footX, footY - drawH * 0.45, drawW * 0.95, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.translate(footX, footY + bob);
+  ctx.rotate(lean);
+  if (p.facing < 0) ctx.scale(-1, 1);
+  ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+  ctx.restore();
+
+  drawPlayerPlate(ctx, p, footX, footY - drawH - 6 * sy, Math.max(82, drawW * 1.25), sx, sy, isMe);
+  return true;
+}
+
 function drawPlayer(ctx, p, sx, sy, isMe) {
   const x = p.x * sx, y = p.y * sy;
   const w = p.width * sx, h = p.height * sy;
@@ -1579,6 +1672,8 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   const t = Date.now() * 0.012;
   const bob = p.state === 'idle' ? Math.sin(t) * 1.2 * sy : 0;
   const run = p.state === 'run' ? Math.sin(t * 1.7) : 0;
+
+  if (drawSpritePlayer(ctx, p, sx, sy, isMe)) return;
 
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.42)';
