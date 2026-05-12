@@ -461,6 +461,50 @@ function startGame() { send({ type: 'start_game' }); }
 // ============================================================
 //  GAME INIT
 // ============================================================
+function leaveGame() {
+  gameRunning = false;
+  isAlive = true;
+  isHost = false;
+  isReady = false;
+  roomState = null;
+  myRoomId = null;
+  remotePlayers = {};
+  myPlayer = null;
+  projectiles = [];
+  effects = [];
+  scores = {};
+  skillCooldowns = {};
+  Object.keys(keys).forEach(key => { delete keys[key]; });
+
+  if (respawnTimer) {
+    clearInterval(respawnTimer);
+    respawnTimer = null;
+  }
+
+  ['hud', 'skills-bar', 'chat-container', 'controls-hint', 'scoreboard', 'death-overlay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('visible');
+  });
+
+  const canvas = document.getElementById('game-canvas');
+  canvas.classList.remove('visible');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  document.getElementById('chat-log').innerHTML = '';
+  document.getElementById('score-list').innerHTML = '';
+  document.getElementById('hud-players').innerHTML = '';
+  document.getElementById('skills-bar').innerHTML = '';
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.close();
+  }
+  ws = null;
+  myPlayerId = null;
+
+  showScreen('screen-menu');
+}
+
 function startGameClient(state) {
   showScreen('');
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
