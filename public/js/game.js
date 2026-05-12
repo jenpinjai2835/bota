@@ -8,7 +8,7 @@ const CHARACTERS = [
     class: 'Brawler',
     icon: '🐉',
     color: '#FF4500',
-    sprite: { src: '/assets/sprites/dragonfist.png', scale: 2.05 },
+    sprite: { src: '/assets/sprites/dragonfist.png', scale: 2.05, baseFacing: -1 },
     speed: 5, jumpPower: 14, maxHp: 120,
     skills: [
       { id: 'punch', name: 'Dragon Punch', icon: '👊', key: 'Z', damage: 25, range: 60, cooldown: 300, type: 'melee', color: '#FF4500' },
@@ -229,6 +229,7 @@ let scores = {};
 let isAlive = true;
 let respawnTimer = null;
 const spriteImages = {};
+let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
 const ACTION_DURATIONS = {
   punch: 380,
   flame: 460,
@@ -259,21 +260,36 @@ function getSkillActionDuration(action) {
 
 function setPlayerAction(player, action, duration = getSkillActionDuration(action)) {
   if (!player || !action) return;
+  const actionStartedAt = Date.now();
+  const actionUntil = actionStartedAt + duration;
   player.action = action;
-  player.actionStartedAt = Date.now();
-  player.actionUntil = player.actionStartedAt + duration;
+  player.actionStartedAt = actionStartedAt;
+  player.actionUntil = actionUntil;
+  if (player === myPlayer) {
+    localActionState = { action, actionStartedAt, actionUntil };
+  }
+}
+
+function getActionTiming(player) {
+  const now = Date.now();
+  if (player === myPlayer && localActionState.action && localActionState.actionUntil > now) {
+    return localActionState;
+  }
+  if (player?.action && player.actionUntil > now) {
+    return player;
+  }
+  return null;
 }
 
 function getActiveAction(player) {
-  if (!player || !player.action || !player.actionUntil || player.actionUntil <= Date.now()) return null;
-  return player.action;
+  return getActionTiming(player)?.action || null;
 }
 
 function getActionProgress(player) {
-  const action = getActiveAction(player);
-  if (!action) return 1;
-  const duration = Math.max(1, (player.actionUntil || 0) - (player.actionStartedAt || 0));
-  return Math.min(1, Math.max(0, (Date.now() - (player.actionStartedAt || 0)) / duration));
+  const timing = getActionTiming(player);
+  if (!timing) return 1;
+  const duration = Math.max(1, (timing.actionUntil || 0) - (timing.actionStartedAt || 0));
+  return Math.min(1, Math.max(0, (Date.now() - (timing.actionStartedAt || 0)) / duration));
 }
 
 // ============================================================
@@ -1807,7 +1823,46 @@ function drawSpriteActionOverlay(ctx, p, footX, footY, drawW, drawH, action) {
   ctx.restore();
 }
 
-function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean, action) {
+function drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, isMoving) {
+  if (!isMoving && lift <= 0.02) return;
+
+  ctx.save();
+  ctx.globalAlpha = 0.72;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(18, 11, 10, 0.82)';
+  ctx.lineWidth = Math.max(3, drawW * 0.035);
+
+  const hipY = -drawH * 0.34;
+  const kneeY = -drawH * 0.17;
+  const footY = -drawH * 0.01;
+  const leftStep = stride * drawW * 0.055;
+  const rightStep = -stride * drawW * 0.055;
+  const leftLift = Math.max(0, stride) * lift * drawH * 0.035;
+  const rightLift = Math.max(0, -stride) * lift * drawH * 0.035;
+
+  function leg(x, step, liftY) {
+    ctx.beginPath();
+    ctx.moveTo(x * drawW, hipY);
+    ctx.quadraticCurveTo(x * drawW + step * 0.55, kneeY, x * drawW + step, footY - liftY);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(242, 176, 76, 0.58)';
+    ctx.lineWidth = Math.max(1, drawW * 0.012);
+    ctx.beginPath();
+    ctx.moveTo(x * drawW + step * 0.25, kneeY + drawH * 0.03);
+    ctx.lineTo(x * drawW + step, footY - liftY);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(18, 11, 10, 0.82)';
+    ctx.lineWidth = Math.max(3, drawW * 0.035);
+  }
+
+  leg(-0.1, leftStep, leftLift);
+  leg(0.12, rightStep, rightLift);
+  ctx.restore();
+}
+
+function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip) {
   const runPhase = Date.now() * 0.018;
   const idleBreath = p.state === 'idle' ? Math.sin(Date.now() * 0.006) * 0.012 : 0;
   const actionProgress = getActionProgress(p);
@@ -1815,51 +1870,15 @@ function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean
   const rushDrive = action === 'rush' ? Math.sin(actionProgress * Math.PI) : 0;
   const stride = p.state === 'run' ? Math.sin(runPhase) : rushDrive * 0.8;
   const lift = p.state === 'run' ? Math.abs(Math.cos(runPhase)) : Math.abs(rushDrive);
-  const upperSourceH = img.naturalHeight * 0.58;
-  const legSourceY = img.naturalHeight * 0.50;
-  const legSourceH = img.naturalHeight - legSourceY;
-  const leftLegSource = {
-    x: img.naturalWidth * 0.13,
-    y: legSourceY,
-    w: img.naturalWidth * 0.38,
-    h: legSourceH,
-  };
-  const rightLegSource = {
-    x: img.naturalWidth * 0.43,
-    y: legSourceY,
-    w: img.naturalWidth * 0.42,
-    h: legSourceH,
-  };
-  const sourceScale = drawH / img.naturalHeight;
 
   ctx.save();
   ctx.translate(footX + (p.facing || 1) * punchDrive * 6, footY + bob - rushDrive * 2);
   ctx.rotate(lean + (action === 'punch' ? (p.facing || 1) * punchDrive * 0.08 : 0));
-  if (p.facing < 0) ctx.scale(-1, 1);
+  if (shouldFlip) ctx.scale(-1, 1);
   ctx.scale(1 + punchDrive * 0.01, 1 + idleBreath - rushDrive * 0.015);
-
-  function drawLimb(part, side) {
-    const limbW = part.w * sourceScale;
-    const limbH = part.h * sourceScale;
-    const restX = -drawW / 2 + part.x * sourceScale;
-    const restY = -drawH + part.y * sourceScale;
-    const pivotX = restX + limbW * 0.5;
-    const pivotY = restY + limbH * 0.08;
-    const swing = side * stride * 0.18;
-    const stepX = side * stride * 5;
-    const stepY = -lift * Math.max(0, side * stride) * 3;
-
-    ctx.save();
-    ctx.translate(pivotX + stepX, pivotY + stepY);
-    ctx.rotate(swing);
-    ctx.drawImage(img, part.x, part.y, part.w, part.h, -limbW * 0.5, -limbH * 0.08, limbW, limbH);
-    ctx.restore();
-  }
-
-  drawLimb(leftLegSource, -1);
-  drawLimb(rightLegSource, 1);
-  ctx.drawImage(img, 0, 0, img.naturalWidth, upperSourceH, -drawW / 2, -drawH, drawW, upperSourceH * sourceScale);
-  drawDragonfistActionFX(ctx, action, drawW, drawH, p);
+  ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+  drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, p.state === 'run' || action === 'rush');
+  if (action === 'roar') drawDragonfistActionFX(ctx, action, drawW, drawH, p);
   ctx.restore();
 }
 
@@ -1882,6 +1901,8 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const actionKick = action ? Math.sin(actionProgress * Math.PI) : 0;
   const bob = p.state === 'idle' ? Math.sin(t) * 1.6 * sy : p.state === 'run' ? Math.abs(Math.sin(t * 1.8)) * -1.4 * sy : 0;
   const lean = p.state === 'run' ? p.facing * 0.06 : action ? p.facing * 0.045 * actionKick : 0;
+  const baseFacing = ch.sprite?.baseFacing || 1;
+  const shouldFlip = (p.facing || 1) !== baseFacing;
 
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.46)';
@@ -1900,12 +1921,12 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   }
 
   if (ch.id === 'dragonfist') {
-    drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean, action);
+    drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip);
     ctx.restore();
   } else {
     ctx.translate(footX, footY + bob);
     ctx.rotate(lean);
-    if (p.facing < 0) ctx.scale(-1, 1);
+    if (shouldFlip) ctx.scale(-1, 1);
     ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
     drawDragonfistActionFX(ctx, action, drawW, drawH, p);
     ctx.restore();
