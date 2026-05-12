@@ -918,7 +918,7 @@ function updateCamera(canvas) {
 // ============================================================
 //  RENDER
 // ============================================================
-function render(canvas) {
+function legacyRender(canvas) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const scaleX = W / WORLD_W;
@@ -1008,7 +1008,7 @@ function render(canvas) {
   if (myPlayer && isAlive) drawPlayer(ctx, myPlayer, scaleX, scaleY, true);
 }
 
-function drawPlayer(ctx, p, sx, sy, isMe) {
+function legacyDrawPlayer(ctx, p, sx, sy, isMe) {
   const x = p.x * sx, y = p.y * sy;
   const w = p.width * sx, h = p.height * sy;
   const ch = p.charData;
@@ -1083,6 +1083,364 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText('▲', x + w/2, by - 2);
+  }
+}
+
+function hexToRgb(hex) {
+  const value = hex.replace('#', '');
+  const full = value.length === 3 ? value.split('').map(c => c + c).join('') : value;
+  return {
+    r: parseInt(full.slice(0, 2), 16),
+    g: parseInt(full.slice(2, 4), 16),
+    b: parseInt(full.slice(4, 6), 16),
+  };
+}
+
+function withAlpha(hex, alpha) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function shade(hex, amount) {
+  const { r, g, b } = hexToRgb(hex);
+  const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
+  return `rgb(${clamp(r + amount)}, ${clamp(g + amount)}, ${clamp(b + amount)})`;
+}
+
+function drawRoundRect(ctx, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function drawBackground(ctx, stage, W, H, sx, sy) {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, stage.bg[0]);
+  grad.addColorStop(0.45, stage.bg[1]);
+  grad.addColorStop(1, stage.bg[2]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  const glow = ctx.createRadialGradient(W * 0.5, H * 0.28, 10, W * 0.5, H * 0.28, W * 0.55);
+  glow.addColorStop(0, withAlpha(stage.decorColor, 0.22));
+  glow.addColorStop(0.45, withAlpha(stage.decorColor, 0.06));
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < 80; i++) {
+    const x = ((i * 137 + 50) % WORLD_W) * sx;
+    const y = ((i * 97 + 30) % 380) * sy;
+    const alpha = Math.max(0.08, 0.32 + Math.sin(Date.now() * 0.0012 + i) * 0.22);
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fillRect(x, y, i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1);
+  }
+
+  for (let i = 0; i < 5; i++) {
+    const y = (230 + i * 46) * sy;
+    const offset = (i * 71) * sx;
+    ctx.fillStyle = `rgba(0,0,0,${0.07 + i * 0.025})`;
+    ctx.beginPath();
+    ctx.moveTo(-120 * sx, H);
+    for (let x = -120 * sx; x <= W + 120 * sx; x += 120 * sx) {
+      const peak = y - Math.sin((x + offset) * 0.01) * 18 * sy - i * 16 * sy;
+      ctx.lineTo(x, peak);
+    }
+    ctx.lineTo(W + 120 * sx, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawPillar(ctx, pillar, stage, sx, sy) {
+  const x = pillar.x * sx;
+  const y = pillar.y * sy;
+  const w = pillar.w * sx;
+  const h = pillar.h * sy;
+  const grad = ctx.createLinearGradient(x, y, x + w, y);
+  grad.addColorStop(0, shade(pillar.color, -28));
+  grad.addColorStop(0.5, shade(pillar.color, 18));
+  grad.addColorStop(1, shade(pillar.color, -38));
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = withAlpha(stage.decorColor, 0.26);
+  ctx.fillRect(x + w * 0.08, y, Math.max(2, w * 0.08), h);
+  ctx.fillRect(x + w * 0.78, y, Math.max(2, w * 0.08), h);
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  for (let yy = y + 34 * sy; yy < y + h; yy += 46 * sy) {
+    ctx.beginPath();
+    ctx.moveTo(x, yy);
+    ctx.lineTo(x + w, yy);
+    ctx.stroke();
+  }
+}
+
+function drawPlatform(ctx, plat, stage, sx, sy) {
+  const x = plat.x * sx;
+  const y = plat.y * sy;
+  const w = plat.w * sx;
+  const h = Math.max(plat.h * sy, 16);
+  const depth = Math.max(12, h * 0.9);
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.38)';
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 10;
+  const face = ctx.createLinearGradient(0, y, 0, y + h + depth);
+  face.addColorStop(0, shade(plat.color, 28));
+  face.addColorStop(0.52, plat.color);
+  face.addColorStop(1, shade(plat.color, -42));
+  drawRoundRect(ctx, x, y, w, h + depth, 5);
+  ctx.fillStyle = face;
+  ctx.fill();
+  ctx.restore();
+
+  const top = ctx.createLinearGradient(0, y, 0, y + h);
+  top.addColorStop(0, withAlpha(stage.decorColor, 0.45));
+  top.addColorStop(0.18, shade(plat.color, 35));
+  top.addColorStop(1, plat.color);
+  drawRoundRect(ctx, x, y, w, h, 5);
+  ctx.fillStyle = top;
+  ctx.fill();
+
+  ctx.strokeStyle = withAlpha(stage.decorColor, 0.55);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y + 2);
+  ctx.lineTo(x + w - 4, y + 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  const block = Math.max(42 * sx, 32);
+  for (let xx = x + block; xx < x + w - 4; xx += block) {
+    ctx.beginPath();
+    ctx.moveTo(xx, y + 4);
+    ctx.lineTo(xx, y + h + depth - 2);
+    ctx.stroke();
+  }
+}
+
+function drawProjectile(ctx, p, sx, sy) {
+  const x = p.x * sx;
+  const y = p.y * sy;
+  const r = p.radius * Math.min(sx, sy);
+  const trail = ctx.createLinearGradient(x - p.vx * sx * 4, y - p.vy * sy * 4, x, y);
+  trail.addColorStop(0, 'rgba(255,255,255,0)');
+  trail.addColorStop(1, withAlpha(p.color, 0.72));
+  ctx.strokeStyle = trail;
+  ctx.lineWidth = Math.max(4, r * 1.4);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x - p.vx * sx * 4, y - p.vy * sy * 4);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 3.5);
+  glow.addColorStop(0, withAlpha(p.color, 0.95));
+  glow.addColorStop(0.4, withAlpha(p.color, 0.42));
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x, y, Math.max(2, r * 0.45), 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawEffect(ctx, e, sx, sy) {
+  const alpha = e.life / e.maxLife;
+  const r = e.radius * (1 - alpha * 0.35) * Math.min(sx, sy);
+  const x = e.x * sx;
+  const y = e.y * sy;
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, r);
+  glow.addColorStop(0, withAlpha(e.color, alpha * 0.34));
+  glow.addColorStop(0.65, withAlpha(e.color, alpha * 0.12));
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(e.color, alpha);
+  ctx.lineWidth = Math.max(1.5, 3 * alpha);
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.82, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function render(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const scaleX = W / WORLD_W;
+  const scaleY = H / WORLD_H;
+  const stage = currentStage;
+
+  ctx.clearRect(0, 0, W, H);
+  drawBackground(ctx, stage, W, H, scaleX, scaleY);
+  stage.pillars.forEach(pl => drawPillar(ctx, pl, stage, scaleX, scaleY));
+  stage.platforms.forEach(plat => drawPlatform(ctx, plat, stage, scaleX, scaleY));
+  projectiles.forEach(p => drawProjectile(ctx, p, scaleX, scaleY));
+  effects.forEach(e => drawEffect(ctx, e, scaleX, scaleY));
+  Object.values(remotePlayers).forEach(p => drawPlayer(ctx, p, scaleX, scaleY, false));
+  if (myPlayer && isAlive) drawPlayer(ctx, myPlayer, scaleX, scaleY, true);
+
+  const vignette = ctx.createRadialGradient(W / 2, H * 0.45, W * 0.18, W / 2, H * 0.5, W * 0.7);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.35)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawPlayer(ctx, p, sx, sy, isMe) {
+  const x = p.x * sx, y = p.y * sy;
+  const w = p.width * sx, h = p.height * sy;
+  const ch = p.charData;
+  const color = ch?.color || '#D4AF37';
+  const t = Date.now() * 0.012;
+  const bob = p.state === 'idle' ? Math.sin(t) * 1.2 * sy : 0;
+  const run = p.state === 'run' ? Math.sin(t * 1.7) : 0;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.42)';
+  ctx.beginPath();
+  ctx.ellipse(x + w / 2, y + h + 4 * sy, w * 0.7, 7 * sy, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (isMe) {
+    const aura = ctx.createRadialGradient(x + w / 2, y + h / 2, 0, x + w / 2, y + h / 2, w * 1.25);
+    aura.addColorStop(0, withAlpha('#F5E182', 0.16));
+    aura.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h / 2, w * 1.25, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.translate(x + w / 2, y + h / 2 + bob);
+  if (p.facing < 0) ctx.scale(-1, 1);
+
+  const bodyGrad = ctx.createLinearGradient(0, -h * 0.5, 0, h * 0.45);
+  bodyGrad.addColorStop(0, shade(color, 54));
+  bodyGrad.addColorStop(0.38, color);
+  bodyGrad.addColorStop(1, shade(color, -48));
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = Math.max(1, 2 * sx);
+
+  ctx.fillStyle = shade(color, -38);
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.28, -h * 0.18);
+  ctx.quadraticCurveTo(-w * 0.48, h * 0.12, -w * 0.34, h * 0.48);
+  ctx.lineTo(w * 0.24, h * 0.48);
+  ctx.quadraticCurveTo(w * 0.38, h * 0.08, w * 0.26, -h * 0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  const legA = run * 5 * sy;
+  ctx.fillStyle = shade(color, -18);
+  drawRoundRect(ctx, -w * 0.22, h * 0.18, w * 0.16, h * 0.42 + legA, 4);
+  ctx.fill();
+  drawRoundRect(ctx, w * 0.06, h * 0.18, w * 0.16, h * 0.42 - legA, 4);
+  ctx.fill();
+  ctx.fillStyle = '#181113';
+  drawRoundRect(ctx, -w * 0.28, h * 0.54 + legA, w * 0.27, h * 0.09, 3);
+  ctx.fill();
+  drawRoundRect(ctx, w * 0.02, h * 0.54 - legA, w * 0.27, h * 0.09, 3);
+  ctx.fill();
+
+  ctx.fillStyle = shade(color, -10);
+  drawRoundRect(ctx, -w * 0.5, -h * 0.18 + run * 2 * sy, w * 0.16, h * 0.44, 5);
+  ctx.fill();
+  drawRoundRect(ctx, w * 0.34, -h * 0.18 - run * 2 * sy, w * 0.16, h * 0.44, 5);
+  ctx.fill();
+  ctx.fillStyle = '#211719';
+  ctx.beginPath();
+  ctx.arc(-w * 0.42, h * 0.27 + run * 2 * sy, w * 0.11, 0, Math.PI * 2);
+  ctx.arc(w * 0.42, h * 0.27 - run * 2 * sy, w * 0.11, 0, Math.PI * 2);
+  ctx.fill();
+
+  drawRoundRect(ctx, -w * 0.34, -h * 0.25, w * 0.68, h * 0.52, 8);
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+  ctx.stroke();
+
+  const breast = ctx.createLinearGradient(-w * 0.2, -h * 0.2, w * 0.22, h * 0.22);
+  breast.addColorStop(0, 'rgba(255,255,255,0.32)');
+  breast.addColorStop(1, 'rgba(0,0,0,0.15)');
+  ctx.fillStyle = breast;
+  drawRoundRect(ctx, -w * 0.21, -h * 0.16, w * 0.42, h * 0.32, 5);
+  ctx.fill();
+
+  ctx.fillStyle = shade(color, 22);
+  drawRoundRect(ctx, -w * 0.5, -h * 0.3, w * 0.25, h * 0.2, 5);
+  ctx.fill();
+  drawRoundRect(ctx, w * 0.25, -h * 0.3, w * 0.25, h * 0.2, 5);
+  ctx.fill();
+
+  const headGrad = ctx.createRadialGradient(-w * 0.06, -h * 0.46, 1, 0, -h * 0.39, w * 0.36);
+  headGrad.addColorStop(0, shade(color, 74));
+  headGrad.addColorStop(0.6, shade(color, 8));
+  headGrad.addColorStop(1, shade(color, -36));
+  ctx.fillStyle = headGrad;
+  ctx.beginPath();
+  ctx.arc(0, -h * 0.39, w * 0.28, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  drawRoundRect(ctx, -w * 0.17, -h * 0.42, w * 0.34, h * 0.12, 3);
+  ctx.fill();
+  ctx.fillStyle = '#F8F2DC';
+  ctx.fillRect(w * 0.04, -h * 0.39, w * 0.08, h * 0.04);
+
+  ctx.font = `${Math.max(14, w * 0.5)}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(ch?.icon || '?', 0, h * 0.01);
+  ctx.restore();
+
+  const nameY = y - 11 * sy;
+  const nameW = Math.max(64, w * 1.9);
+  drawRoundRect(ctx, x + w / 2 - nameW / 2, nameY - 24 * sy, nameW, 20 * sy, 4);
+  ctx.fillStyle = 'rgba(7,5,6,0.72)';
+  ctx.fill();
+  ctx.strokeStyle = isMe ? withAlpha('#F5E182', 0.8) : 'rgba(255,255,255,0.14)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.font = `700 ${Math.max(9, 11 * Math.min(sx, sy))}px Cinzel, serif`;
+  ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(p.name, x + w / 2, nameY - 8 * sy);
+
+  const bw = nameW - 10;
+  const bh = Math.max(4, 4 * sy);
+  const bx = x + w / 2 - bw / 2;
+  const by = nameY - 10 * sy;
+  drawRoundRect(ctx, bx, by, bw, bh, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fill();
+  const hpPct = Math.max(0, p.hp / (p.maxHp || 100));
+  drawRoundRect(ctx, bx, by, bw * hpPct, bh, 3);
+  ctx.fillStyle = hpPct > 0.6 ? '#39D36A' : hpPct > 0.3 ? '#FFB02E' : '#FF3D46';
+  ctx.fill();
+
+  if (isMe) {
+    ctx.fillStyle = '#F5E182';
+    ctx.font = `${8 * Math.min(sx, sy)}px Cinzel, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('â–²', x + w / 2, by - 4);
   }
 }
 
