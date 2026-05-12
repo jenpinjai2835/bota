@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -18,6 +19,26 @@ function send(res, status, body, contentType = 'text/plain; charset=utf-8') {
   res.end(body);
 }
 
+function getAppVersion(rootDir) {
+  const commit =
+    process.env.RAILWAY_GIT_COMMIT_SHA ||
+    process.env.GIT_SHA ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.RENDER_GIT_COMMIT ||
+    '';
+
+  if (commit) return commit.slice(0, 7);
+
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      cwd: rootDir,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString().trim();
+  } catch {
+    return 'local';
+  }
+}
+
 function resolveRequestPath(rootDir, publicDir, requestUrl) {
   const url = new URL(requestUrl, 'http://localhost');
   const pathname = decodeURIComponent(url.pathname);
@@ -33,6 +54,7 @@ function resolveRequestPath(rootDir, publicDir, requestUrl) {
 
 function createStaticHandler(rootDir) {
   const publicDir = path.join(rootDir, 'public');
+  const appVersion = getAppVersion(rootDir);
 
   return (req, res) => {
     const filePath = resolveRequestPath(rootDir, publicDir, req.url);
@@ -47,8 +69,12 @@ function createStaticHandler(rootDir) {
         return;
       }
 
-      const contentType = MIME_TYPES[path.extname(filePath)] || 'application/octet-stream';
-      send(res, 200, data, contentType);
+      const ext = path.extname(filePath);
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      const body = ext === '.html'
+        ? data.toString('utf8').replaceAll('__APP_VERSION__', appVersion)
+        : data;
+      send(res, 200, body, contentType);
     });
   };
 }

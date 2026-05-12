@@ -29,6 +29,19 @@
 
   canvas { display: block; }
 
+  #version-badge {
+    position: fixed;
+    left: 10px;
+    bottom: 8px;
+    z-index: 500;
+    color: rgba(232,213,176,0.55);
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    pointer-events: none;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+  }
+
   /* ===== SCREENS ===== */
   .screen {
     position: fixed; inset: 0;
