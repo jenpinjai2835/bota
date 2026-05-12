@@ -1,33 +1,47 @@
 const MAX_PLAYERS = 5;
 
 const SPAWN_POINTS = [
-  { x: 150, y: 380 },
-  { x: 350, y: 380 },
-  { x: 550, y: 380 },
-  { x: 250, y: 250 },
-  { x: 450, y: 250 },
+  { x: 150, y: 454 },
+  { x: 350, y: 454 },
+  { x: 550, y: 454 },
+  { x: 250, y: 454 },
+  { x: 450, y: 454 },
 ];
 
 const RESPAWN_POINTS = [
-  { x: 150, y: 380 },
-  { x: 350, y: 380 },
-  { x: 550, y: 380 },
+  { x: 150, y: 454 },
+  { x: 350, y: 454 },
+  { x: 550, y: 454 },
 ];
+
+const CHARACTER_MAX_HP = {
+  dragonfist: 120,
+  shadowblade: 80,
+  stoneguard: 200,
+  stormarrow: 90,
+  pyromancer: 85,
+  frostmage: 85,
+  thunderking: 110,
+  venomfang: 88,
+  celestial: 95,
+  ironclad: 180,
+};
 
 function generateRoomId() {
   return Math.random().toString(36).substr(2, 6).toUpperCase();
 }
 
 function createPlayer(playerId, { name, character }, index = 0) {
+  const maxHp = CHARACTER_MAX_HP[character] || 100;
   return {
     id: playerId,
     name,
     character,
     ready: false,
     x: 200 + index * 80,
-    y: 400,
-    hp: 100,
-    maxHp: 100,
+    y: 454,
+    hp: maxHp,
+    maxHp,
     facing: 1,
     state: 'idle',
     vx: 0,

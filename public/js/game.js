@@ -8,13 +8,13 @@ const CHARACTERS = [
     class: 'Brawler',
     icon: '🐉',
     color: '#FF4500',
-    sprite: { src: '/assets/sprites/dragonfist.png', scale: 2.05, baseFacing: -1 },
-    speed: 5, jumpPower: 14, maxHp: 120,
+    sprite: { src: '/assets/sprites/dragonfist-padded.png', scale: 2.08, baseFacing: -1 },
+    speed: 5, jumpPower: 14, maxHp: 120, maxMana: 110, manaRegen: 0.32,
     skills: [
-      { id: 'punch', name: 'Dragon Punch', icon: '👊', key: 'Z', damage: 25, range: 60, cooldown: 300, type: 'melee', color: '#FF4500' },
-      { id: 'flame', name: 'Flame Breath', icon: '🔥', key: 'X', damage: 18, range: 180, cooldown: 2000, type: 'projectile', color: '#FF6600' },
-      { id: 'rush', name: 'Dragon Rush', icon: '💨', key: 'C', damage: 30, range: 120, cooldown: 4000, type: 'dash', color: '#FF2200' },
-      { id: 'roar', name: 'Ancient Roar', icon: '🌋', key: 'V', damage: 15, range: 100, cooldown: 6000, type: 'aoe', color: '#FF8800' },
+      { id: 'punch', name: 'Dragon Punch', icon: '👊', key: 'Z', damage: 25, range: 60, cooldown: 300, manaCost: 8, type: 'melee', color: '#FF4500' },
+      { id: 'flame', name: 'Flame Breath', icon: '🔥', key: 'X', damage: 18, range: 180, cooldown: 2000, manaCost: 24, type: 'projectile', color: '#FF6600' },
+      { id: 'rush', name: 'Dragon Rush', icon: '💨', key: 'C', damage: 30, range: 120, cooldown: 4000, manaCost: 32, type: 'dash', color: '#FF2200' },
+      { id: 'roar', name: 'Ancient Roar', icon: '🌋', key: 'V', damage: 15, range: 100, cooldown: 6000, manaCost: 45, type: 'aoe', color: '#FF8800' },
     ]
   },
   {
@@ -224,6 +224,7 @@ let remotePlayers = {};
 let myPlayer = null;
 let projectiles = [];
 let effects = [];
+let damageNumbers = [];
 let skillCooldowns = {};
 let scores = {};
 let isAlive = true;
@@ -290,6 +291,39 @@ function getActionProgress(player) {
   if (!timing) return 1;
   const duration = Math.max(1, (timing.actionUntil || 0) - (timing.actionStartedAt || 0));
   return Math.min(1, Math.max(0, (Date.now() - (timing.actionStartedAt || 0)) / duration));
+}
+
+function getMaxMana(ch) {
+  return ch?.maxMana || 100;
+}
+
+function getManaRegen(ch) {
+  return ch?.manaRegen || 0.24;
+}
+
+function getSkillManaCost(skill) {
+  if (typeof skill?.manaCost === 'number') return skill.manaCost;
+  if (!skill) return 0;
+  if (skill.type === 'melee') return 10;
+  if (skill.type === 'projectile') return 24;
+  if (skill.type === 'dash') return 30;
+  if (skill.type === 'aoe') return 42;
+  if (skill.type === 'heal') return 38;
+  return 25;
+}
+
+function spawnDamageNumber(x, y, amount, color = '#FFE082') {
+  if (!amount) return;
+  damageNumbers.push({
+    x,
+    y,
+    value: Math.abs(amount),
+    color,
+    vx: (Math.random() - 0.5) * 0.8,
+    vy: -1.35,
+    life: 48,
+    maxLife: 48,
+  });
 }
 
 // ============================================================
@@ -590,8 +624,10 @@ function leaveGame() {
   myPlayer = null;
   projectiles = [];
   effects = [];
+  damageNumbers = [];
   scores = {};
   skillCooldowns = {};
+  localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
   Object.keys(keys).forEach(key => { delete keys[key]; });
 
   if (respawnTimer) {
@@ -644,6 +680,7 @@ function startGameClient(state) {
     const pd = {
       id: p.id, name: p.name, character: p.character, charData: ch,
       x: p.x, y: p.y, hp: p.hp, maxHp: ch.maxHp,
+      mana: getMaxMana(ch), maxMana: getMaxMana(ch),
       vx: 0, vy: 0, onGround: false, facing: 1,
       state: 'idle', score: 0, deaths: 0,
       action: null, actionStartedAt: 0, actionUntil: 0,
@@ -670,7 +707,7 @@ function startGameClient(state) {
   document.getElementById('chat-container').classList.add('visible');
   document.getElementById('controls-hint').classList.add('visible');
 
-  projectiles = []; effects = [];
+  projectiles = []; effects = []; damageNumbers = [];
   scores = {};
   state.players.forEach(p => { scores[p.id] = { id: p.id, name: p.name, score: 0, deaths: 0 }; });
 
@@ -697,7 +734,10 @@ function buildHUD(state) {
         </div>
         <div class="phud-score" style="margin-left:auto" id="score-${p.id}">0</div>
       </div>
+      <div class="hud-stat-line"><span>HP</span><span id="hp-text-${p.id}">${ch.maxHp}/${ch.maxHp}</span></div>
       <div class="hp-bar"><div class="hp-fill high" id="hp-${p.id}" style="width:100%"></div></div>
+      <div class="hud-stat-line mana-line"><span>MP</span><span id="mana-text-${p.id}">${getMaxMana(ch)}/${getMaxMana(ch)}</span></div>
+      <div class="mana-bar"><div class="mana-fill" id="mana-${p.id}" style="width:100%"></div></div>
     `;
     container.appendChild(div);
   });
@@ -707,12 +747,21 @@ function updateHUD() {
   const allPlayers = myPlayer ? [myPlayer, ...Object.values(remotePlayers)] : Object.values(remotePlayers);
   allPlayers.forEach(p => {
     const hpEl = document.getElementById(`hp-${p.id}`);
+    const hpText = document.getElementById(`hp-text-${p.id}`);
+    const manaEl = document.getElementById(`mana-${p.id}`);
+    const manaText = document.getElementById(`mana-text-${p.id}`);
     const scoreEl = document.getElementById(`score-${p.id}`);
     if (hpEl) {
       const pct = Math.max(0, (p.hp / p.maxHp) * 100);
       hpEl.style.width = pct + '%';
       hpEl.className = 'hp-fill ' + (pct > 60 ? 'high' : pct > 30 ? 'med' : '');
     }
+    if (hpText) hpText.textContent = `${Math.max(0, Math.ceil(p.hp))}/${p.maxHp}`;
+    if (manaEl) {
+      const pct = Math.max(0, (p.mana / p.maxMana) * 100);
+      manaEl.style.width = pct + '%';
+    }
+    if (manaText) manaText.textContent = `${Math.max(0, Math.floor(p.mana || 0))}/${p.maxMana || getMaxMana(p.charData)}`;
     if (scoreEl && scores[p.id]) scoreEl.textContent = scores[p.id].score;
   });
 }
@@ -726,7 +775,7 @@ function buildSkillsBar() {
     const slot = document.createElement('div');
     slot.className = 'skill-slot';
     slot.id = `skill-${sk.id}`;
-    slot.innerHTML = `<span class="sicon">${sk.icon}</span><span class="skey">${sk.key}</span><div class="scd" id="scd-${sk.id}">0</div>`;
+    slot.innerHTML = `<span class="sicon">${sk.icon}</span><span class="skey">${sk.key}</span><span class="mana-cost">${getSkillManaCost(sk)}</span><div class="scd" id="scd-${sk.id}">0</div>`;
     bar.appendChild(slot);
   });
 }
@@ -739,6 +788,8 @@ function updateSkillsBar() {
     const cdEl = document.getElementById(`scd-${sk.id}`);
     if (!slot || !cdEl) return;
     const remaining = skillCooldowns[sk.id] - now;
+    const hasMana = (myPlayer.mana || 0) >= getSkillManaCost(sk);
+    slot.classList.toggle('no-mana', !hasMana && remaining <= 0);
     if (remaining > 0) {
       slot.classList.add('on-cd');
       cdEl.textContent = Math.ceil(remaining / 1000);
@@ -797,6 +848,12 @@ function getStageWidth() { return WORLD_W; }
 
 function updatePlayer(p, dt) {
   if (!isAlive && p === myPlayer) return;
+
+  if (typeof p.mana !== 'number') {
+    p.maxMana = p.maxMana || getMaxMana(p.charData);
+    p.mana = p.maxMana;
+  }
+  p.mana = Math.min(p.maxMana || getMaxMana(p.charData), p.mana + getManaRegen(p.charData) * Math.max(1, dt / 16.67));
 
   // Gravity
   p.vy += GRAVITY;
@@ -865,8 +922,14 @@ function trySkill(skillIndex) {
   if (!skill) return;
   const now = Date.now();
   if (skillCooldowns[skill.id] > now) return;
+  const manaCost = getSkillManaCost(skill);
+  if ((myPlayer.mana || 0) < manaCost) {
+    spawnEffect(myPlayer.x + myPlayer.width/2, myPlayer.y + myPlayer.height/2, 'no-mana', '#4AA3FF', 34);
+    return;
+  }
 
   skillCooldowns[skill.id] = now + skill.cooldown;
+  myPlayer.mana = Math.max(0, (myPlayer.mana || 0) - manaCost);
   setPlayerAction(myPlayer, skill.id);
 
   // Self heal
@@ -967,6 +1030,7 @@ function dealDamage(target, damage, skillId) {
   if (!isAlive && target === myPlayer) return;
   send({ type: 'player_hit', targetId: target.id || (target === myPlayer ? myPlayerId : null), damage, skillId });
   spawnEffect(target.x + target.width/2, target.y + target.height/2, skillId, '#FF4444', 30);
+  spawnDamageNumber(target.x + target.width/2, target.y + 8, damage, '#FFD166');
 
   if (target === myPlayer) {
     myPlayer.hp = Math.max(0, myPlayer.hp - damage);
@@ -981,6 +1045,7 @@ function handleHitEffect(msg) {
   if (target) {
     target.hp = msg.hp;
     spawnEffect(target.x + target.width/2, target.y + target.height/2, msg.skillId, '#FF4444', 35);
+    spawnDamageNumber(target.x + target.width/2, target.y + 8, msg.damage, '#FFD166');
     if (msg.hp <= 0 && msg.targetId !== myPlayerId) {
       // remote death flash
       spawnEffect(target.x + target.width/2, target.y + target.height/2, 'death', '#FF0000', 60);
@@ -1064,6 +1129,13 @@ function updateProjectiles() {
   });
 
   effects = effects.filter(e => { e.life--; return e.life > 0; });
+  damageNumbers = damageNumbers.filter(n => {
+    n.x += n.vx;
+    n.y += n.vy;
+    n.vy += 0.025;
+    n.life--;
+    return n.life > 0;
+  });
 }
 
 // ============================================================
@@ -1443,6 +1515,23 @@ function drawEffect(ctx, e, sx, sy) {
   ctx.stroke();
 }
 
+function drawDamageNumber(ctx, n, sx, sy) {
+  const alpha = Math.max(0, n.life / n.maxLife);
+  const x = n.x * sx;
+  const y = n.y * sy;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = `900 ${Math.max(16, 19 * Math.min(sx, sy))}px Cinzel, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0,0,0,0.82)';
+  ctx.strokeText(`-${n.value}`, x, y);
+  ctx.fillStyle = n.color;
+  ctx.fillText(`-${n.value}`, x, y);
+  ctx.restore();
+}
+
 function render(canvas) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
@@ -1458,6 +1547,7 @@ function render(canvas) {
   effects.forEach(e => drawEffect(ctx, e, scaleX, scaleY));
   Object.values(remotePlayers).forEach(p => drawPlayer(ctx, p, scaleX, scaleY, false));
   if (myPlayer && isAlive) drawPlayer(ctx, myPlayer, scaleX, scaleY, true);
+  damageNumbers.forEach(n => drawDamageNumber(ctx, n, scaleX, scaleY));
 
   const vignette = ctx.createRadialGradient(W / 2, H * 0.45, W * 0.18, W / 2, H * 0.5, W * 0.7);
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
@@ -1663,6 +1753,12 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   drawRoundRect(ctx, bx, by, bw * hpPct, bh, 3);
   ctx.fillStyle = hpPct > 0.6 ? '#39D36A' : hpPct > 0.3 ? '#FFB02E' : '#FF3D46';
   ctx.fill();
+
+  ctx.font = `700 ${Math.max(8, 9 * Math.min(sx, sy))}px Cinzel, serif`;
+  ctx.fillStyle = '#F6E8C4';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`${Math.ceil(p.hp)}/${p.maxHp}`, centerX, by + bh + 2);
 
   if (isMe) {
     ctx.fillStyle = '#F5E182';

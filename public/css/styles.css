@@ -422,10 +422,23 @@
   }
   .phud-name { font-size: 12px; font-family: 'Cinzel', serif; color: var(--gold-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; text-shadow: 0 1px 10px rgba(212,175,55,0.3); }
   .phud-char { font-size: 9px; color: rgba(232,213,176,0.62); text-transform: uppercase; letter-spacing: 0.12em; }
+  .hud-stat-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 7px;
+    font-size: 9px;
+    color: rgba(246,232,196,0.82);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.04em;
+  }
+  .hud-stat-line.mana-line { margin-top: 5px; color: rgba(163,210,255,0.9); }
   .hp-bar { height: 7px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 7px; overflow: hidden; }
   .hp-fill { height: 100%; background: linear-gradient(90deg, #B8202C, var(--red-glow)); border-radius: 999px; transition: width 0.2s; box-shadow: 0 0 10px rgba(255,68,68,0.28); }
   .hp-fill.high { background: linear-gradient(90deg, #1F9E55, #57E37F); box-shadow: 0 0 10px rgba(87,227,127,0.25); }
   .hp-fill.med { background: linear-gradient(90deg, #D27A18, #FFC247); box-shadow: 0 0 10px rgba(255,194,71,0.24); }
+  .mana-bar { height: 6px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 5px; overflow: hidden; }
+  .mana-fill { height: 100%; background: linear-gradient(90deg, #2368D8, #6CCBFF); border-radius: 999px; transition: width 0.2s; box-shadow: 0 0 10px rgba(91,178,255,0.28); }
   .phud-score { font-size: 13px; color: var(--gold-light); text-align: right; font-family: 'Cinzel', serif; }
 
   /* Skills bar */
@@ -461,6 +474,16 @@
   }
   .skill-slot .sicon { font-size: 22px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55)); }
   .skill-slot .skey { font-size: 9px; color: var(--gold-light); font-family: 'Cinzel', serif; letter-spacing: 0.08em; }
+  .skill-slot .mana-cost {
+    position: absolute;
+    right: 5px;
+    top: 4px;
+    font-size: 9px;
+    line-height: 1;
+    color: #A3D2FF;
+    font-family: 'Cinzel', serif;
+    text-shadow: 0 0 8px rgba(91,178,255,0.42);
+  }
   .skill-slot .scd {
     position: absolute; inset: 0;
     background: rgba(0,0,0,0.76);
@@ -470,6 +493,10 @@
     display: none;
   }
   .skill-slot.on-cd .scd { display: flex; }
+  .skill-slot.no-mana {
+    border-color: rgba(85,150,255,0.24);
+    filter: saturate(0.55) brightness(0.72);
+  }
 
   /* Death screen */
   #death-overlay {
