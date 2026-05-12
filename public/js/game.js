@@ -1621,6 +1621,56 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   }
 }
 
+function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean) {
+  const runPhase = Date.now() * 0.018;
+  const stride = p.state === 'run' ? Math.sin(runPhase) : 0;
+  const lift = p.state === 'run' ? Math.abs(Math.cos(runPhase)) : 0;
+  const upperSourceH = img.naturalHeight * 0.58;
+  const legSourceY = img.naturalHeight * 0.50;
+  const legSourceH = img.naturalHeight - legSourceY;
+  const leftLegSource = {
+    x: img.naturalWidth * 0.13,
+    y: legSourceY,
+    w: img.naturalWidth * 0.38,
+    h: legSourceH,
+  };
+  const rightLegSource = {
+    x: img.naturalWidth * 0.43,
+    y: legSourceY,
+    w: img.naturalWidth * 0.42,
+    h: legSourceH,
+  };
+  const sourceScale = drawH / img.naturalHeight;
+
+  ctx.save();
+  ctx.translate(footX, footY + bob);
+  ctx.rotate(lean);
+  if (p.facing < 0) ctx.scale(-1, 1);
+
+  function drawLimb(part, side) {
+    const limbW = part.w * sourceScale;
+    const limbH = part.h * sourceScale;
+    const restX = -drawW / 2 + part.x * sourceScale;
+    const restY = -drawH + part.y * sourceScale;
+    const pivotX = restX + limbW * 0.5;
+    const pivotY = restY + limbH * 0.08;
+    const swing = side * stride * 0.18;
+    const stepX = side * stride * 5;
+    const stepY = -lift * Math.max(0, side * stride) * 3;
+
+    ctx.save();
+    ctx.translate(pivotX + stepX, pivotY + stepY);
+    ctx.rotate(swing);
+    ctx.drawImage(img, part.x, part.y, part.w, part.h, -limbW * 0.5, -limbH * 0.08, limbW, limbH);
+    ctx.restore();
+  }
+
+  drawLimb(leftLegSource, -1);
+  drawLimb(rightLegSource, 1);
+  ctx.drawImage(img, 0, 0, img.naturalWidth, upperSourceH, -drawW / 2, -drawH, drawW, upperSourceH * sourceScale);
+  ctx.restore();
+}
+
 function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const ch = p.charData;
   const img = spriteImages[ch?.id];
@@ -1654,11 +1704,16 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
     ctx.fill();
   }
 
-  ctx.translate(footX, footY + bob);
-  ctx.rotate(lean);
-  if (p.facing < 0) ctx.scale(-1, 1);
-  ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
-  ctx.restore();
+  if (ch.id === 'dragonfist') {
+    drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean);
+    ctx.restore();
+  } else {
+    ctx.translate(footX, footY + bob);
+    ctx.rotate(lean);
+    if (p.facing < 0) ctx.scale(-1, 1);
+    ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+    ctx.restore();
+  }
 
   drawPlayerPlate(ctx, p, footX, footY - drawH - 6 * sy, Math.max(82, drawW * 1.25), sx, sy, isMe);
   return true;
