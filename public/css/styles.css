@@ -494,14 +494,20 @@
   /* Chat */
   #chat-container {
     position: fixed;
-    bottom: 88px; left: 18px;
-    width: 310px;
+    bottom: 24px; left: 18px;
+    width: min(270px, calc(100vw - 36px));
     z-index: 50;
     display: none;
+    opacity: 0.72;
+    transition: opacity 160ms ease, transform 160ms ease;
   }
   #chat-container.visible { display: block; }
+  #chat-container:focus-within {
+    opacity: 1;
+    transform: translateY(-8px);
+  }
   #chat-log {
-    height: 120px; overflow-y: auto;
+    height: 86px; overflow-y: auto;
     display: flex; flex-direction: column; gap: 4px;
     margin-bottom: 8px;
   }

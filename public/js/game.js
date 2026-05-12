@@ -229,6 +229,13 @@ let scores = {};
 let isAlive = true;
 let respawnTimer = null;
 const spriteImages = {};
+const ACTION_DURATIONS = {
+  punch: 380,
+  flame: 460,
+  rush: 420,
+  roar: 680,
+  default: 360,
+};
 
 function preloadSpriteAssets() {
   if (typeof Image === 'undefined') return;
@@ -245,6 +252,29 @@ const keys = {};
 let lastInputSent = 0;
 
 preloadSpriteAssets();
+
+function getSkillActionDuration(action) {
+  return ACTION_DURATIONS[action] || ACTION_DURATIONS.default;
+}
+
+function setPlayerAction(player, action, duration = getSkillActionDuration(action)) {
+  if (!player || !action) return;
+  player.action = action;
+  player.actionStartedAt = Date.now();
+  player.actionUntil = player.actionStartedAt + duration;
+}
+
+function getActiveAction(player) {
+  if (!player || !player.action || !player.actionUntil || player.actionUntil <= Date.now()) return null;
+  return player.action;
+}
+
+function getActionProgress(player) {
+  const action = getActiveAction(player);
+  if (!action) return 1;
+  const duration = Math.max(1, (player.actionUntil || 0) - (player.actionStartedAt || 0));
+  return Math.min(1, Math.max(0, (Date.now() - (player.actionStartedAt || 0)) / duration));
+}
 
 // ============================================================
 //  CHARACTER GRID (MENU)
@@ -337,7 +367,10 @@ function handleMessage(msg) {
     case 'player_state':
       if (remotePlayers[msg.playerId]) {
         Object.assign(remotePlayers[msg.playerId], { x: msg.x, y: msg.y, vx: msg.vx, vy: msg.vy, facing: msg.facing, state: msg.state, hp: msg.hp });
-        if (msg.action) spawnEffect(msg.x, msg.y, msg.action, remotePlayers[msg.playerId].charData?.color || '#fff');
+        if (msg.action) {
+          setPlayerAction(remotePlayers[msg.playerId], msg.action);
+          spawnEffect(msg.x, msg.y, msg.action, remotePlayers[msg.playerId].charData?.color || '#fff');
+        }
       }
       break;
     case 'player_hit':
@@ -597,6 +630,7 @@ function startGameClient(state) {
       x: p.x, y: p.y, hp: p.hp, maxHp: ch.maxHp,
       vx: 0, vy: 0, onGround: false, facing: 1,
       state: 'idle', score: 0, deaths: 0,
+      action: null, actionStartedAt: 0, actionUntil: 0,
       width: 44, height: 66,
     };
     if (p.id === myPlayerId) {
@@ -817,6 +851,7 @@ function trySkill(skillIndex) {
   if (skillCooldowns[skill.id] > now) return;
 
   skillCooldowns[skill.id] = now + skill.cooldown;
+  setPlayerAction(myPlayer, skill.id);
 
   // Self heal
   if (skill.type === 'heal') {
@@ -943,6 +978,7 @@ function handleRemoteSkill(msg) {
   const ch = p.charData;
   const skill = ch?.skills?.find(s => s.id === msg.skillId);
   if (!skill) return;
+  setPlayerAction(p, msg.skillId);
   spawnEffect(msg.x + 18, msg.y + 27, msg.skillId, skill.color, 50);
 
   if (skill.type === 'projectile') {
@@ -1621,10 +1657,164 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   }
 }
 
-function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean) {
+function drawDragonfistActionFX(ctx, action, drawW, drawH, p) {
+  if (!action) return;
+
+  const progress = getActionProgress(p);
+  const fade = Math.max(0, 1 - progress);
+  const punchY = -drawH * 0.45;
+  const fistX = drawW * 0.24 + progress * drawW * 0.38;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  if (action === 'punch') {
+    const impact = 1 - Math.abs(progress - 0.45) / 0.45;
+    ctx.strokeStyle = `rgba(255, 196, 72, ${0.78 * Math.max(0, impact)})`;
+    ctx.shadowColor = 'rgba(255, 96, 24, 0.85)';
+    ctx.shadowBlur = drawW * 0.1;
+    ctx.lineWidth = Math.max(5, drawW * 0.06);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(fistX, punchY, drawW * (0.2 + progress * 0.18), -1.08, 0.78);
+    ctx.stroke();
+
+    const glow = ctx.createRadialGradient(fistX, punchY, 0, fistX, punchY, drawW * 0.18);
+    glow.addColorStop(0, `rgba(255, 235, 126, ${0.62 * fade})`);
+    glow.addColorStop(0.45, `rgba(255, 92, 22, ${0.42 * fade})`);
+    glow.addColorStop(1, 'rgba(255, 92, 22, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(fistX, punchY, drawW * 0.26, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = `rgba(255, 242, 160, ${0.64 * fade})`;
+    ctx.lineWidth = Math.max(2, drawW * 0.024);
+    for (let i = 0; i < 3; i++) {
+      const sparkY = punchY + (i - 1) * drawH * 0.045;
+      ctx.beginPath();
+      ctx.moveTo(fistX - drawW * 0.08, sparkY);
+      ctx.lineTo(fistX + drawW * (0.22 + progress * 0.2), sparkY - drawH * 0.025);
+      ctx.stroke();
+    }
+  }
+
+  if (action === 'flame') {
+    const flameX = drawW * 0.18;
+    const flameY = -drawH * 0.36;
+    const flameLen = drawW * (0.42 + progress * 0.24);
+    const flameGrad = ctx.createLinearGradient(flameX, flameY, flameX + flameLen, flameY);
+    flameGrad.addColorStop(0, `rgba(255, 245, 150, ${0.82 * fade})`);
+    flameGrad.addColorStop(0.35, `rgba(255, 106, 28, ${0.68 * fade})`);
+    flameGrad.addColorStop(1, 'rgba(255, 42, 12, 0)');
+    ctx.fillStyle = flameGrad;
+    ctx.beginPath();
+    ctx.moveTo(flameX, flameY);
+    ctx.quadraticCurveTo(flameX + flameLen * 0.45, flameY - drawH * 0.1, flameX + flameLen, flameY - drawH * 0.02);
+    ctx.quadraticCurveTo(flameX + flameLen * 0.42, flameY + drawH * 0.12, flameX, flameY);
+    ctx.fill();
+  }
+
+  if (action === 'rush') {
+    ctx.strokeStyle = `rgba(255, 114, 35, ${0.52 * fade})`;
+    ctx.lineWidth = Math.max(2, drawW * 0.02);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const y = -drawH * (0.22 + i * 0.15);
+      ctx.beginPath();
+      ctx.moveTo(-drawW * (0.62 + i * 0.08), y);
+      ctx.lineTo(-drawW * 0.18, y - drawH * 0.03);
+      ctx.stroke();
+    }
+  }
+
+  if (action === 'roar') {
+    ctx.strokeStyle = `rgba(255, 184, 48, ${0.72 * fade})`;
+    ctx.lineWidth = Math.max(2, drawW * 0.022);
+    ctx.beginPath();
+    ctx.arc(0, -drawH * 0.52, drawW * (0.28 + progress * 0.42), 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = `rgba(255, 92, 22, ${0.16 * fade})`;
+    ctx.beginPath();
+    ctx.arc(0, -drawH * 0.52, drawW * (0.38 + progress * 0.52), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawSpriteActionOverlay(ctx, p, footX, footY, drawW, drawH, action) {
+  if (!action || action === 'roar') return;
+
+  const progress = getActionProgress(p);
+  const fade = Math.max(0, 1 - progress);
+  const dir = p.facing || 1;
+  const handX = footX + dir * drawW * (0.34 + progress * 0.16);
+  const handY = footY - drawH * 0.44;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(255, 100, 24, 0.9)';
+  ctx.shadowBlur = drawW * 0.14;
+
+  if (action === 'punch') {
+    const impact = Math.max(0, 1 - Math.abs(progress - 0.45) / 0.45);
+    ctx.strokeStyle = `rgba(255, 220, 106, ${0.9 * impact})`;
+    ctx.lineWidth = Math.max(5, drawW * 0.065);
+    ctx.beginPath();
+    ctx.arc(handX, handY, drawW * (0.22 + progress * 0.18), dir > 0 ? -1.2 : Math.PI + 1.2, dir > 0 ? 0.65 : Math.PI - 0.65, dir < 0);
+    ctx.stroke();
+
+    ctx.strokeStyle = `rgba(255, 248, 190, ${0.72 * fade})`;
+    ctx.lineWidth = Math.max(2, drawW * 0.026);
+    for (let i = 0; i < 3; i++) {
+      const sparkY = handY + (i - 1) * drawH * 0.048;
+      ctx.beginPath();
+      ctx.moveTo(handX - dir * drawW * 0.08, sparkY);
+      ctx.lineTo(handX + dir * drawW * (0.3 + progress * 0.22), sparkY - drawH * 0.02);
+      ctx.stroke();
+    }
+  }
+
+  if (action === 'flame') {
+    const flameLen = drawW * (0.48 + progress * 0.34);
+    const flameGrad = ctx.createLinearGradient(handX, handY, handX + dir * flameLen, handY);
+    flameGrad.addColorStop(0, `rgba(255, 245, 150, ${0.78 * fade})`);
+    flameGrad.addColorStop(0.42, `rgba(255, 106, 28, ${0.64 * fade})`);
+    flameGrad.addColorStop(1, 'rgba(255, 42, 12, 0)');
+    ctx.fillStyle = flameGrad;
+    ctx.beginPath();
+    ctx.moveTo(handX, handY);
+    ctx.quadraticCurveTo(handX + dir * flameLen * 0.46, handY - drawH * 0.11, handX + dir * flameLen, handY - drawH * 0.03);
+    ctx.quadraticCurveTo(handX + dir * flameLen * 0.44, handY + drawH * 0.12, handX, handY);
+    ctx.fill();
+  }
+
+  if (action === 'rush') {
+    ctx.strokeStyle = `rgba(255, 120, 34, ${0.6 * fade})`;
+    ctx.lineWidth = Math.max(3, drawW * 0.032);
+    for (let i = 0; i < 4; i++) {
+      const y = footY - drawH * (0.25 + i * 0.14);
+      ctx.beginPath();
+      ctx.moveTo(footX - dir * drawW * (0.72 + i * 0.08), y);
+      ctx.lineTo(footX - dir * drawW * 0.18, y - drawH * 0.025);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean, action) {
   const runPhase = Date.now() * 0.018;
-  const stride = p.state === 'run' ? Math.sin(runPhase) : 0;
-  const lift = p.state === 'run' ? Math.abs(Math.cos(runPhase)) : 0;
+  const idleBreath = p.state === 'idle' ? Math.sin(Date.now() * 0.006) * 0.012 : 0;
+  const actionProgress = getActionProgress(p);
+  const punchDrive = action === 'punch' ? Math.sin(actionProgress * Math.PI) : 0;
+  const rushDrive = action === 'rush' ? Math.sin(actionProgress * Math.PI) : 0;
+  const stride = p.state === 'run' ? Math.sin(runPhase) : rushDrive * 0.8;
+  const lift = p.state === 'run' ? Math.abs(Math.cos(runPhase)) : Math.abs(rushDrive);
   const upperSourceH = img.naturalHeight * 0.58;
   const legSourceY = img.naturalHeight * 0.50;
   const legSourceH = img.naturalHeight - legSourceY;
@@ -1643,9 +1833,10 @@ function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean
   const sourceScale = drawH / img.naturalHeight;
 
   ctx.save();
-  ctx.translate(footX, footY + bob);
-  ctx.rotate(lean);
+  ctx.translate(footX + (p.facing || 1) * punchDrive * 6, footY + bob - rushDrive * 2);
+  ctx.rotate(lean + (action === 'punch' ? (p.facing || 1) * punchDrive * 0.08 : 0));
   if (p.facing < 0) ctx.scale(-1, 1);
+  ctx.scale(1 + punchDrive * 0.01, 1 + idleBreath - rushDrive * 0.015);
 
   function drawLimb(part, side) {
     const limbW = part.w * sourceScale;
@@ -1668,6 +1859,7 @@ function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean
   drawLimb(leftLegSource, -1);
   drawLimb(rightLegSource, 1);
   ctx.drawImage(img, 0, 0, img.naturalWidth, upperSourceH, -drawW / 2, -drawH, drawW, upperSourceH * sourceScale);
+  drawDragonfistActionFX(ctx, action, drawW, drawH, p);
   ctx.restore();
 }
 
@@ -1685,8 +1877,11 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const drawH = h * (ch.sprite?.scale || 1.7);
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = Date.now() * 0.012;
-  const bob = p.state === 'idle' ? Math.sin(t) * 1.6 * sy : 0;
-  const lean = p.state === 'run' ? p.facing * 0.06 : 0;
+  const action = getActiveAction(p);
+  const actionProgress = getActionProgress(p);
+  const actionKick = action ? Math.sin(actionProgress * Math.PI) : 0;
+  const bob = p.state === 'idle' ? Math.sin(t) * 1.6 * sy : p.state === 'run' ? Math.abs(Math.sin(t * 1.8)) * -1.4 * sy : 0;
+  const lean = p.state === 'run' ? p.facing * 0.06 : action ? p.facing * 0.045 * actionKick : 0;
 
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.46)';
@@ -1705,16 +1900,18 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   }
 
   if (ch.id === 'dragonfist') {
-    drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean);
+    drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean, action);
     ctx.restore();
   } else {
     ctx.translate(footX, footY + bob);
     ctx.rotate(lean);
     if (p.facing < 0) ctx.scale(-1, 1);
     ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+    drawDragonfistActionFX(ctx, action, drawW, drawH, p);
     ctx.restore();
   }
 
+  drawSpriteActionOverlay(ctx, p, footX, footY, drawW, drawH, action);
   drawPlayerPlate(ctx, p, footX, footY - drawH - 6 * sy, Math.max(82, drawW * 1.25), sx, sy, isMe);
   return true;
 }
@@ -1891,10 +2088,15 @@ function gameLoop(ts = 0) {
 //  INPUT HANDLING
 // ============================================================
 document.addEventListener('keydown', (e) => {
-  keys[e.key] = true;
+  const chatInp = document.getElementById('chat-input');
+  const isTypingChat = gameRunning && document.activeElement === chatInp;
+
+  if (!isTypingChat) {
+    keys[e.key] = true;
+  }
 
   // Skills
-  if (gameRunning && document.activeElement !== document.getElementById('chat-input')) {
+  if (gameRunning && !isTypingChat) {
     if (e.key === 'z' || e.key === 'Z') trySkill(0);
     if (e.key === 'x' || e.key === 'X') trySkill(1);
     if (e.key === 'c' || e.key === 'C') trySkill(2);
@@ -1909,7 +2111,6 @@ document.addEventListener('keydown', (e) => {
 
   // Chat
   if (e.key === 'Enter') {
-    const chatInp = document.getElementById('chat-input');
     if (document.activeElement === chatInp) {
       sendChat();
       chatInp.blur();
@@ -1920,6 +2121,12 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+document.getElementById('game-canvas').addEventListener('pointerdown', () => {
+  if (!gameRunning) return;
+  const chatInp = document.getElementById('chat-input');
+  if (document.activeElement === chatInp) chatInp.blur();
+});
 
 // Mobile touch controls (basic)
 let touchStartX = null, touchStartY = null;
