@@ -30,6 +30,14 @@
   <div class="panel">
     <div class="panel-title">เลือกสนามรบ</div>
     <button class="btn" onclick="createRoom()">🏛 สร้างห้อง (Host)</button>
+    <div class="divider">ONLINE BATTLES</div>
+    <div class="room-browser-head">
+      <span>Battle rooms</span>
+      <button type="button" onclick="refreshRoomList()">Refresh</button>
+    </div>
+    <div id="online-room-list" class="online-room-list">
+      <div class="empty-room-list">No open rooms</div>
+    </div>
     <div class="divider">หรือ</div>
     <label>รหัสห้อง</label>
     <input type="text" id="input-room-code" placeholder="ใส่รหัส 6 ตัว..." maxlength="6" style="text-transform:uppercase;text-align:center;font-family:'Cinzel Decorative',cursive;font-size:20px;letter-spacing:0.3em">

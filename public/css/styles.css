@@ -222,6 +222,92 @@
   .player-row .pready.no { color: var(--muted); }
   .player-row .phost { font-size: 9px; color: var(--gold); letter-spacing: 0.15em; font-family: 'Cinzel', serif; }
 
+  .room-browser-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 4px 0 8px;
+    color: var(--muted);
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .room-browser-head button {
+    background: rgba(212,175,55,0.08);
+    border: 1px solid rgba(212,175,55,0.35);
+    border-radius: 4px;
+    color: var(--gold);
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    padding: 5px 8px;
+    text-transform: uppercase;
+  }
+  .room-browser-head button:hover { border-color: var(--gold-light); color: var(--gold-light); }
+  .online-room-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .empty-room-list {
+    border: 1px dashed rgba(212,175,55,0.25);
+    border-radius: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .online-room-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,0,0,0.34);
+    border: 1px solid rgba(212,175,55,0.28);
+    border-radius: 5px;
+    padding: 10px;
+  }
+  .online-room-main { flex: 1; min-width: 0; }
+  .online-room-code {
+    color: var(--gold-light);
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 15px;
+    letter-spacing: 0.16em;
+  }
+  .online-room-meta {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .online-room-count {
+    color: #82E0AA;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    min-width: 36px;
+    text-align: right;
+  }
+  .online-room-join {
+    background: transparent;
+    border: 1px solid var(--gold);
+    border-radius: 4px;
+    color: var(--gold);
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    padding: 7px 9px;
+    text-transform: uppercase;
+  }
+  .online-room-join:hover { background: rgba(212,175,55,0.12); color: var(--gold-light); }
+
   .room-code {
     text-align: center;
     margin-bottom: 20px;

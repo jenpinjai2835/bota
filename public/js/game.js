@@ -266,7 +266,10 @@ function goToLobbyMenu() {
   if (!name) { document.getElementById('menu-error').textContent = 'กรุณาใส่ชื่อก่อนนะ!'; return; }
   myName = name;
   document.getElementById('menu-error').textContent = '';
-  connectWebSocket(() => showScreen('screen-lobby-select'));
+  connectWebSocket(() => {
+    showScreen('screen-lobby-select');
+    refreshRoomList();
+  });
 }
 
 // ============================================================
@@ -351,6 +354,9 @@ function handleMessage(msg) {
     case 'chat':
       addChat(msg.from, msg.msg);
       break;
+    case 'room_list':
+      renderRoomList(msg.rooms || []);
+      break;
     case 'error':
       showError(msg.msg);
       break;
@@ -369,6 +375,55 @@ function showError(msg) {
 // ============================================================
 function createRoom() {
   send({ type: 'create_room', name: myName, character: myCharId, stage: 1 });
+}
+
+function refreshRoomList() {
+  const list = document.getElementById('online-room-list');
+  if (list) list.innerHTML = '<div class="empty-room-list">กำลังค้นหาห้อง...</div>';
+  send({ type: 'get_rooms' });
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
+}
+
+function renderRoomList(rooms) {
+  const list = document.getElementById('online-room-list');
+  if (!list) return;
+
+  const openRooms = rooms.filter(room => room.players < room.maxPlayers);
+  if (openRooms.length === 0) {
+    list.innerHTML = '<div class="empty-room-list">ยังไม่มีห้องที่ join ได้</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  openRooms.forEach(room => {
+    const stageName = STAGES.find(stage => stage.id === room.stage)?.name || `Stage ${room.stage}`;
+    const row = document.createElement('div');
+    row.className = 'online-room-row';
+    row.innerHTML = `
+      <div class="online-room-main">
+        <div class="online-room-code">${escapeHtml(room.id)}</div>
+        <div class="online-room-meta">${escapeHtml(stageName)} · Host: ${escapeHtml(room.hostName)}</div>
+      </div>
+      <div class="online-room-count">${room.players}/${room.maxPlayers}</div>
+      <button class="online-room-join" type="button">Join</button>
+    `;
+    row.querySelector('.online-room-join').onclick = () => joinOnlineRoom(room.id);
+    list.appendChild(row);
+  });
+}
+
+function joinOnlineRoom(roomId) {
+  document.getElementById('lobby-error').textContent = '';
+  send({ type: 'join_room', roomId, name: myName, character: myCharId });
 }
 
 function joinRoom() {

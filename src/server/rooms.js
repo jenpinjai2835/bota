@@ -78,6 +78,21 @@ class RoomStore {
     };
   }
 
+  listOpenRooms() {
+    return Array.from(this.rooms.entries())
+      .filter(([, room]) => room.status === 'lobby' && room.players.length < MAX_PLAYERS)
+      .map(([id, room]) => {
+        const host = room.playerData[room.host];
+        return {
+          id,
+          stage: room.stage,
+          hostName: host?.name || 'Unknown',
+          players: room.players.length,
+          maxPlayers: MAX_PLAYERS,
+        };
+      });
+  }
+
   addPlayer(roomId, playerId, payload) {
     const room = this.get(roomId);
     if (!room) return { ok: false, error: 'Room not found' };

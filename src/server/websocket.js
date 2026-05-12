@@ -30,6 +30,17 @@ function setupWebSocket(server, rooms) {
     sendTo(attackerId, { type: 'score_update', scores });
   }
 
+  function sendRoomList(playerId) {
+    sendTo(playerId, { type: 'room_list', rooms: rooms.listOpenRooms() });
+  }
+
+  function broadcastRoomList() {
+    const message = { type: 'room_list', rooms: rooms.listOpenRooms() };
+    clients.forEach((client, clientId) => {
+      if (client.readyState === WebSocket.OPEN) sendTo(clientId, message);
+    });
+  }
+
   function scheduleRespawn(roomId, targetId) {
     setTimeout(() => {
       const room = rooms.get(roomId);
@@ -65,6 +76,12 @@ function setupWebSocket(server, rooms) {
         ws.roomId = roomId;
         ws.playerId = playerId;
         sendTo(playerId, { type: 'room_created', roomId, state: rooms.getState(roomId) });
+        broadcastRoomList();
+        break;
+      }
+
+      case 'get_rooms': {
+        sendRoomList(playerId);
         break;
       }
 
@@ -80,6 +97,7 @@ function setupWebSocket(server, rooms) {
         ws.playerId = playerId;
         sendTo(playerId, { type: 'room_joined', roomId, state: rooms.getState(roomId) });
         broadcast(roomId, { type: 'player_joined', state: rooms.getState(roomId) }, playerId);
+        broadcastRoomList();
         break;
       }
 
@@ -103,6 +121,7 @@ function setupWebSocket(server, rooms) {
         rooms.startGame(roomId);
         const state = rooms.getState(roomId);
         room.players.forEach(pid => sendTo(pid, { type: 'game_start', state }));
+        broadcastRoomList();
         break;
       }
 
@@ -223,6 +242,7 @@ function setupWebSocket(server, rooms) {
       }
 
       clients.delete(playerId);
+      broadcastRoomList();
     });
   });
 
