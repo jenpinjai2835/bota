@@ -484,7 +484,7 @@ function startGameClient(state) {
       x: p.x, y: p.y, hp: p.hp, maxHp: ch.maxHp,
       vx: 0, vy: 0, onGround: false, facing: 1,
       state: 'idle', score: 0, deaths: 0,
-      width: 36, height: 54,
+      width: 44, height: 66,
     };
     if (p.id === myPlayerId) {
       myPlayer = pd;
@@ -1301,6 +1301,177 @@ function render(canvas) {
   ctx.fillRect(0, 0, W, H);
 }
 
+function drawBlade(ctx, x1, y1, x2, y2, color = '#E9EDF7') {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.58)';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCharacterDetails(ctx, ch, w, h, color, run) {
+  const id = ch?.id || '';
+  const accent = ch?.color || color;
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (id === 'dragonfist') {
+    ctx.fillStyle = '#FFB238';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.18, -h * 0.58);
+    ctx.lineTo(-w * 0.34, -h * 0.72);
+    ctx.lineTo(-w * 0.08, -h * 0.62);
+    ctx.moveTo(w * 0.18, -h * 0.58);
+    ctx.lineTo(w * 0.34, -h * 0.72);
+    ctx.lineTo(w * 0.08, -h * 0.62);
+    ctx.fill();
+    ['left', 'right'].forEach((side, i) => {
+      const s = i === 0 ? -1 : 1;
+      const gx = s * w * 0.44;
+      const gy = h * 0.22 + run * s * 2;
+      const glow = ctx.createRadialGradient(gx, gy, 1, gx, gy, w * 0.24);
+      glow.addColorStop(0, 'rgba(255,178,56,0.8)');
+      glow.addColorStop(1, 'rgba(255,69,0,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(gx, gy, w * 0.24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FF6B22';
+      ctx.beginPath();
+      ctx.arc(gx, gy, w * 0.13, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  } else if (id === 'shadowblade') {
+    ctx.fillStyle = 'rgba(18,12,28,0.92)';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.34, -h * 0.34);
+    ctx.quadraticCurveTo(0, -h * 0.72, w * 0.34, -h * 0.34);
+    ctx.lineTo(w * 0.22, -h * 0.14);
+    ctx.quadraticCurveTo(0, -h * 0.24, -w * 0.22, -h * 0.14);
+    ctx.closePath();
+    ctx.fill();
+    drawBlade(ctx, -w * 0.46, h * 0.24, -w * 0.1, -h * 0.04, '#D9D7FF');
+    drawBlade(ctx, w * 0.46, h * 0.24, w * 0.1, -h * 0.04, '#D9D7FF');
+  } else if (id === 'stoneguard') {
+    ctx.fillStyle = '#A7B0B3';
+    drawRoundRect(ctx, -w * 0.47, -h * 0.08, w * 0.28, h * 0.46, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#4D5659';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#D1D6D8';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.33, h * 0.03);
+    ctx.lineTo(-w * 0.24, h * 0.14);
+    ctx.lineTo(-w * 0.33, h * 0.25);
+    ctx.lineTo(-w * 0.42, h * 0.14);
+    ctx.closePath();
+    ctx.fill();
+  } else if (id === 'stormarrow') {
+    ctx.strokeStyle = '#BEEFBF';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(w * 0.3, -h * 0.02, h * 0.25, -Math.PI * 0.42, Math.PI * 0.42);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.42, -h * 0.18);
+    ctx.lineTo(w * 0.42, h * 0.16);
+    ctx.stroke();
+    drawBlade(ctx, -w * 0.28, h * 0.08, w * 0.32, -h * 0.02, '#7DFF9D');
+  } else if (id === 'pyromancer' || id === 'frostmage' || id === 'celestial') {
+    const mageColor = id === 'pyromancer' ? '#FF6B3D' : id === 'frostmage' ? '#AEE9FF' : '#FFF2A8';
+    ctx.strokeStyle = '#2C1B20';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.42, h * 0.42);
+    ctx.lineTo(w * 0.42, -h * 0.34);
+    ctx.stroke();
+    ctx.strokeStyle = mageColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.42, h * 0.42);
+    ctx.lineTo(w * 0.42, -h * 0.34);
+    ctx.stroke();
+    const orb = ctx.createRadialGradient(w * 0.42, -h * 0.42, 1, w * 0.42, -h * 0.42, w * 0.22);
+    orb.addColorStop(0, '#FFFFFF');
+    orb.addColorStop(0.4, mageColor);
+    orb.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = orb;
+    ctx.beginPath();
+    ctx.arc(w * 0.42, -h * 0.42, w * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+    if (id === 'celestial') {
+      ctx.strokeStyle = '#FFF7B8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, -h * 0.62, w * 0.34, h * 0.08, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else if (id === 'thunderking') {
+    ctx.fillStyle = '#F7D84A';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.26, -h * 0.58);
+    ctx.lineTo(-w * 0.14, -h * 0.76);
+    ctx.lineTo(0, -h * 0.58);
+    ctx.lineTo(w * 0.14, -h * 0.76);
+    ctx.lineTo(w * 0.26, -h * 0.58);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#FFE777';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.44, h * 0.12);
+    ctx.lineTo(-w * 0.18, -h * 0.08);
+    ctx.lineTo(-w * 0.02, h * 0.08);
+    ctx.lineTo(w * 0.22, -h * 0.16);
+    ctx.stroke();
+  } else if (id === 'venomfang') {
+    ctx.strokeStyle = '#7DFFD3';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.36, h * 0.16);
+    ctx.bezierCurveTo(-w * 0.1, -h * 0.12, w * 0.18, h * 0.24, w * 0.42, -h * 0.06);
+    ctx.stroke();
+    ctx.fillStyle = '#DFFFF4';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.09, -h * 0.34);
+    ctx.lineTo(-w * 0.02, -h * 0.2);
+    ctx.lineTo(w * 0.05, -h * 0.34);
+    ctx.fill();
+  } else if (id === 'ironclad') {
+    ctx.fillStyle = '#D4D9DD';
+    drawRoundRect(ctx, -w * 0.43, -h * 0.18, w * 0.2, h * 0.44, 5);
+    ctx.fill();
+    drawRoundRect(ctx, w * 0.23, -h * 0.18, w * 0.2, h * 0.44, 5);
+    ctx.fill();
+    ctx.fillStyle = '#3A3F44';
+    ctx.beginPath();
+    ctx.arc(w * 0.33, -h * 0.02, w * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FF674A';
+    ctx.fillRect(w * 0.26, -h * 0.05, w * 0.14, h * 0.05);
+  }
+
+  ctx.fillStyle = withAlpha(accent, 0.35);
+  drawRoundRect(ctx, -w * 0.2, -h * 0.03, w * 0.4, h * 0.16, 4);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawPlayer(ctx, p, sx, sy, isMe) {
   const x = p.x * sx, y = p.y * sy;
   const w = p.width * sx, h = p.height * sy;
@@ -1402,10 +1573,7 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   ctx.fillStyle = '#F8F2DC';
   ctx.fillRect(w * 0.04, -h * 0.39, w * 0.08, h * 0.04);
 
-  ctx.font = `${Math.max(14, w * 0.5)}px serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(ch?.icon || '?', 0, h * 0.01);
+  drawCharacterDetails(ctx, ch, w, h, color, run);
   ctx.restore();
 
   const nameY = y - 11 * sy;
