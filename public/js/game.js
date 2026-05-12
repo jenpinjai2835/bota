@@ -8,7 +8,7 @@ const CHARACTERS = [
     class: 'Brawler',
     icon: '🐉',
     color: '#FF4500',
-    sprite: { src: '/assets/sprites/dragonfist.png', scale: 1.85 },
+    sprite: { src: '/assets/sprites/dragonfist.png', scale: 2.05 },
     speed: 5, jumpPower: 14, maxHp: 120,
     skills: [
       { id: 'punch', name: 'Dragon Punch', icon: '👊', key: 'Z', damage: 25, range: 60, cooldown: 300, type: 'melee', color: '#FF4500' },
@@ -1681,7 +1681,7 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const w = p.width * sx;
   const h = p.height * sy;
   const footX = x + w / 2;
-  const footY = y + h + 2 * sy;
+  const footY = y + h;
   const drawH = h * (ch.sprite?.scale || 1.7);
   const drawW = drawH * (img.naturalWidth / img.naturalHeight);
   const t = Date.now() * 0.012;
