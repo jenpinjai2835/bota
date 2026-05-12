@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: brawl-of-the-ancients
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 10000
