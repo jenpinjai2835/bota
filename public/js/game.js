@@ -345,6 +345,15 @@ const ACTION_DURATIONS = {
   flame: 760,
   rush: 650,
   roar: 900,
+  smash: 720,
+  charge: 760,
+  fortress: 1050,
+  cannon: 760,
+  slam: 880,
+  missile: 760,
+  overdrive: 1100,
+  heal: 940,
+  judgment: 980,
   default: 360,
 };
 
@@ -373,11 +382,23 @@ let lastInputSent = 0;
 
 preloadSpriteAssets();
 
-function getSkillActionDuration(action) {
-  return ACTION_DURATIONS[action] || ACTION_DURATIONS.default;
+function getSkillForAction(ch, action) {
+  return ch?.skills?.find(skill => skill.id === action) || null;
 }
 
-function setPlayerAction(player, action, duration = getSkillActionDuration(action)) {
+function getSkillActionDuration(action, player = null) {
+  if (ACTION_DURATIONS[action]) return ACTION_DURATIONS[action];
+  const skill = getSkillForAction(player?.charData, action);
+  if (skill?.type === 'melee') return 540;
+  if (skill?.type === 'projectile') return 680;
+  if (skill?.type === 'dash') return 720;
+  if (skill?.type === 'aoe') return 860;
+  if (skill?.type === 'heal') return 920;
+  if (skill?.type === 'buff') return 1000;
+  return ACTION_DURATIONS.default;
+}
+
+function setPlayerAction(player, action, duration = getSkillActionDuration(action, player)) {
   if (!player || !action) return;
   const actionStartedAt = Date.now();
   const actionUntil = actionStartedAt + duration;
@@ -2086,6 +2107,7 @@ function drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, isMoving) {
 }
 
 function getSpriteSheetId(ch, p, action) {
+  const skill = getSkillForAction(ch, action);
   if (ch?.id === 'dragonfist') {
     if (p.state === 'idle') return 'idle';
     if (p.state === 'jump' || p.state === 'fall') return 'jump';
@@ -2094,6 +2116,7 @@ function getSpriteSheetId(ch, p, action) {
     return null;
   }
 
+  if (skill?.type === 'dash') return 'run';
   if (action) return 'attack';
   if (p.state === 'jump' || p.state === 'fall') return 'jump';
   if (p.state === 'run') return 'run';
