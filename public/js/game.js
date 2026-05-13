@@ -13,7 +13,7 @@ const CHARACTERS = [
       scale: 2.08,
       baseFacing: -1,
       sheets: {
-        idle: { src: '/assets/sprites/dragonfist-idle.png', cols: 8, rows: 1, frames: 1, fps: 0, scale: 2.48, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.12, frameAspect: true },
+        idle: { src: '/assets/sprites/dragonfist-idle.png', cols: 8, rows: 1, frames: 8, fps: 5, scale: 2.48, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.12, frameAspect: true },
         run: { src: '/assets/sprites/dragonfist-run.png', cols: 5, rows: 5, frames: 25, fps: 18, scale: 3.48, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.48 },
         attack: { src: '/assets/sprites/dragonfist-attack.png', cols: 5, rows: 5, frames: 25, fps: 24, scale: 3.48, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.48 },
       },
