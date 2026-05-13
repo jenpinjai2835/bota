@@ -158,6 +158,17 @@ const CHARACTERS = [
     class: 'Warrior',
     icon: '⚡',
     color: '#F1C40F',
+    sprite: {
+      src: '/assets/sprites/thunderking-idle.png',
+      scale: 2.5,
+      baseFacing: -1,
+      sheets: {
+        idle: { src: '/assets/sprites/thunderking-idle.png', cols: 8, rows: 1, frames: 8, fps: 5, scale: 2.5, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.12, frameAspect: true },
+        jump: { src: '/assets/sprites/thunderking-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.65, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.12, frameAspect: true },
+        run: { src: '/assets/sprites/thunderking-run.png', cols: 5, rows: 5, frames: 25, fps: 18, scale: 3.45, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.54 },
+        attack: { src: '/assets/sprites/thunderking-attack.png', cols: 5, rows: 5, frames: 25, fps: 24, scale: 3.45, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.54 },
+      },
+    },
     speed: 5, jumpPower: 14, maxHp: 110,
     skills: [
       { id: 'bolt', name: 'Thunder Bolt', icon: '⚡', key: 'Z', damage: 27, range: 240, cooldown: 500, type: 'projectile', color: '#F1C40F' },
