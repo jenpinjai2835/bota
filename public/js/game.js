@@ -233,6 +233,17 @@ const CHARACTERS = [
     class: 'Heavy',
     icon: '🤖',
     color: '#BDC3C7',
+    sprite: {
+      src: '/assets/sprites/ironclad-idle.png',
+      scale: 2.62,
+      baseFacing: -1,
+      sheets: {
+        idle: { src: '/assets/sprites/ironclad-idle.png', cols: 8, rows: 1, frames: 8, fps: 4, scale: 2.62, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.18, frameAspect: true },
+        jump: { src: '/assets/sprites/ironclad-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.82, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.18, frameAspect: true },
+        run: { src: '/assets/sprites/ironclad-run.png', cols: 5, rows: 5, frames: 25, fps: 13, scale: 3.65, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.58 },
+        attack: { src: '/assets/sprites/ironclad-attack.png', cols: 5, rows: 5, frames: 25, fps: 20, scale: 3.65, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.58 },
+      },
+    },
     speed: 3, jumpPower: 10, maxHp: 180,
     skills: [
       { id: 'cannon', name: 'Iron Cannon', icon: '💣', key: 'Z', damage: 40, range: 320, cooldown: 800, type: 'projectile', color: '#7F8C8D' },
