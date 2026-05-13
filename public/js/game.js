@@ -208,6 +208,17 @@ const CHARACTERS = [
     class: 'Healer',
     icon: '✨',
     color: '#E8DAEF',
+    sprite: {
+      src: '/assets/sprites/celestial-idle.png',
+      scale: 2.42,
+      baseFacing: -1,
+      sheets: {
+        idle: { src: '/assets/sprites/celestial-idle.png', cols: 8, rows: 1, frames: 8, fps: 5, scale: 2.42, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.1, frameAspect: true },
+        jump: { src: '/assets/sprites/celestial-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.55, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.1, frameAspect: true },
+        run: { src: '/assets/sprites/celestial-run.png', cols: 5, rows: 5, frames: 25, fps: 17, scale: 3.35, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.52 },
+        attack: { src: '/assets/sprites/celestial-attack.png', cols: 5, rows: 5, frames: 25, fps: 24, scale: 3.35, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.52 },
+      },
+    },
     speed: 5, jumpPower: 13, maxHp: 95,
     skills: [
       { id: 'light', name: 'Holy Light', icon: '☀️', key: 'Z', damage: 20, range: 220, cooldown: 400, type: 'projectile', color: '#F9E79F' },
