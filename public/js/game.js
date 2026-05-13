@@ -8,7 +8,15 @@ const CHARACTERS = [
     class: 'Brawler',
     icon: '🐉',
     color: '#FF4500',
-    sprite: { src: '/assets/sprites/dragonfist-padded.png', scale: 2.08, baseFacing: -1 },
+    sprite: {
+      src: '/assets/sprites/dragonfist-padded.png',
+      scale: 2.08,
+      baseFacing: -1,
+      sheets: {
+        run: { src: '/assets/sprites/dragonfist-run.png', cols: 5, rows: 5, frames: 25, fps: 18, scale: 3.48, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.48 },
+        attack: { src: '/assets/sprites/dragonfist-attack.png', cols: 5, rows: 5, frames: 25, fps: 24, scale: 3.48, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.48 },
+      },
+    },
     speed: 5, jumpPower: 14, maxHp: 120, maxMana: 110, manaRegen: 0.32,
     skills: [
       { id: 'punch', name: 'Dragon Punch', icon: '👊', key: 'Z', damage: 25, range: 60, cooldown: 300, manaCost: 8, type: 'melee', color: '#FF4500' },
@@ -232,20 +240,29 @@ let respawnTimer = null;
 const spriteImages = {};
 let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
 const ACTION_DURATIONS = {
-  punch: 380,
-  flame: 460,
-  rush: 420,
-  roar: 680,
+  punch: 720,
+  flame: 760,
+  rush: 650,
+  roar: 900,
   default: 360,
 };
 
 function preloadSpriteAssets() {
   if (typeof Image === 'undefined') return;
   CHARACTERS.forEach(ch => {
-    if (!ch.sprite?.src || spriteImages[ch.id]) return;
-    const img = new Image();
-    img.src = ch.sprite.src;
-    spriteImages[ch.id] = img;
+    if (!ch.sprite?.src) return;
+    if (!spriteImages[ch.id]) {
+      const img = new Image();
+      img.src = ch.sprite.src;
+      spriteImages[ch.id] = img;
+    }
+    Object.entries(ch.sprite.sheets || {}).forEach(([sheetId, sheet]) => {
+      const key = `${ch.id}:${sheetId}`;
+      if (spriteImages[key]) return;
+      const img = new Image();
+      img.src = sheet.src;
+      spriteImages[key] = img;
+    });
   });
 }
 
@@ -1958,7 +1975,59 @@ function drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, isMoving) {
   ctx.restore();
 }
 
-function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip) {
+function getDragonfistSpriteSource(ch, p, action) {
+  const sheets = ch.sprite?.sheets || {};
+  let sheetId = null;
+  if (['punch', 'flame', 'roar'].includes(action)) sheetId = 'attack';
+  if (p.state === 'run' || action === 'rush') sheetId = 'run';
+
+  if (sheetId && sheets[sheetId]) {
+    const img = spriteImages[`${ch.id}:${sheetId}`];
+    if (img?.complete && img.naturalWidth) {
+      return {
+        img,
+        sheetId,
+        sheet: sheets[sheetId],
+        baseFacing: sheets[sheetId].baseFacing || ch.sprite?.baseFacing || 1,
+        scale: sheets[sheetId].scale || ch.sprite?.scale || 1.7,
+        footY: sheets[sheetId].footY || 1,
+        visualHeight: sheets[sheetId].visualHeight || 1,
+        plateWidth: sheets[sheetId].plateWidth || 0.72,
+      };
+    }
+  }
+
+  const img = spriteImages[ch.id];
+  return {
+    img,
+    sheetId: null,
+    sheet: null,
+    baseFacing: ch.sprite?.baseFacing || 1,
+    scale: ch.sprite?.scale || 1.7,
+    footY: 1,
+    visualHeight: 1,
+    plateWidth: 1.25,
+  };
+}
+
+function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
+  const { img, sheet, sheetId } = source;
+  const frameW = img.naturalWidth / sheet.cols;
+  const frameH = img.naturalHeight / sheet.rows;
+  let frame = 0;
+
+  if (sheetId === 'attack') {
+    frame = Math.min(sheet.frames - 1, Math.floor(getActionProgress(p) * sheet.frames));
+  } else {
+    frame = Math.floor(Date.now() * 0.001 * (sheet.fps || 16)) % sheet.frames;
+  }
+
+  const sx = (frame % sheet.cols) * frameW;
+  const sy = Math.floor(frame / sheet.cols) * frameH;
+  ctx.drawImage(img, sx, sy, frameW, frameH, -drawW / 2, -drawH * (source.footY || 1), drawW, drawH);
+}
+
+function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip) {
   const runPhase = Date.now() * 0.018;
   const idleBreath = p.state === 'idle' ? Math.sin(Date.now() * 0.006) * 0.012 : 0;
   const actionProgress = getActionProgress(p);
@@ -1972,15 +2041,23 @@ function drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean
   ctx.rotate(lean + (action === 'punch' ? (p.facing || 1) * punchDrive * 0.08 : 0));
   if (shouldFlip) ctx.scale(-1, 1);
   ctx.scale(1 + punchDrive * 0.01, 1 + idleBreath - rushDrive * 0.015);
-  ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
-  drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, p.state === 'run' || action === 'rush');
+  if (source.sheet) {
+    drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action);
+  } else {
+    ctx.drawImage(source.img, -drawW / 2, -drawH, drawW, drawH);
+    drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, p.state === 'run' || action === 'rush');
+  }
   if (action === 'roar') drawDragonfistActionFX(ctx, action, drawW, drawH, p);
   ctx.restore();
 }
 
 function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const ch = p.charData;
-  const img = spriteImages[ch?.id];
+  const action = getActiveAction(p);
+  const source = ch?.id === 'dragonfist'
+    ? getDragonfistSpriteSource(ch, p, action)
+    : { img: spriteImages[ch?.id], baseFacing: ch?.sprite?.baseFacing || 1, scale: ch?.sprite?.scale || 1.7, visualHeight: 1 };
+  const img = source.img;
   if (!img || !img.complete || !img.naturalWidth) return false;
 
   const x = p.x * sx;
@@ -1989,15 +2066,15 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const h = p.height * sy;
   const footX = x + w / 2;
   const footY = y + h;
-  const drawH = h * (ch.sprite?.scale || 1.7);
-  const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+  const drawH = h * source.scale;
+  const drawW = source.sheet ? drawH : drawH * (img.naturalWidth / img.naturalHeight);
+  const visualH = drawH * (source.visualHeight || 1);
   const t = Date.now() * 0.012;
-  const action = getActiveAction(p);
   const actionProgress = getActionProgress(p);
   const actionKick = action ? Math.sin(actionProgress * Math.PI) : 0;
   const bob = p.state === 'idle' ? Math.sin(t) * 1.6 * sy : p.state === 'run' ? Math.abs(Math.sin(t * 1.8)) * -1.4 * sy : 0;
   const lean = p.state === 'run' ? p.facing * 0.06 : action ? p.facing * 0.045 * actionKick : 0;
-  const baseFacing = ch.sprite?.baseFacing || 1;
+  const baseFacing = source.baseFacing || 1;
   const shouldFlip = (p.facing || 1) !== baseFacing;
 
   ctx.save();
@@ -2017,7 +2094,7 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   }
 
   if (ch.id === 'dragonfist') {
-    drawDragonfistSprite(ctx, img, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip);
+    drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip);
     ctx.restore();
   } else {
     ctx.translate(footX, footY + bob);
@@ -2029,7 +2106,7 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   }
 
   drawSpriteActionOverlay(ctx, p, footX, footY, drawW, drawH, action);
-  drawPlayerPlate(ctx, p, footX, footY - drawH - 6 * sy, Math.max(82, drawW * 1.25), sx, sy, isMe);
+  drawPlayerPlate(ctx, p, footX, footY - visualH - 6 * sy, Math.max(82, drawW * (source.plateWidth || 1.25)), sx, sy, isMe);
   return true;
 }
 
