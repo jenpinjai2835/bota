@@ -2082,7 +2082,11 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const t = Date.now() * 0.012;
   const actionProgress = getActionProgress(p);
   const actionKick = action ? Math.sin(actionProgress * Math.PI) : 0;
-  const bob = p.state === 'idle' ? Math.sin(t) * 1.6 * sy : p.state === 'run' ? Math.abs(Math.sin(t * 1.8)) * -1.4 * sy : 0;
+  const bob = p.state === 'idle'
+    ? (source.sheetId === 'idle' ? 0 : Math.sin(t) * 1.6 * sy)
+    : p.state === 'run'
+      ? Math.abs(Math.sin(t * 1.8)) * -1.4 * sy
+      : 0;
   const lean = p.state === 'run' ? p.facing * 0.06 : action ? p.facing * 0.045 * actionKick : 0;
   const baseFacing = source.baseFacing || 1;
   const shouldFlip = (p.facing || 1) !== baseFacing;
