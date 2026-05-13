@@ -14,6 +14,7 @@ const CHARACTERS = [
       baseFacing: -1,
       sheets: {
         idle: { src: '/assets/sprites/dragonfist-idle.png', cols: 8, rows: 1, frames: 8, fps: 5, scale: 2.48, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.12, frameAspect: true },
+        jump: { src: '/assets/sprites/dragonfist-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.65, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.12, frameAspect: true },
         run: { src: '/assets/sprites/dragonfist-run.png', cols: 5, rows: 5, frames: 25, fps: 18, scale: 3.48, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.48 },
         attack: { src: '/assets/sprites/dragonfist-attack.png', cols: 5, rows: 5, frames: 25, fps: 24, scale: 3.48, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.48 },
       },
@@ -919,10 +920,7 @@ function handleInput() {
 
   if (keys['ArrowLeft'] || keys['a'] || keys['A']) { myPlayer.vx -= spd * 0.4; myPlayer.facing = -1; }
   if (keys['ArrowRight'] || keys['d'] || keys['D']) { myPlayer.vx += spd * 0.4; myPlayer.facing = 1; }
-  if ((keys['ArrowUp'] || keys['w'] || keys['W'] || keys[' ']) && myPlayer.onGround) {
-    myPlayer.vy = -ch.jumpPower;
-    myPlayer.onGround = false;
-  }
+  if (keys['ArrowUp'] || keys['w'] || keys['W'] || keys[' ']) tryJump();
 
   // Clamp speed
   myPlayer.vx = Math.max(-spd, Math.min(spd, myPlayer.vx));
@@ -931,6 +929,18 @@ function handleInput() {
   if (!myPlayer.onGround) myPlayer.state = myPlayer.vy < 0 ? 'jump' : 'fall';
   else if (Math.abs(myPlayer.vx) > 0.5) myPlayer.state = 'run';
   else myPlayer.state = 'idle';
+}
+
+function isJumpKey(key) {
+  return key === 'ArrowUp' || key === 'w' || key === 'W' || key === ' ';
+}
+
+function tryJump() {
+  if (!myPlayer || !isAlive || !myPlayer.onGround) return false;
+  myPlayer.vy = -myPlayer.charData.jumpPower;
+  myPlayer.onGround = false;
+  myPlayer.state = 'jump';
+  return true;
 }
 
 function trySkill(skillIndex) {
@@ -1980,6 +1990,7 @@ function getDragonfistSpriteSource(ch, p, action) {
   const sheets = ch.sprite?.sheets || {};
   let sheetId = null;
   if (p.state === 'idle') sheetId = 'idle';
+  if (p.state === 'jump' || p.state === 'fall') sheetId = 'jump';
   if (['punch', 'flame', 'roar'].includes(action)) sheetId = 'attack';
   if (p.state === 'run' || action === 'rush') sheetId = 'run';
 
@@ -2013,6 +2024,16 @@ function getDragonfistSpriteSource(ch, p, action) {
   };
 }
 
+function getDragonfistJumpFrame(p, frameCount) {
+  const vy = typeof p.vy === 'number' ? p.vy : 0;
+  if (vy < -10) return Math.min(2, frameCount - 1);
+  if (vy < -5) return Math.min(3, frameCount - 1);
+  if (vy < 1) return Math.min(4, frameCount - 1);
+  if (vy < 6) return Math.min(5, frameCount - 1);
+  if (vy < 10) return Math.min(6, frameCount - 1);
+  return Math.min(7, frameCount - 1);
+}
+
 function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
   const { img, sheet, sheetId } = source;
   const frameW = img.naturalWidth / sheet.cols;
@@ -2021,6 +2042,8 @@ function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
 
   if (sheetId === 'attack') {
     frame = Math.min(sheet.frames - 1, Math.floor(getActionProgress(p) * sheet.frames));
+  } else if (sheetId === 'jump') {
+    frame = getDragonfistJumpFrame(p, sheet.frames);
   } else {
     frame = Math.floor(Date.now() * 0.001 * (sheet.fps || 16)) % sheet.frames;
   }
@@ -2305,6 +2328,10 @@ document.addEventListener('keydown', (e) => {
 
   // Skills
   if (gameRunning && !isTypingChat) {
+    if (isJumpKey(e.key)) {
+      e.preventDefault();
+      tryJump();
+    }
     if (e.key === 'z' || e.key === 'Z') trySkill(0);
     if (e.key === 'x' || e.key === 'X') trySkill(1);
     if (e.key === 'c' || e.key === 'C') trySkill(2);
@@ -2346,10 +2373,7 @@ document.addEventListener('touchend', (e) => {
   if (!gameRunning) return;
   const dx = e.changedTouches[0].clientX - touchStartX;
   const dy = e.changedTouches[0].clientY - touchStartY;
-  if (Math.abs(dx) < 10 && Math.abs(dy) < -40) {
-    // swipe up = jump
-    if (myPlayer && myPlayer.onGround) { myPlayer.vy = -myPlayer.charData.jumpPower; }
-  }
+  if (Math.abs(dx) < 40 && dy < -40) tryJump();
 }, { passive: true });
 
 // Window resize
