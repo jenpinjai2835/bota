@@ -183,6 +183,17 @@ const CHARACTERS = [
     class: 'Rogue',
     icon: '🐍',
     color: '#1ABC9C',
+    sprite: {
+      src: '/assets/sprites/venomfang-idle.png',
+      scale: 2.4,
+      baseFacing: -1,
+      sheets: {
+        idle: { src: '/assets/sprites/venomfang-idle.png', cols: 8, rows: 1, frames: 8, fps: 6, scale: 2.4, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.08, frameAspect: true },
+        jump: { src: '/assets/sprites/venomfang-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.52, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.08, frameAspect: true },
+        run: { src: '/assets/sprites/venomfang-run.png', cols: 5, rows: 5, frames: 25, fps: 19, scale: 3.32, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.5 },
+        attack: { src: '/assets/sprites/venomfang-attack.png', cols: 5, rows: 5, frames: 25, fps: 25, scale: 3.32, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.5 },
+      },
+    },
     speed: 6, jumpPower: 14, maxHp: 88,
     skills: [
       { id: 'bite', name: 'Venom Bite', icon: '🐍', key: 'Z', damage: 20, range: 58, cooldown: 300, type: 'melee', color: '#1ABC9C' },
