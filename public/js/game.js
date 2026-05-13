@@ -133,6 +133,17 @@ const CHARACTERS = [
     class: 'Mage',
     icon: '❄️',
     color: '#3498DB',
+    sprite: {
+      src: '/assets/sprites/frostmage-idle.png',
+      scale: 2.42,
+      baseFacing: -1,
+      sheets: {
+        idle: { src: '/assets/sprites/frostmage-idle.png', cols: 8, rows: 1, frames: 8, fps: 5, scale: 2.42, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.1, frameAspect: true },
+        jump: { src: '/assets/sprites/frostmage-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.55, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.1, frameAspect: true },
+        run: { src: '/assets/sprites/frostmage-run.png', cols: 5, rows: 5, frames: 25, fps: 17, scale: 3.35, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.52 },
+        attack: { src: '/assets/sprites/frostmage-attack.png', cols: 5, rows: 5, frames: 25, fps: 24, scale: 3.35, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.52 },
+      },
+    },
     speed: 4, jumpPower: 13, maxHp: 85,
     skills: [
       { id: 'shard', name: 'Ice Shard', icon: '🧊', key: 'Z', damage: 20, range: 260, cooldown: 400, type: 'projectile', color: '#3498DB' },
