@@ -58,6 +58,17 @@ const CHARACTERS = [
     class: 'Tank',
     icon: '🛡️',
     color: '#7F8C8D',
+    sprite: {
+      src: '/assets/sprites/stoneguard-idle.png',
+      scale: 2.58,
+      baseFacing: -1,
+      sheets: {
+        idle: { src: '/assets/sprites/stoneguard-idle.png', cols: 8, rows: 1, frames: 8, fps: 4, scale: 2.58, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.16, frameAspect: true },
+        jump: { src: '/assets/sprites/stoneguard-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.78, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.16, frameAspect: true },
+        run: { src: '/assets/sprites/stoneguard-run.png', cols: 5, rows: 5, frames: 25, fps: 14, scale: 3.62, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.56 },
+        attack: { src: '/assets/sprites/stoneguard-attack.png', cols: 5, rows: 5, frames: 25, fps: 20, scale: 3.62, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.56 },
+      },
+    },
     speed: 3, jumpPower: 11, maxHp: 200,
     skills: [
       { id: 'smash', name: 'Stone Smash', icon: '🗿', key: 'Z', damage: 35, range: 65, cooldown: 500, type: 'melee', color: '#95A5A6' },
