@@ -83,6 +83,17 @@ const CHARACTERS = [
     class: 'Ranger',
     icon: '🏹',
     color: '#27AE60',
+    sprite: {
+      src: '/assets/sprites/stormarrow-idle.png',
+      scale: 2.36,
+      baseFacing: -1,
+      sheets: {
+        idle: { src: '/assets/sprites/stormarrow-idle.png', cols: 8, rows: 1, frames: 8, fps: 6, scale: 2.36, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.08, frameAspect: true },
+        jump: { src: '/assets/sprites/stormarrow-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.48, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.08, frameAspect: true },
+        run: { src: '/assets/sprites/stormarrow-run.png', cols: 5, rows: 5, frames: 25, fps: 18, scale: 3.28, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.5 },
+        attack: { src: '/assets/sprites/stormarrow-attack.png', cols: 5, rows: 5, frames: 25, fps: 24, scale: 3.28, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.5 },
+      },
+    },
     speed: 5, jumpPower: 14, maxHp: 90,
     skills: [
       { id: 'arrow', name: 'Storm Arrow', icon: '🪃', key: 'Z', damage: 22, range: 300, cooldown: 400, type: 'projectile', color: '#27AE60' },
