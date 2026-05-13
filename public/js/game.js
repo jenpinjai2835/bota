@@ -33,6 +33,17 @@ const CHARACTERS = [
     class: 'Assassin',
     icon: '🗡️',
     color: '#9B59B6',
+    sprite: {
+      src: '/assets/sprites/shadowblade-idle.png',
+      scale: 2.35,
+      baseFacing: 1,
+      sheets: {
+        idle: { src: '/assets/sprites/shadowblade-idle.png', cols: 8, rows: 1, frames: 8, fps: 6, scale: 2.42, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.08, frameAspect: true },
+        jump: { src: '/assets/sprites/shadowblade-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.55, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.08, frameAspect: true },
+        run: { src: '/assets/sprites/shadowblade-run.png', cols: 5, rows: 5, frames: 25, fps: 20, scale: 3.35, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.5 },
+        attack: { src: '/assets/sprites/shadowblade-attack.png', cols: 5, rows: 5, frames: 25, fps: 26, scale: 3.35, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.5 },
+      },
+    },
     speed: 7, jumpPower: 15, maxHp: 80,
     skills: [
       { id: 'slash', name: 'Shadow Slash', icon: '🌑', key: 'Z', damage: 30, range: 55, cooldown: 200, type: 'melee', color: '#9B59B6' },
@@ -1986,19 +1997,32 @@ function drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, isMoving) {
   ctx.restore();
 }
 
-function getDragonfistSpriteSource(ch, p, action) {
+function getSpriteSheetId(ch, p, action) {
+  if (ch?.id === 'dragonfist') {
+    if (p.state === 'idle') return 'idle';
+    if (p.state === 'jump' || p.state === 'fall') return 'jump';
+    if (['punch', 'flame', 'roar'].includes(action)) return 'attack';
+    if (p.state === 'run' || action === 'rush') return 'run';
+    return null;
+  }
+
+  if (action) return 'attack';
+  if (p.state === 'jump' || p.state === 'fall') return 'jump';
+  if (p.state === 'run') return 'run';
+  if (p.state === 'idle') return 'idle';
+  return null;
+}
+
+function getCharacterSpriteSource(ch, p, action) {
   const sheets = ch.sprite?.sheets || {};
-  let sheetId = null;
-  if (p.state === 'idle') sheetId = 'idle';
-  if (p.state === 'jump' || p.state === 'fall') sheetId = 'jump';
-  if (['punch', 'flame', 'roar'].includes(action)) sheetId = 'attack';
-  if (p.state === 'run' || action === 'rush') sheetId = 'run';
+  const sheetId = getSpriteSheetId(ch, p, action);
 
   if (sheetId && sheets[sheetId]) {
     const img = spriteImages[`${ch.id}:${sheetId}`];
     if (img?.complete && img.naturalWidth) {
       return {
         img,
+        ch,
         sheetId,
         sheet: sheets[sheetId],
         baseFacing: sheets[sheetId].baseFacing || ch.sprite?.baseFacing || 1,
@@ -2014,6 +2038,7 @@ function getDragonfistSpriteSource(ch, p, action) {
   const img = spriteImages[ch.id];
   return {
     img,
+    ch,
     sheetId: null,
     sheet: null,
     baseFacing: ch.sprite?.baseFacing || 1,
@@ -2022,6 +2047,10 @@ function getDragonfistSpriteSource(ch, p, action) {
     visualHeight: 1,
     plateWidth: 1.25,
   };
+}
+
+function getDragonfistSpriteSource(ch, p, action) {
+  return getCharacterSpriteSource(ch, p, action);
 }
 
 function getDragonfistJumpFrame(p, frameCount) {
@@ -2034,6 +2063,12 @@ function getDragonfistJumpFrame(p, frameCount) {
   return Math.min(7, frameCount - 1);
 }
 
+function getJumpProgress(p) {
+  const vy = typeof p.vy === 'number' ? p.vy : 0;
+  const normalized = (vy + 16) / 32;
+  return Math.max(0, Math.min(0.999, normalized));
+}
+
 function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
   const { img, sheet, sheetId } = source;
   const frameW = img.naturalWidth / sheet.cols;
@@ -2042,8 +2077,10 @@ function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
 
   if (sheetId === 'attack') {
     frame = Math.min(sheet.frames - 1, Math.floor(getActionProgress(p) * sheet.frames));
-  } else if (sheetId === 'jump') {
+  } else if (sheetId === 'jump' && source.ch?.id === 'dragonfist') {
     frame = getDragonfistJumpFrame(p, sheet.frames);
+  } else if (sheetId === 'jump') {
+    frame = Math.min(sheet.frames - 1, Math.floor(getJumpProgress(p) * sheet.frames));
   } else {
     frame = Math.floor(Date.now() * 0.001 * (sheet.fps || 16)) % sheet.frames;
   }
@@ -2082,9 +2119,9 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
 function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const ch = p.charData;
   const action = getActiveAction(p);
-  const source = ch?.id === 'dragonfist'
-    ? getDragonfistSpriteSource(ch, p, action)
-    : { img: spriteImages[ch?.id], baseFacing: ch?.sprite?.baseFacing || 1, scale: ch?.sprite?.scale || 1.7, visualHeight: 1 };
+  const source = ch?.sprite
+    ? getCharacterSpriteSource(ch, p, action)
+    : { img: spriteImages[ch?.id], ch, baseFacing: ch?.sprite?.baseFacing || 1, scale: ch?.sprite?.scale || 1.7, visualHeight: 1 };
   const img = source.img;
   if (!img || !img.complete || !img.naturalWidth) return false;
 
@@ -2130,7 +2167,7 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
     ctx.fill();
   }
 
-  if (ch.id === 'dragonfist') {
+  if (source.sheet || ch.id === 'dragonfist') {
     drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip);
     ctx.restore();
   } else {
