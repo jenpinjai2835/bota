@@ -108,6 +108,17 @@ const CHARACTERS = [
     class: 'Mage',
     icon: '🔮',
     color: '#E74C3C',
+    sprite: {
+      src: '/assets/sprites/pyromancer-idle.png',
+      scale: 2.42,
+      baseFacing: -1,
+      sheets: {
+        idle: { src: '/assets/sprites/pyromancer-idle.png', cols: 8, rows: 1, frames: 8, fps: 5, scale: 2.42, baseFacing: -1, footY: 0.95, visualHeight: 0.82, plateWidth: 1.1, frameAspect: true },
+        jump: { src: '/assets/sprites/pyromancer-jump.png', cols: 8, rows: 1, frames: 8, fps: 0, scale: 3.55, baseFacing: 1, footY: 0.953, visualHeight: 0.6, plateWidth: 1.1, frameAspect: true },
+        run: { src: '/assets/sprites/pyromancer-run.png', cols: 5, rows: 5, frames: 25, fps: 17, scale: 3.35, baseFacing: 1, footY: 0.82, visualHeight: 0.6, plateWidth: 0.52 },
+        attack: { src: '/assets/sprites/pyromancer-attack.png', cols: 5, rows: 5, frames: 25, fps: 24, scale: 3.35, baseFacing: 1, footY: 0.81, visualHeight: 0.6, plateWidth: 0.52 },
+      },
+    },
     speed: 4, jumpPower: 13, maxHp: 85,
     skills: [
       { id: 'fireball', name: 'Fireball', icon: '🔥', key: 'Z', damage: 28, range: 280, cooldown: 600, type: 'projectile', color: '#E74C3C' },
