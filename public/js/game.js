@@ -339,6 +339,27 @@ let scores = {};
 let isAlive = true;
 let respawnTimer = null;
 const spriteImages = {};
+const warriorVectorOverlayImages = {};
+const WARRIOR_VECTOR_OVERLAY_BASE = '/assets/sprites/warrior-vector-parts/right-side/';
+const WARRIOR_VECTOR_OVERLAY_FILES = [
+  'Body.png',
+  'Head.png',
+  'Face_01.png',
+  'Left_Arm.png',
+  'Left_Hand.png',
+  'Left_Leg.png',
+  'Right_Leg.png',
+  'clothes/Arm_clothes.png',
+  'clothes/Body_clothes.png',
+  'clothes/HairMustacheBeard.png',
+  'clothes/Hand_clothes.png',
+  'clothes/Hat.png',
+  'clothes/Left_Shoes.png',
+  'clothes/Right_Shoes.png',
+  'clothes/Shiled.png',
+];
+let warriorVectorIdleData = null;
+let warriorVectorIdleLoadStarted = false;
 let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
 const predictedHitEffects = [];
 const ACTION_DURATIONS = {
@@ -375,6 +396,23 @@ function preloadSpriteAssets() {
       spriteImages[key] = img;
     });
   });
+  WARRIOR_VECTOR_OVERLAY_FILES.forEach(file => {
+    if (warriorVectorOverlayImages[file]) return;
+    const img = new Image();
+    img.src = `${WARRIOR_VECTOR_OVERLAY_BASE}${file}`;
+    warriorVectorOverlayImages[file] = img;
+  });
+  if (!warriorVectorIdleLoadStarted && typeof fetch === 'function') {
+    warriorVectorIdleLoadStarted = true;
+    fetch(`${WARRIOR_VECTOR_OVERLAY_BASE}idle.json`)
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        warriorVectorIdleData = data;
+      })
+      .catch(() => {
+        warriorVectorIdleData = null;
+      });
+  }
 }
 
 // Input
@@ -2233,6 +2271,187 @@ function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
   ctx.drawImage(img, sx, sy, frameW, frameH, -drawW / 2, -drawH * (source.footY || 1), drawW, drawH);
 }
 
+function getWarriorVectorTimelineKey(timeline, time, length) {
+  const keys = timeline?.keys || [];
+  if (!keys.length) return null;
+  if (keys.length === 1) return keys[0];
+
+  let current = keys[0];
+  let next = keys[1];
+  for (let i = 0; i < keys.length; i++) {
+    const candidate = keys[i];
+    const candidateNext = keys[(i + 1) % keys.length];
+    const nextTime = candidateNext.time <= candidate.time ? candidateNext.time + length : candidateNext.time;
+    if (time >= candidate.time && time < nextTime) {
+      current = candidate;
+      next = candidateNext;
+      break;
+    }
+  }
+
+  const span = (next.time <= current.time ? next.time + length : next.time) - current.time;
+  const localTime = time < current.time ? time + length : time;
+  const t = span > 0 ? Math.max(0, Math.min(1, (localTime - current.time) / span)) : 0;
+  const spin = current.spin ?? 1;
+  let angleDelta = (next.angle || 0) - (current.angle || 0);
+  if (spin === 0) {
+    angleDelta = 0;
+  } else if (spin > 0 && angleDelta < 0) {
+    angleDelta += 360;
+  } else if (spin < 0 && angleDelta > 0) {
+    angleDelta -= 360;
+  }
+
+  return {
+    ...current,
+    x: current.x + ((next.x || 0) - (current.x || 0)) * t,
+    y: current.y + ((next.y || 0) - (current.y || 0)) * t,
+    angle: (current.angle || 0) + angleDelta * t,
+    scaleX: (current.scaleX ?? 1) + ((next.scaleX ?? 1) - (current.scaleX ?? 1)) * t,
+    scaleY: (current.scaleY ?? 1) + ((next.scaleY ?? 1) - (current.scaleY ?? 1)) * t,
+  };
+}
+
+function composeWarriorVectorTransform(parent, local) {
+  const rad = (parent.angle || 0) * Math.PI / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const x = (local.x || 0) * (parent.scaleX ?? 1);
+  const y = (local.y || 0) * (parent.scaleY ?? 1);
+  return {
+    x: (parent.x || 0) + x * cos - y * sin,
+    y: (parent.y || 0) + x * sin + y * cos,
+    angle: (parent.angle || 0) + (local.angle || 0),
+    scaleX: (parent.scaleX ?? 1) * (local.scaleX ?? 1),
+    scaleY: (parent.scaleY ?? 1) * (local.scaleY ?? 1),
+  };
+}
+
+function getWarriorVectorMainlineKey(data, time) {
+  const keys = data?.mainline || [];
+  let selected = keys[0] || null;
+  keys.forEach(key => {
+    if ((key.time || 0) <= time) selected = key;
+  });
+  return selected;
+}
+
+function getWarriorVectorImageInfo(data, folder, file) {
+  const fileInfo = data?.files?.[String(folder)]?.[String(file)];
+  if (!fileInfo) return null;
+  const img = warriorVectorOverlayImages[fileInfo.name];
+  if (!img?.complete || !img.naturalWidth) return null;
+  return { img, fileInfo };
+}
+
+function getWarriorVectorOverlayObjects() {
+  const data = warriorVectorIdleData;
+  if (!data?.length) return [];
+
+  const time = Date.now() % data.length;
+  const mainline = getWarriorVectorMainlineKey(data, time);
+  if (!mainline) return [];
+
+  const identity = { x: 0, y: 0, angle: 0, scaleX: 1, scaleY: 1 };
+  const boneTransforms = {};
+  (mainline.boneRefs || []).forEach(ref => {
+    const timeline = data.timelines?.[String(ref.timeline)];
+    const local = getWarriorVectorTimelineKey(timeline, time, data.length);
+    if (!local) return;
+    const parent = ref.parent !== null && ref.parent !== undefined
+      ? boneTransforms[String(ref.parent)] || identity
+      : identity;
+    boneTransforms[String(ref.id)] = composeWarriorVectorTransform(parent, local);
+  });
+
+  return (mainline.objectRefs || [])
+    .map(ref => {
+      const timeline = data.timelines?.[String(ref.timeline)];
+      const local = getWarriorVectorTimelineKey(timeline, time, data.length);
+      if (!local) return null;
+      const imageInfo = getWarriorVectorImageInfo(data, local.folder, local.file);
+      if (!imageInfo) return null;
+      const parent = ref.parent !== null && ref.parent !== undefined
+        ? boneTransforms[String(ref.parent)] || identity
+        : identity;
+      return {
+        ...imageInfo,
+        transform: composeWarriorVectorTransform(parent, local),
+        zIndex: ref.zIndex || 0,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.zIndex - b.zIndex);
+}
+
+function getWarriorVectorObjectCorners(item) {
+  const { img, fileInfo, transform } = item;
+  const pivotX = fileInfo.pivotX ?? 0.5;
+  const pivotY = fileInfo.pivotY ?? 0.5;
+  const points = [
+    [-pivotX * img.naturalWidth, -pivotY * img.naturalHeight],
+    [(1 - pivotX) * img.naturalWidth, -pivotY * img.naturalHeight],
+    [(1 - pivotX) * img.naturalWidth, (1 - pivotY) * img.naturalHeight],
+    [-pivotX * img.naturalWidth, (1 - pivotY) * img.naturalHeight],
+  ];
+  const rad = -(transform.angle || 0) * Math.PI / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return points.map(([x, y]) => {
+    const sx = x * (transform.scaleX ?? 1);
+    const sy = y * (transform.scaleY ?? 1);
+    return {
+      x: transform.x + sx * cos - sy * sin,
+      y: -transform.y + sx * sin + sy * cos,
+    };
+  });
+}
+
+function drawWarriorVectorOverlayObject(ctx, item) {
+  const { img, fileInfo, transform } = item;
+  ctx.save();
+  ctx.translate(transform.x, -transform.y);
+  ctx.rotate(-(transform.angle || 0) * Math.PI / 180);
+  ctx.scale(transform.scaleX ?? 1, transform.scaleY ?? 1);
+  ctx.drawImage(
+    img,
+    -(fileInfo.pivotX ?? 0.5) * img.naturalWidth,
+    -(fileInfo.pivotY ?? 0.5) * img.naturalHeight
+  );
+  ctx.restore();
+}
+
+function drawWarriorVectorOverlay(ctx, drawW, drawH, p, action, source) {
+  if (source.ch?.id !== 'dragonfist' || source.sheetId !== 'idle' || p.state !== 'idle' || action) return false;
+  const objects = getWarriorVectorOverlayObjects();
+  if (!objects.length) return false;
+
+  const bounds = objects.reduce((acc, item) => {
+    getWarriorVectorObjectCorners(item).forEach(point => {
+      acc.minX = Math.min(acc.minX, point.x);
+      acc.minY = Math.min(acc.minY, point.y);
+      acc.maxX = Math.max(acc.maxX, point.x);
+      acc.maxY = Math.max(acc.maxY, point.y);
+    });
+    return acc;
+  }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+  const boundsW = bounds.maxX - bounds.minX;
+  const boundsH = bounds.maxY - bounds.minY;
+  if (!isFinite(boundsW) || !isFinite(boundsH) || boundsW <= 0 || boundsH <= 0) return false;
+
+  const scale = (drawH * 0.78) / boundsH;
+  const offsetX = drawW * 0.04 - ((bounds.minX + bounds.maxX) * 0.5 * scale);
+  const offsetY = -drawH * 0.01 - bounds.maxY * scale;
+
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha *= 0.92;
+  objects.forEach(item => drawWarriorVectorOverlayObject(ctx, item));
+  ctx.restore();
+  return true;
+}
+
 function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip) {
   const runPhase = Date.now() * 0.018;
   const idleBreath = p.state === 'idle' && source.sheetId !== 'idle'
@@ -2255,6 +2474,7 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
     ctx.drawImage(source.img, -drawW / 2, -drawH, drawW, drawH);
     drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, p.state === 'run' || action === 'rush');
   }
+  drawWarriorVectorOverlay(ctx, drawW, drawH, p, action, source);
   if (action === 'roar') drawDragonfistActionFX(ctx, action, drawW, drawH, p);
   ctx.restore();
 }
