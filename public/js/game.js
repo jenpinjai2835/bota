@@ -358,8 +358,8 @@ const WARRIOR_VECTOR_OVERLAY_FILES = [
   'clothes/Right_Shoes.png',
   'clothes/Shiled.png',
 ];
-let warriorVectorIdleData = null;
-let warriorVectorIdleLoadStarted = false;
+let warriorVectorAnimationsData = null;
+let warriorVectorAnimationsLoadStarted = false;
 let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
 const predictedHitEffects = [];
 const ACTION_DURATIONS = {
@@ -402,15 +402,15 @@ function preloadSpriteAssets() {
     img.src = `${WARRIOR_VECTOR_OVERLAY_BASE}${file}`;
     warriorVectorOverlayImages[file] = img;
   });
-  if (!warriorVectorIdleLoadStarted && typeof fetch === 'function') {
-    warriorVectorIdleLoadStarted = true;
-    fetch(`${WARRIOR_VECTOR_OVERLAY_BASE}idle.json`)
+  if (!warriorVectorAnimationsLoadStarted && typeof fetch === 'function') {
+    warriorVectorAnimationsLoadStarted = true;
+    fetch(`${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`)
       .then(response => response.ok ? response.json() : null)
       .then(data => {
-        warriorVectorIdleData = data;
+        warriorVectorAnimationsData = data;
       })
       .catch(() => {
-        warriorVectorIdleData = null;
+        warriorVectorAnimationsData = null;
       });
   }
 }
@@ -2344,19 +2344,39 @@ function getWarriorVectorImageInfo(data, folder, file) {
   return { img, fileInfo };
 }
 
-function getWarriorVectorOverlayObjects() {
-  const data = warriorVectorIdleData;
-  if (!data?.length) return [];
+function getWarriorVectorAnimationName(p, action) {
+  if (p.hp <= 0) return 'Died';
+  if (action === 'rush') return 'Run';
+  if (action === 'punch') return 'Attack_1';
+  if (action === 'flame' || action === 'roar') return 'Attack_2';
+  if (action) return 'Attack_1';
+  if (p.state === 'run') return 'Run';
+  if (p.state === 'jump' || p.state === 'fall') return 'Run';
+  return 'Idle';
+}
 
-  const time = Date.now() % data.length;
-  const mainline = getWarriorVectorMainlineKey(data, time);
+function getWarriorVectorAnimationTime(animation, p, action) {
+  if (!animation?.length) return 0;
+  if (action && action !== 'rush') {
+    return Math.min(animation.length - 1, getActionProgress(p) * animation.length);
+  }
+  return Date.now() % animation.length;
+}
+
+function getWarriorVectorCharacterObjects(animationName, p, action) {
+  const data = warriorVectorAnimationsData;
+  const animation = data?.animations?.[animationName];
+  if (!data?.files || !animation?.length) return [];
+
+  const time = getWarriorVectorAnimationTime(animation, p, action);
+  const mainline = getWarriorVectorMainlineKey(animation, time);
   if (!mainline) return [];
 
   const identity = { x: 0, y: 0, angle: 0, scaleX: 1, scaleY: 1 };
   const boneTransforms = {};
   (mainline.boneRefs || []).forEach(ref => {
-    const timeline = data.timelines?.[String(ref.timeline)];
-    const local = getWarriorVectorTimelineKey(timeline, time, data.length);
+    const timeline = animation.timelines?.[String(ref.timeline)];
+    const local = getWarriorVectorTimelineKey(timeline, time, animation.length);
     if (!local) return;
     const parent = ref.parent !== null && ref.parent !== undefined
       ? boneTransforms[String(ref.parent)] || identity
@@ -2366,8 +2386,8 @@ function getWarriorVectorOverlayObjects() {
 
   return (mainline.objectRefs || [])
     .map(ref => {
-      const timeline = data.timelines?.[String(ref.timeline)];
-      const local = getWarriorVectorTimelineKey(timeline, time, data.length);
+      const timeline = animation.timelines?.[String(ref.timeline)];
+      const local = getWarriorVectorTimelineKey(timeline, time, animation.length);
       if (!local) return null;
       const imageInfo = getWarriorVectorImageInfo(data, local.folder, local.file);
       if (!imageInfo) return null;
@@ -2421,9 +2441,10 @@ function drawWarriorVectorOverlayObject(ctx, item) {
   ctx.restore();
 }
 
-function drawWarriorVectorOverlay(ctx, drawW, drawH, p, action, source) {
-  if (source.ch?.id !== 'dragonfist' || source.sheetId !== 'idle' || p.state !== 'idle' || action) return false;
-  const objects = getWarriorVectorOverlayObjects();
+function drawWarriorVectorCharacter(ctx, drawW, drawH, p, action, source) {
+  if (source.ch?.id !== 'dragonfist') return false;
+  const animationName = getWarriorVectorAnimationName(p, action);
+  const objects = getWarriorVectorCharacterObjects(animationName, p, action);
   if (!objects.length) return false;
 
   const bounds = objects.reduce((acc, item) => {
@@ -2439,14 +2460,13 @@ function drawWarriorVectorOverlay(ctx, drawW, drawH, p, action, source) {
   const boundsH = bounds.maxY - bounds.minY;
   if (!isFinite(boundsW) || !isFinite(boundsH) || boundsW <= 0 || boundsH <= 0) return false;
 
-  const scale = (drawH * 0.78) / boundsH;
-  const offsetX = drawW * 0.04 - ((bounds.minX + bounds.maxX) * 0.5 * scale);
+  const scale = (drawH * 0.82) / boundsH;
+  const offsetX = drawW * 0.02 - ((bounds.minX + bounds.maxX) * 0.5 * scale);
   const offsetY = -drawH * 0.01 - bounds.maxY * scale;
 
   ctx.save();
   ctx.translate(offsetX, offsetY);
   ctx.scale(scale, scale);
-  ctx.globalAlpha *= 0.92;
   objects.forEach(item => drawWarriorVectorOverlayObject(ctx, item));
   ctx.restore();
   return true;
@@ -2468,13 +2488,14 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
   ctx.rotate(lean + (action === 'punch' ? (p.facing || 1) * punchDrive * 0.08 : 0));
   if (shouldFlip) ctx.scale(-1, 1);
   ctx.scale(1 + punchDrive * 0.01, 1 + idleBreath - rushDrive * 0.015);
-  if (source.sheet) {
+  if (source.ch?.id === 'dragonfist') {
+    drawWarriorVectorCharacter(ctx, drawW, drawH, p, action, source);
+  } else if (source.sheet) {
     drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action);
   } else {
     ctx.drawImage(source.img, -drawW / 2, -drawH, drawW, drawH);
     drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, p.state === 'run' || action === 'rush');
   }
-  drawWarriorVectorOverlay(ctx, drawW, drawH, p, action, source);
   if (action === 'roar') drawDragonfistActionFX(ctx, action, drawW, drawH, p);
   ctx.restore();
 }
