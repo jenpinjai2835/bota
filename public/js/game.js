@@ -340,6 +340,7 @@ let isAlive = true;
 let respawnTimer = null;
 const spriteImages = {};
 let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
+const predictedHitEffects = [];
 const ACTION_DURATIONS = {
   punch: 720,
   flame: 760,
@@ -463,6 +464,27 @@ function spawnDamageNumber(x, y, amount, color = '#FFE082') {
     life: 48,
     maxLife: 48,
   });
+}
+
+function rememberPredictedHit(targetId, skillId, damage) {
+  if (!targetId) return;
+  const now = Date.now();
+  predictedHitEffects.push({ targetId, skillId, damage, at: now });
+  while (predictedHitEffects.length > 12) predictedHitEffects.shift();
+}
+
+function consumePredictedHit(msg) {
+  if (msg.attackerId !== myPlayerId) return false;
+  const now = Date.now();
+  const index = predictedHitEffects.findIndex(hit =>
+    hit.targetId === msg.targetId &&
+    hit.skillId === msg.skillId &&
+    hit.damage === msg.damage &&
+    now - hit.at < 900
+  );
+  if (index < 0) return false;
+  predictedHitEffects.splice(index, 1);
+  return true;
 }
 
 // ============================================================
@@ -1176,9 +1198,11 @@ function spawnEffect(x, y, id, color, radius = 40) {
 
 function dealDamage(target, damage, skillId) {
   if (!isAlive && target === myPlayer) return;
-  send({ type: 'player_hit', targetId: target.id || (target === myPlayer ? myPlayerId : null), damage, skillId });
+  const targetId = target.id || (target === myPlayer ? myPlayerId : null);
+  send({ type: 'player_hit', targetId, damage, skillId });
   spawnEffect(target.x + target.width/2, target.y + target.height/2, skillId, '#FF4444', 30);
   spawnDamageNumber(target.x + target.width/2, target.y + 8, damage, '#FFD166');
+  rememberPredictedHit(targetId, skillId, damage);
 
   if (target === myPlayer) {
     myPlayer.hp = Math.max(0, myPlayer.hp - damage);
@@ -1191,9 +1215,12 @@ function dealDamage(target, damage, skillId) {
 function handleHitEffect(msg) {
   const target = msg.targetId === myPlayerId ? myPlayer : remotePlayers[msg.targetId];
   if (target) {
+    const alreadyShown = consumePredictedHit(msg);
     target.hp = msg.hp;
-    spawnEffect(target.x + target.width/2, target.y + target.height/2, msg.skillId, '#FF4444', 35);
-    spawnDamageNumber(target.x + target.width/2, target.y + 8, msg.damage, '#FFD166');
+    if (!alreadyShown) {
+      spawnEffect(target.x + target.width/2, target.y + target.height/2, msg.skillId, '#FF4444', 35);
+      spawnDamageNumber(target.x + target.width/2, target.y + 8, msg.damage, '#FFD166');
+    }
     if (msg.hp <= 0 && msg.targetId !== myPlayerId) {
       // remote death flash
       spawnEffect(target.x + target.width/2, target.y + target.height/2, 'death', '#FF0000', 60);
