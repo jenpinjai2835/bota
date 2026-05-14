@@ -8,10 +8,11 @@ This project is split by responsibility so the game is easier to maintain.
 - `public/css/styles.css` - Visual styling for screens, panels, HUD, chat, and responsive layout.
 - `public/js/game.js` - Legacy note only; the browser client is now split under `public/js/game/`.
 - `public/js/game/data/` - Static character and stage definitions.
-- `public/js/game/core/` - Shared runtime state, asset preload, game startup, and frame loop.
+- `public/js/game/data/character-systems.js` - Character archetypes, identity hooks, stat profiles, match items, and team definitions.
+- `public/js/game/core/` - Shared runtime state, stat/progression helpers, asset preload, game startup, and frame loop.
 - `public/js/game/ui/` - Menu, HUD, skills, scoreboard, and chat UI.
 - `public/js/game/network/` - WebSocket, room list, join/create room, and lobby flows.
-- `public/js/game/gameplay/` - Movement, physics, combat, hit reactions, projectiles, and effects.
+- `public/js/game/gameplay/` - Movement, physics, combat, hit reactions, projectiles, effects, and in-match item pickup.
 - `public/js/game/render/` - Camera, world drawing, sprite sheet drawing, vector-part character rendering, and fallback renderers.
 - `public/js/game/input/` - Keyboard, pointer, touch, and resize listeners.
 

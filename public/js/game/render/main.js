@@ -10,6 +10,7 @@ function render(canvas) {
   drawBackground(ctx, stage, W, H, scaleX, scaleY);
   stage.pillars.forEach(pl => drawPillar(ctx, pl, stage, scaleX, scaleY));
   stage.platforms.forEach(plat => drawPlatform(ctx, plat, stage, scaleX, scaleY));
+  matchItems.forEach(item => drawMatchItem(ctx, item, scaleX, scaleY));
   projectiles.forEach(p => drawProjectile(ctx, p, scaleX, scaleY));
   effects.forEach(e => drawEffect(ctx, e, scaleX, scaleY));
   Object.values(remotePlayers).forEach(p => drawPlayer(ctx, p, scaleX, scaleY, false));

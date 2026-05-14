@@ -486,6 +486,19 @@
     font-family: 'Cinzel', serif;
     text-shadow: 0 0 8px rgba(91,178,255,0.42);
   }
+  .skill-slot .skill-level {
+    position: absolute;
+    left: 5px;
+    top: 4px;
+    min-width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: rgba(7,5,6,0.82);
+    border: 1px solid rgba(245,225,130,0.5);
+    color: var(--gold-light);
+    font: 800 8px/12px 'Cinzel', serif;
+    text-align: center;
+  }
   .skill-slot .scd {
     position: absolute; inset: 0;
     background: rgba(0,0,0,0.76);

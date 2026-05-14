@@ -19,6 +19,8 @@ let effects = [];
 let damageNumbers = [];
 let bloodParticles = [];
 let deathParts = [];
+let matchItems = [];
+let nextMatchItemSpawnAt = 0;
 let skillCooldowns = {};
 let scores = {};
 let isAlive = true;
@@ -176,11 +178,11 @@ function getActionProgress(player) {
 }
 
 function getMaxMana(ch) {
-  return ch?.maxMana || 100;
+  return ch?.baseStats?.maxMana || ch?.maxMana || 100;
 }
 
 function getCharacterMaxHp(ch) {
-  return Math.max(MIN_CHARACTER_HP, ch?.maxHp || 100);
+  return Math.max(MIN_CHARACTER_HP, ch?.baseStats?.maxHp || ch?.maxHp || 100);
 }
 
 function getPlayerClassLabel(playerOrScore) {
@@ -189,7 +191,7 @@ function getPlayerClassLabel(playerOrScore) {
 }
 
 function getManaRegen(ch) {
-  return ch?.manaRegen || 0.24;
+  return ch?.baseStats?.manaRegen || ch?.manaRegen || 0.24;
 }
 
 function getSkillManaCost(skill) {

@@ -109,6 +109,12 @@ function handleMessage(msg) {
     case 'skill_cast':
       handleRemoteSkill(msg);
       break;
+    case 'item_picked':
+      handleMatchItemPicked(msg);
+      break;
+    case 'item_spawned':
+      handleMatchItemSpawned(msg.item);
+      break;
     case 'chat':
       addChat(msg.from, msg.msg);
       break;

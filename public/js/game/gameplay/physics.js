@@ -12,6 +12,7 @@ function getPlatforms() { return currentStage?.platforms || []; }
 function getStageWidth() { return WORLD_W; }
 
 function updatePlayer(p, dt) {
+  ensurePlayerSystems(p);
   if (p.hp <= 0 || p.state === 'dead') {
     updateDeadPlayer(p, dt);
     return;
@@ -201,8 +202,7 @@ function resolvePlayerBodyCollisions() {
 
 function handleInput() {
   if (!myPlayer || !isAlive) return;
-  const ch = myPlayer.charData;
-  const spd = ch.speed;
+  const spd = getPlayerStat(myPlayer, 'speed');
   if (myPlayer.hitStunUntil > Date.now()) {
     myPlayer.state = 'hurt';
     myPlayer.vx *= 0.9;
@@ -228,7 +228,7 @@ function isJumpKey(key) {
 
 function tryJump() {
   if (!myPlayer || !isAlive || !myPlayer.onGround) return false;
-  myPlayer.vy = -myPlayer.charData.jumpPower;
+  myPlayer.vy = -getPlayerStat(myPlayer, 'jumpPower');
   myPlayer.onGround = false;
   myPlayer.state = 'jump';
   return true;
@@ -237,7 +237,7 @@ function tryJump() {
 function trySkill(skillIndex) {
   if (!myPlayer || !isAlive) return;
   const ch = myPlayer.charData;
-  const skill = ch.skills[skillIndex];
+  const skill = getScaledSkill(myPlayer, ch.skills[skillIndex]);
   if (!skill) return;
   const now = Date.now();
   if (skillCooldowns[skill.id] > now) return;

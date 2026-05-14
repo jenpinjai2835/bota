@@ -15,6 +15,8 @@ function leaveGame() {
   effects = [];
   damageNumbers = [];
   deathParts = [];
+  matchItems = [];
+  nextMatchItemSpawnAt = 0;
   scores = {};
   skillCooldowns = {};
   localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
@@ -70,7 +72,8 @@ function startGameClient(state) {
     const maxHp = Math.max(p.maxHp || 0, getCharacterMaxHp(ch));
     const pd = {
       id: p.id, name: p.name, character: p.character, charData: ch,
-      x: p.x, y: p.y, hp: Math.min(maxHp, p.hp || maxHp), maxHp,
+      teamId: p.teamId || assignTeamId(0),
+      x: p.x, y: p.y, hp: p.hp >= (p.maxHp || maxHp) ? maxHp : Math.min(maxHp, p.hp || maxHp), maxHp,
       mana: getMaxMana(ch), maxMana: getMaxMana(ch),
       vx: 0, vy: 0, onGround: false, facing: 1,
       state: 'idle', score: 0, deaths: 0,
@@ -78,6 +81,7 @@ function startGameClient(state) {
       bodyShattered: false,
       width: 44, height: 66,
     };
+    ensurePlayerSystems(pd);
     if (p.id === myPlayerId) {
       myPlayer = pd;
       isAlive = true;
@@ -100,6 +104,7 @@ function startGameClient(state) {
   document.getElementById('controls-hint').classList.add('visible');
 
   projectiles = []; effects = []; damageNumbers = []; deathParts = [];
+  resetMatchItems(state.matchItems || []);
   scores = {};
   state.players.forEach(p => { scores[p.id] = { id: p.id, name: p.name, score: 0, deaths: 0 }; });
 

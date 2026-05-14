@@ -7,6 +7,7 @@ function doMeleeHit(attacker, skill) {
   const range = getMeleeHitRange(skill);
   all.forEach(target => {
     if (!target || target.hp <= 0) return;
+    if (!arePlayersHostile(attacker, target)) return;
     const dx = (target.x + target.width/2) - (attacker.x + attacker.width/2);
     const dy = (target.y + target.height/2) - (attacker.y + attacker.height/2);
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -42,6 +43,7 @@ function spawnAOE(owner, skill) {
   const all = owner === myPlayer ? Object.values(remotePlayers) : (myPlayer ? [myPlayer] : []);
   all.forEach(target => {
     if (!target || target.hp <= 0) return;
+    if (!arePlayersHostile(owner, target)) return;
     const dx = (target.x + target.width/2) - cx;
     const dy = (target.y + target.height/2) - cy;
     if (Math.sqrt(dx*dx + dy*dy) < skill.range) {
@@ -111,7 +113,7 @@ function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
 
 function applyHitReaction(target, dir = 1, skillId = null) {
   if (!target) return;
-  const force = getHitReactionForce(skillId, 0);
+  const force = getHitReactionForce(skillId, 0) * Math.max(0.25, 1 - getPlayerStat(target, 'knockbackResist'));
   target.vx = dir * force;
   target.vy = Math.min(target.vy || 0, -3.3);
   target.facing = -dir;
@@ -128,7 +130,7 @@ function getHitReactionForce(skillId = null, damage = 0) {
 function startDeathMotion(target, dir = 1, damage = 0, skillId = null) {
   if (!target) return;
   const now = Date.now();
-  const force = getHitReactionForce(skillId, damage);
+  const force = getHitReactionForce(skillId, damage) * Math.max(0.25, 1 - getPlayerStat(target, 'knockbackResist'));
   target.hp = 0;
   target.state = 'dead';
   target.deathStartedAt = now;
@@ -149,21 +151,24 @@ function startDeathMotion(target, dir = 1, damage = 0, skillId = null) {
 
 function dealDamage(target, damage, skillId, hitDir = 1) {
   if (!isAlive && target === myPlayer) return;
+  if (myPlayer && target !== myPlayer && !arePlayersHostile(myPlayer, target)) return;
+  const finalDamage = applyDefenseToDamage(target, damage);
   const targetId = target.id || (target === myPlayer ? myPlayerId : null);
-  send({ type: 'player_hit', targetId, damage, skillId, hitDir });
+  send({ type: 'player_hit', targetId, damage: finalDamage, skillId, hitDir });
   spawnEffect(target.x + target.width/2, target.y + target.height/2, skillId, '#FF4444', 30);
-  spawnDamageNumber(target.x + target.width/2, target.y + 8, damage, '#FFD166');
+  spawnDamageNumber(target.x + target.width/2, target.y + 8, finalDamage, '#FFD166');
   spawnBloodBurst(target.x + target.width/2, target.y + target.height * 0.38, hitDir);
   applyHitReaction(target, hitDir, skillId);
-  rememberPredictedHit(targetId, skillId, damage);
+  rememberPredictedHit(targetId, skillId, finalDamage);
 
   if (target === myPlayer) {
-    myPlayer.hp = Math.max(0, myPlayer.hp - damage);
-    if (myPlayer.hp <= 0) onMyDeath(hitDir, damage, skillId);
+    myPlayer.hp = Math.max(0, myPlayer.hp - finalDamage);
+    if (myPlayer.hp <= 0) onMyDeath(hitDir, finalDamage, skillId);
   } else {
-    target.hp = Math.max(0, target.hp - damage);
+    target.hp = Math.max(0, target.hp - finalDamage);
+    if (myPlayer) grantPlayerXp(myPlayer, target.hp <= 0 ? 110 : 10);
     if (target.hp <= 0) {
-      startDeathMotion(target, hitDir, damage, skillId);
+      startDeathMotion(target, hitDir, finalDamage, skillId);
     }
   }
 }
@@ -184,6 +189,7 @@ function handleHitEffect(msg) {
       onMyDeath(hitDir, msg.damage, msg.skillId);
     }
     if (msg.hp <= 0 && msg.targetId !== myPlayerId) {
+      if (!alreadyShown && msg.attackerId === myPlayerId) grantPlayerXp(myPlayer, 110);
       startDeathMotion(target, hitDir, msg.damage, msg.skillId);
       spawnEffect(target.x + target.width/2, target.y + target.height/2, 'death', '#FF0000', 60);
     }
@@ -261,6 +267,7 @@ function updateProjectiles() {
     if (p.owner === myPlayerId) {
       Object.values(remotePlayers).forEach(target => {
         if (!target || target.hp <= 0) return;
+        if (!arePlayersHostile(myPlayer, target)) return;
         const dx = (target.x + target.width/2) - p.x;
         const dy = (target.y + target.height/2) - p.y;
         if (Math.sqrt(dx*dx + dy*dy) < p.radius + 20) {

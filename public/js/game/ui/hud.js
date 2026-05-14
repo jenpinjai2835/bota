@@ -16,7 +16,7 @@ function buildHUD(state) {
         <span style="font-size:16px">${ch.icon}</span>
         <div>
           <div class="phud-name">${getPlayerClassLabel({ ...p, charData: ch })}</div>
-          <div class="phud-char">${ch.name}</div>
+          <div class="phud-char">${ch.name} · LV <span id="level-${p.id}">1</span></div>
         </div>
         <div class="phud-score" style="margin-left:auto" id="score-${p.id}">0</div>
       </div>
@@ -47,6 +47,8 @@ function updateHUD() {
     const manaEl = document.getElementById(`mana-${p.id}`);
     const manaText = document.getElementById(`mana-text-${p.id}`);
     const scoreEl = document.getElementById(`score-${p.id}`);
+    const levelEl = document.getElementById(`level-${p.id}`);
+    ensurePlayerSystems(p);
     if (hpEl) {
       const pct = Math.max(0, (p.hp / p.maxHp) * 100);
       hpEl.style.width = pct + '%';
@@ -59,6 +61,7 @@ function updateHUD() {
     }
     if (manaText) manaText.textContent = `${Math.max(0, Math.floor(p.mana || 0))}/${p.maxMana || getMaxMana(p.charData)}`;
     if (scoreEl && scores[p.id]) scoreEl.textContent = scores[p.id].score;
+    if (levelEl) levelEl.textContent = p.progression?.level || 1;
   });
 }
 
@@ -71,7 +74,7 @@ function buildSkillsBar() {
     const slot = document.createElement('div');
     slot.className = 'skill-slot';
     slot.id = `skill-${sk.id}`;
-    slot.innerHTML = `<span class="sicon">${sk.icon}</span><span class="skey">${sk.key}</span><span class="mana-cost">${getSkillManaCost(sk)}</span><div class="scd" id="scd-${sk.id}">0</div>`;
+    slot.innerHTML = `<span class="sicon">${sk.icon}</span><span class="skey">${sk.key}</span><span class="mana-cost" id="mana-cost-${sk.id}">${getSkillManaCost(sk)}</span><span class="skill-level" id="skill-level-${sk.id}">1</span><div class="scd" id="scd-${sk.id}">0</div>`;
     bar.appendChild(slot);
   });
 }
@@ -82,9 +85,14 @@ function updateSkillsBar() {
   myPlayer.charData.skills.forEach(sk => {
     const slot = document.getElementById(`skill-${sk.id}`);
     const cdEl = document.getElementById(`scd-${sk.id}`);
+    const manaCostEl = document.getElementById(`mana-cost-${sk.id}`);
+    const skillLevelEl = document.getElementById(`skill-level-${sk.id}`);
     if (!slot || !cdEl) return;
+    const scaledSkill = getScaledSkill(myPlayer, sk);
     const remaining = skillCooldowns[sk.id] - now;
-    const hasMana = (myPlayer.mana || 0) >= getSkillManaCost(sk);
+    const hasMana = (myPlayer.mana || 0) >= getSkillManaCost(scaledSkill);
+    if (manaCostEl) manaCostEl.textContent = getSkillManaCost(scaledSkill);
+    if (skillLevelEl) skillLevelEl.textContent = scaledSkill.skillLevel;
     slot.classList.toggle('no-mana', !hasMana && remaining <= 0);
     if (remaining > 0) {
       slot.classList.add('on-cd');

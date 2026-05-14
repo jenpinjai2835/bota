@@ -167,12 +167,13 @@ function setupWebSocket(server, rooms) {
         const target = room.playerData[msg.targetId];
         if (!target) break;
         if (target.hp <= 0) break;
+        const attacker = room.playerData[playerId];
+        if (attacker?.teamId && target.teamId && attacker.teamId === target.teamId) break;
 
         target.hp = Math.max(0, target.hp - msg.damage);
 
         if (target.hp <= 0) {
           target.deaths = (target.deaths || 0) + 1;
-          const attacker = room.playerData[playerId];
           if (attacker) attacker.score = (attacker.score || 0) + 100;
           scheduleRespawn(roomId, msg.targetId);
         }
@@ -204,6 +205,31 @@ function setupWebSocket(server, rooms) {
           y: msg.y,
           facing: msg.facing,
         }, playerId);
+        break;
+      }
+
+      case 'item_pickup': {
+        const roomId = ws.roomId;
+        const room = rooms.get(roomId);
+        if (!room || room.status !== 'playing') break;
+        const player = room.playerData[playerId];
+        if (!player || player.hp <= 0) break;
+        const item = rooms.pickupItem(roomId, msg.itemId);
+        if (!item) break;
+        room.players.forEach(pid => sendTo(pid, {
+          type: 'item_picked',
+          playerId,
+          item,
+        }));
+        setTimeout(() => {
+          const spawnedItem = rooms.spawnItem(roomId);
+          if (!spawnedItem) return;
+          const latestRoom = rooms.get(roomId);
+          latestRoom?.players.forEach(pid => sendTo(pid, {
+            type: 'item_spawned',
+            item: spawnedItem,
+          }));
+        }, 8000);
         break;
       }
 

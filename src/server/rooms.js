@@ -1,5 +1,14 @@
 const MAX_PLAYERS = 5;
 const MIN_CHARACTER_HP = 500;
+const TEAM_IDS = ['sun', 'moon'];
+const MATCH_ITEM_TYPES = ['healing_orb', 'mana_orb', 'power_rune', 'guard_rune', 'haste_rune', 'xp_tome'];
+const ITEM_SPAWN_POINTS = [
+  { x: 205, y: 460 },
+  { x: 420, y: 388 },
+  { x: 640, y: 460 },
+  { x: 320, y: 318 },
+  { x: 520, y: 318 },
+];
 
 const SPAWN_POINTS = [
   { x: 150, y: 454 },
@@ -18,16 +27,16 @@ const RESPAWN_POINTS = [
 ];
 
 const CHARACTER_MAX_HP = {
-  dragonfist: 120,
-  shadowblade: 80,
-  stoneguard: 200,
-  stormarrow: 90,
-  pyromancer: 85,
-  frostmage: 85,
-  thunderking: 110,
-  venomfang: 88,
-  celestial: 95,
-  ironclad: 180,
+  dragonfist: 560,
+  shadowblade: 500,
+  stoneguard: 720,
+  stormarrow: 510,
+  pyromancer: 500,
+  frostmage: 500,
+  thunderking: 590,
+  venomfang: 510,
+  celestial: 540,
+  ironclad: 680,
 };
 
 function generateRoomId() {
@@ -40,6 +49,7 @@ function createPlayer(playerId, { name, character }, index = 0) {
     id: playerId,
     name,
     character,
+    teamId: TEAM_IDS[index % TEAM_IDS.length],
     ready: false,
     x: 200 + index * 80,
     y: 454,
@@ -54,6 +64,20 @@ function createPlayer(playerId, { name, character }, index = 0) {
     deaths: 0,
     lastRespawnIndex: index % RESPAWN_POINTS.length,
   };
+}
+
+function createMatchItem(index = 0) {
+  const point = ITEM_SPAWN_POINTS[index % ITEM_SPAWN_POINTS.length];
+  return {
+    id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    type: MATCH_ITEM_TYPES[index % MATCH_ITEM_TYPES.length],
+    x: point.x,
+    y: point.y,
+  };
+}
+
+function createMatchItems() {
+  return ITEM_SPAWN_POINTS.slice(0, 4).map((point, index) => createMatchItem(index));
 }
 
 class RoomStore {
@@ -73,6 +97,7 @@ class RoomStore {
       playerData: {
         [playerId]: createPlayer(playerId, payload),
       },
+      matchItems: [],
       gameState: null,
     });
 
@@ -93,6 +118,7 @@ class RoomStore {
       stage: room.stage,
       status: room.status,
       players: room.players.map(pid => room.playerData[pid]),
+      matchItems: room.matchItems || [],
     };
   }
 
@@ -118,7 +144,7 @@ class RoomStore {
     if (room.players.length >= MAX_PLAYERS) return { ok: false, error: 'Room is full (max 5 players)' };
 
     room.players.push(playerId);
-    room.playerData[playerId] = createPlayer(playerId, payload, room.players.length);
+    room.playerData[playerId] = createPlayer(playerId, payload, room.players.length - 1);
     return { ok: true, room };
   }
 
@@ -143,11 +169,14 @@ class RoomStore {
     if (!room) return null;
 
     room.status = 'playing';
+    room.matchItems = createMatchItems();
+    room.matchItemSpawnIndex = room.matchItems.length;
     room.players.forEach((pid, i) => {
       const player = room.playerData[pid];
       const spawn = SPAWN_POINTS[i % SPAWN_POINTS.length];
       player.x = spawn.x;
       player.y = spawn.y;
+      player.teamId = TEAM_IDS[i % TEAM_IDS.length];
       player.hp = player.maxHp;
       player.state = 'idle';
       player.lastRespawnIndex = i % RESPAWN_POINTS.length;
@@ -176,6 +205,25 @@ class RoomStore {
       index = (index + 1 + Math.floor(Math.random() * (RESPAWN_POINTS.length - 1))) % RESPAWN_POINTS.length;
     }
     return { ...RESPAWN_POINTS[index], index };
+  }
+
+  pickupItem(roomId, itemId) {
+    const room = this.get(roomId);
+    if (!room?.matchItems) return null;
+    const index = room.matchItems.findIndex(item => item.id === itemId);
+    if (index < 0) return null;
+    const [item] = room.matchItems.splice(index, 1);
+    return item;
+  }
+
+  spawnItem(roomId) {
+    const room = this.get(roomId);
+    if (!room || room.status !== 'playing') return null;
+    room.matchItemSpawnIndex = (room.matchItemSpawnIndex || 0) + 1;
+    const item = createMatchItem(room.matchItemSpawnIndex + (room.matchItems?.length || 0));
+    room.matchItems = room.matchItems || [];
+    room.matchItems.push(item);
+    return item;
   }
 }
 
