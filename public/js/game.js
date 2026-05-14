@@ -340,6 +340,7 @@ let scores = {};
 let isAlive = true;
 let respawnTimer = null;
 const RESPAWN_DELAY_MS = 10000;
+const CHARACTER_VISUAL_SCALE = 0.6;
 const spriteImages = {};
 const warriorVectorOverlayImages = {};
 const WARRIOR_VECTOR_OVERLAY_BASE = '/assets/sprites/warrior-vector-parts/right-side/';
@@ -2662,7 +2663,7 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const h = p.height * sy;
   const footX = x + w / 2;
   const footY = y + h;
-  const drawH = h * source.scale;
+  const drawH = h * source.scale * CHARACTER_VISUAL_SCALE;
   const sheetFrameAspect = source.sheet
     ? (img.naturalWidth / source.sheet.cols) / (img.naturalHeight / source.sheet.rows)
     : 1;
@@ -2716,8 +2717,11 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
 }
 
 function drawPlayer(ctx, p, sx, sy, isMe) {
-  const x = p.x * sx, y = p.y * sy;
-  const w = p.width * sx, h = p.height * sy;
+  const baseX = p.x * sx, baseY = p.y * sy;
+  const baseW = p.width * sx, baseH = p.height * sy;
+  const w = baseW * CHARACTER_VISUAL_SCALE, h = baseH * CHARACTER_VISUAL_SCALE;
+  const x = baseX + baseW / 2 - w / 2;
+  const y = baseY + baseH - h;
   const ch = p.charData;
   const color = ch?.color || '#D4AF37';
   const t = Date.now() * 0.012;
