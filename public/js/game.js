@@ -1937,7 +1937,7 @@ function drawCharacterDetails(ctx, ch, w, h, color, run) {
 }
 
 function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
-  const nameW = Math.max(70, plateW);
+  const nameW = Math.max(96, plateW);
   drawRoundRect(ctx, centerX - nameW / 2, topY - 24 * sy, nameW, 20 * sy, 4);
   ctx.fillStyle = 'rgba(7,5,6,0.72)';
   ctx.fill();
@@ -1945,7 +1945,12 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.font = `700 ${Math.max(9, 11 * Math.min(sx, sy))}px Cinzel, serif`;
+  let nameFontSize = Math.max(9, 11 * Math.min(sx, sy));
+  ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
+  while (nameFontSize > 7 && ctx.measureText(p.name).width > nameW - 12) {
+    nameFontSize -= 0.5;
+    ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
+  }
   ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
@@ -2322,13 +2327,13 @@ function drawDragonfistIdleBones(ctx, drawW, drawH, p, action) {
   drawDragonfistBonePart(ctx, 'chest-torso-front', 128 + swayX, 105 + torsoY, 113, 112, 0.5, torsoRot, 1, 0.5);
 
   drawDragonfistBonePart(ctx, 'right-upper-arm', 172 + swayX, 104 + torsoY + shoulderLift, 47, 22, 0.37, 0.22 + armSwing, 1, 0.42);
-  drawDragonfistBonePart(ctx, 'right-forearm', 181 + swayX, 154 + torsoY, 45, 24, 0.3, 0.24 - armSwing, 1, 0.38);
-  drawDragonfistBonePart(ctx, 'right-hand-fist', 184 + swayX, 205 + torsoY, 39, 18, 0.32, 0.08 - armSwing, 1, 0.35);
+  drawDragonfistBonePart(ctx, 'right-forearm', 181 + swayX, 148 + torsoY, 45, 24, 0.3, 0.24 - armSwing, 1, 0.38);
+  drawDragonfistBonePart(ctx, 'right-hand-fist', 184 + swayX, 196 + torsoY, 39, 18, 0.32, 0.08 - armSwing, 1, 0.35);
   drawDragonfistBonePart(ctx, 'right-shoulder-armor', 165 + swayX, 95 + torsoY + shoulderLift, 50, 36, 0.22, 0.05 + armSwing, 1, 0.24);
 
   drawDragonfistBonePart(ctx, 'left-upper-arm', 84 + swayX, 104 + torsoY + shoulderLift, 42, 22, 0.37, -0.22 + armSwing, 1, 0.42);
-  drawDragonfistBonePart(ctx, 'left-forearm', 74 + swayX, 154 + torsoY, 48, 24, 0.3, -0.26 - armSwing, 1, 0.38);
-  drawDragonfistBonePart(ctx, 'left-hand-fist', 72 + swayX, 205 + torsoY, 38, 18, 0.32, -0.1 + armSwing, 1, 0.35);
+  drawDragonfistBonePart(ctx, 'left-forearm', 74 + swayX, 148 + torsoY, 48, 24, 0.3, -0.26 - armSwing, 1, 0.38);
+  drawDragonfistBonePart(ctx, 'left-hand-fist', 72 + swayX, 196 + torsoY, 38, 18, 0.32, -0.1 + armSwing, 1, 0.35);
   drawDragonfistBonePart(ctx, 'left-shoulder-armor', 91 + swayX, 95 + torsoY + shoulderLift, 51, 36, 0.22, -0.06 - armSwing, 1, 0.24);
 
   drawDragonfistBonePart(ctx, 'waist-sash-front', 138 + swayX, 141 + pelvisY, 77, 20, 0.36, 0.1 + sashRot, 1, 0.42);
@@ -2393,7 +2398,8 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const drawW = source.sheet
     ? drawH * (source.frameAspect ? sheetFrameAspect : 1)
     : drawH * (img.naturalWidth / img.naturalHeight);
-  const visualH = drawH * (source.visualHeight || 1);
+  const usesDragonfistBones = ch?.id === 'dragonfist' && p.state === 'idle' && !action;
+  const visualH = usesDragonfistBones ? drawH * 0.9 : drawH * (source.visualHeight || 1);
   const t = Date.now() * 0.012;
   const actionProgress = getActionProgress(p);
   const actionKick = action ? Math.sin(actionProgress * Math.PI) : 0;
@@ -2435,7 +2441,8 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   }
 
   drawSpriteActionOverlay(ctx, p, footX, footY, drawW, drawH, action);
-  drawPlayerPlate(ctx, p, footX, footY - visualH - 6 * sy, Math.max(82, drawW * (source.plateWidth || 1.25)), sx, sy, isMe);
+  const plateGap = usesDragonfistBones ? 7 * sy : 6 * sy;
+  drawPlayerPlate(ctx, p, footX, footY - visualH - plateGap, Math.max(82, drawW * (source.plateWidth || 1.25)), sx, sy, isMe);
   return true;
 }
 
