@@ -2269,14 +2269,14 @@ function areDragonfistBonesReady() {
   });
 }
 
-function drawDragonfistBonePart(ctx, part, x, y, pivotX, pivotY, scale = 1, rotation = 0, alpha = 1) {
+function drawDragonfistBonePart(ctx, part, x, y, pivotX, pivotY, scale = 1, rotation = 0, alpha = 1, scaleY = scale) {
   const img = dragonfistBoneImages[part];
   if (!img?.complete || !img.naturalWidth) return;
 
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(rotation);
-  ctx.scale(scale, scale);
+  ctx.scale(scale, scaleY);
   ctx.globalAlpha *= alpha;
   ctx.drawImage(img, -pivotX, -pivotY);
   ctx.restore();
@@ -2291,7 +2291,7 @@ function drawDragonfistIdleBones(ctx, drawW, drawH, p, action) {
   const settle = Math.sin(t * Math.PI * 2 * 0.36);
   const scale = drawH / 256;
   const originX = -128;
-  const originY = -240;
+  const originY = -250;
 
   ctx.save();
   ctx.scale(scale, scale);
@@ -2310,34 +2310,34 @@ function drawDragonfistIdleBones(ctx, drawW, drawH, p, action) {
   drawDragonfistBonePart(ctx, 'dragon-aura-ring-1', 129, 134 + torsoY, 100, 83, 0.42, t * 0.25, 0.12 + breath * 0.02);
   drawDragonfistBonePart(ctx, 'dragon-aura-slash', 128, 132 + torsoY, 110, 88, 0.34, -0.2 + delayed * 0.08, 0.1);
 
-  drawDragonfistBonePart(ctx, 'waist-sash-back', 130 + swayX, 151 + pelvisY, 74, 18, 0.43, -0.03 + sashRot);
-  drawDragonfistBonePart(ctx, 'right-thigh', 146, 167 + pelvisY, 56, 20, 0.45, -0.07 + 0.015 * breath);
-  drawDragonfistBonePart(ctx, 'right-shin', 146, 213, 52, 18, 0.43, 0.03);
-  drawDragonfistBonePart(ctx, 'right-foot', 151, 236, 36, 120, 0.46, 0.03);
-  drawDragonfistBonePart(ctx, 'left-thigh', 111, 166 + pelvisY, 58, 20, 0.45, 0.08 - 0.015 * breath);
-  drawDragonfistBonePart(ctx, 'left-shin', 108, 213, 42, 18, 0.43, -0.03);
-  drawDragonfistBonePart(ctx, 'left-foot', 104, 236, 42, 124, 0.46, -0.03);
+  drawDragonfistBonePart(ctx, 'waist-sash-back', 131 + swayX, 141 + pelvisY, 74, 18, 0.4, -0.03 + sashRot, 1, 0.47);
+  drawDragonfistBonePart(ctx, 'right-thigh', 151, 151 + pelvisY, 56, 20, 0.41, -0.08 + 0.015 * breath, 1, 0.51);
+  drawDragonfistBonePart(ctx, 'right-shin', 154, 215, 52, 18, 0.39, 0.06, 1, 0.49);
+  drawDragonfistBonePart(ctx, 'right-foot', 161, 248, 36, 120, 0.43, 0.08, 1, 0.43);
+  drawDragonfistBonePart(ctx, 'left-thigh', 105, 150 + pelvisY, 58, 20, 0.42, 0.09 - 0.015 * breath, 1, 0.51);
+  drawDragonfistBonePart(ctx, 'left-shin', 101, 215, 42, 18, 0.39, -0.06, 1, 0.49);
+  drawDragonfistBonePart(ctx, 'left-foot', 95, 248, 42, 124, 0.43, -0.08, 1, 0.43);
 
-  drawDragonfistBonePart(ctx, 'pelvis-waist', 127 + swayX * 0.3, 147 + pelvisY, 91, 30, 0.5, 0.006 * delayed);
-  drawDragonfistBonePart(ctx, 'chest-torso-front', 128 + swayX, 107 + torsoY, 113, 112, 0.52, torsoRot);
+  drawDragonfistBonePart(ctx, 'pelvis-waist', 127 + swayX * 0.3, 136 + pelvisY, 91, 30, 0.48, 0.006 * delayed, 1, 0.45);
+  drawDragonfistBonePart(ctx, 'chest-torso-front', 128 + swayX, 105 + torsoY, 113, 112, 0.5, torsoRot, 1, 0.5);
 
-  drawDragonfistBonePart(ctx, 'right-upper-arm', 170 + swayX, 105 + torsoY + shoulderLift, 47, 22, 0.42, 0.2 + armSwing);
-  drawDragonfistBonePart(ctx, 'right-forearm', 175 + swayX, 151 + torsoY, 45, 24, 0.39, 0.2 - armSwing);
-  drawDragonfistBonePart(ctx, 'right-hand-fist', 174 + swayX, 198 + torsoY, 39, 18, 0.43, 0.05 - armSwing);
-  drawDragonfistBonePart(ctx, 'right-shoulder-armor', 166 + swayX, 91 + torsoY + shoulderLift, 50, 36, 0.39, 0.05 + armSwing);
+  drawDragonfistBonePart(ctx, 'right-upper-arm', 172 + swayX, 104 + torsoY + shoulderLift, 47, 22, 0.37, 0.22 + armSwing, 1, 0.42);
+  drawDragonfistBonePart(ctx, 'right-forearm', 181 + swayX, 154 + torsoY, 45, 24, 0.3, 0.24 - armSwing, 1, 0.38);
+  drawDragonfistBonePart(ctx, 'right-hand-fist', 184 + swayX, 205 + torsoY, 39, 18, 0.32, 0.08 - armSwing, 1, 0.35);
+  drawDragonfistBonePart(ctx, 'right-shoulder-armor', 165 + swayX, 95 + torsoY + shoulderLift, 50, 36, 0.22, 0.05 + armSwing, 1, 0.24);
 
-  drawDragonfistBonePart(ctx, 'left-upper-arm', 84 + swayX, 105 + torsoY + shoulderLift, 42, 22, 0.42, -0.2 + armSwing);
-  drawDragonfistBonePart(ctx, 'left-forearm', 80 + swayX, 151 + torsoY, 48, 24, 0.39, -0.24 - armSwing);
-  drawDragonfistBonePart(ctx, 'left-hand-fist', 80 + swayX, 198 + torsoY, 38, 18, 0.43, -0.07 + armSwing);
-  drawDragonfistBonePart(ctx, 'left-shoulder-armor', 90 + swayX, 91 + torsoY + shoulderLift, 51, 36, 0.39, -0.06 - armSwing);
+  drawDragonfistBonePart(ctx, 'left-upper-arm', 84 + swayX, 104 + torsoY + shoulderLift, 42, 22, 0.37, -0.22 + armSwing, 1, 0.42);
+  drawDragonfistBonePart(ctx, 'left-forearm', 74 + swayX, 154 + torsoY, 48, 24, 0.3, -0.26 - armSwing, 1, 0.38);
+  drawDragonfistBonePart(ctx, 'left-hand-fist', 72 + swayX, 205 + torsoY, 38, 18, 0.32, -0.1 + armSwing, 1, 0.35);
+  drawDragonfistBonePart(ctx, 'left-shoulder-armor', 91 + swayX, 95 + torsoY + shoulderLift, 51, 36, 0.22, -0.06 - armSwing, 1, 0.24);
 
-  drawDragonfistBonePart(ctx, 'waist-sash-front', 131 + swayX, 153 + pelvisY, 77, 20, 0.43, 0.04 + sashRot);
-  drawDragonfistBonePart(ctx, 'belt-buckle-dragon-medallion', 129 + swayX, 151 + pelvisY, 74, 50, 0.27, 0.015 * delayed);
+  drawDragonfistBonePart(ctx, 'waist-sash-front', 138 + swayX, 141 + pelvisY, 77, 20, 0.36, 0.1 + sashRot, 1, 0.42);
+  drawDragonfistBonePart(ctx, 'belt-buckle-dragon-medallion', 129 + swayX, 138 + pelvisY, 74, 50, 0.25, 0.015 * delayed);
 
-  drawDragonfistBonePart(ctx, 'neck', 128 + swayX, 69 + torsoY, 48, 70, 0.42, torsoRot);
-  drawDragonfistBonePart(ctx, 'back-hair-ponytail', 132 + swayX, 54 + torsoY, 97, 92, 0.4, hairRot + 0.02);
-  drawDragonfistBonePart(ctx, 'head-base-face', 127 + swayX, 57 + torsoY, 80, 92, 0.43, headRot);
-  drawDragonfistBonePart(ctx, 'front-hair', 126 + swayX, 38 + torsoY, 82, 65, 0.45, hairRot * 0.55);
+  drawDragonfistBonePart(ctx, 'neck', 128 + swayX, 70 + torsoY, 48, 70, 0.33, torsoRot, 1, 0.34);
+  drawDragonfistBonePart(ctx, 'back-hair-ponytail', 130 + swayX, 51 + torsoY, 97, 92, 0.31, hairRot + 0.02, 1, 0.32);
+  drawDragonfistBonePart(ctx, 'head-base-face', 126 + swayX, 56 + torsoY, 80, 92, 0.32, headRot, 1, 0.33);
+  drawDragonfistBonePart(ctx, 'front-hair', 125 + swayX, 41 + torsoY, 82, 65, 0.33, hairRot * 0.55, 1, 0.34);
 
   ctx.restore();
   return true;
