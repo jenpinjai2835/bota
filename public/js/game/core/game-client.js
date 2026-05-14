@@ -14,6 +14,7 @@ function leaveGame() {
   projectiles = [];
   effects = [];
   damageNumbers = [];
+  deathParts = [];
   scores = {};
   skillCooldowns = {};
   localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
@@ -74,6 +75,7 @@ function startGameClient(state) {
       vx: 0, vy: 0, onGround: false, facing: 1,
       state: 'idle', score: 0, deaths: 0,
       action: null, actionStartedAt: 0, actionUntil: 0,
+      bodyShattered: false,
       width: 44, height: 66,
     };
     if (p.id === myPlayerId) {
@@ -97,7 +99,7 @@ function startGameClient(state) {
   document.getElementById('chat-container').classList.add('visible');
   document.getElementById('controls-hint').classList.add('visible');
 
-  projectiles = []; effects = []; damageNumbers = [];
+  projectiles = []; effects = []; damageNumbers = []; deathParts = [];
   scores = {};
   state.players.forEach(p => { scores[p.id] = { id: p.id, name: p.name, score: 0, deaths: 0 }; });
 

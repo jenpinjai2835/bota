@@ -172,6 +172,7 @@ function drawCharacterDetails(ctx, ch, w, h, color, run) {
 
 function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   const nameW = Math.max(96, plateW);
+  const label = getPlayerClassLabel(p);
   if (p.hp <= 0 && p.deathUntil) {
     const remaining = Math.max(0, Math.ceil((p.deathUntil - Date.now()) / 1000));
     const countdownY = topY - 36 * sy;
@@ -198,14 +199,14 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
 
   let nameFontSize = Math.max(9, 11 * Math.min(sx, sy));
   ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
-  while (nameFontSize > 7 && ctx.measureText(p.name).width > nameW - 12) {
+  while (nameFontSize > 7 && ctx.measureText(label).width > nameW - 12) {
     nameFontSize -= 0.5;
     ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
   }
   ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(p.name, centerX, topY - 8 * sy);
+  ctx.fillText(label, centerX, topY - 8 * sy);
 
   const bw = nameW - 10;
   const bh = Math.max(4, 4 * sy);
@@ -233,8 +234,8 @@ function drawHealthSegmentTicks(ctx, x, y, w, h, maxHp) {
   const count = Math.floor(maxHp / 100);
   if (count <= 1) return;
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.36)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+  ctx.lineWidth = 2;
   for (let i = 1; i < count; i++) {
     const tx = x + w * (i * 100 / maxHp);
     ctx.beginPath();
@@ -827,6 +828,10 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const baseFacing = source.baseFacing || 1;
   const shouldFlip = (p.facing || 1) !== baseFacing;
   const bodyAlpha = getDeathBodyAlpha(p);
+  if (p.hp <= 0 && p.bodyShattered) {
+    drawPlayerPlate(ctx, p, footX, footY - visualH - 6 * sy, Math.max(82, drawW * (source.plateWidth || 1.25)), sx, sy, isMe);
+    return true;
+  }
 
   ctx.save();
   ctx.globalAlpha = bodyAlpha;
@@ -870,6 +875,7 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   const y = baseY + baseH - h;
   const ch = p.charData;
   const color = ch?.color || '#D4AF37';
+  const label = getPlayerClassLabel(p);
   const t = Date.now() * 0.012;
   const bob = p.state === 'idle' ? Math.sin(t) * 1.2 * sy : 0;
   const run = p.state === 'run' ? Math.sin(t * 1.7) : 0;
@@ -984,7 +990,7 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(p.name, x + w / 2, nameY - 8 * sy);
+  ctx.fillText(label, x + w / 2, nameY - 8 * sy);
 
   const bw = nameW - 10;
   const bh = Math.max(4, 4 * sy);

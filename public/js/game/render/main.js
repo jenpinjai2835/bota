@@ -14,6 +14,7 @@ function render(canvas) {
   effects.forEach(e => drawEffect(ctx, e, scaleX, scaleY));
   Object.values(remotePlayers).forEach(p => drawPlayer(ctx, p, scaleX, scaleY, false));
   if (myPlayer) drawPlayer(ctx, myPlayer, scaleX, scaleY, true);
+  deathParts.forEach(part => drawDeathPart(ctx, part, scaleX, scaleY));
   bloodParticles.forEach(b => drawBloodParticle(ctx, b, scaleX, scaleY));
   damageNumbers.forEach(n => drawDamageNumber(ctx, n, scaleX, scaleY));
 

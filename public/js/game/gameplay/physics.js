@@ -126,28 +126,72 @@ function isPlayerBodyBlocking(p) {
   return p && p.hp > 0 && p.state !== 'dead';
 }
 
+function getPlayerBodyRect(p) {
+  const insetX = p.width * 0.16;
+  const insetTop = p.height * 0.1;
+  return {
+    x: p.x + insetX,
+    y: p.y + insetTop,
+    w: p.width - insetX * 2,
+    h: p.height - insetTop,
+  };
+}
+
+function pushBlockingPlayer(p, dx, dy) {
+  p.x += dx;
+  p.y += dy;
+  if (dx) {
+    if ((p.vx || 0) * dx < 0) p.vx = 0;
+    p.vx += dx * 0.08;
+  }
+  if (dy) {
+    if (dy < 0) {
+      p.vy = Math.min(0, p.vy || 0);
+      p.onGround = true;
+    } else if ((p.vy || 0) < 0) {
+      p.vy = 0;
+    }
+  }
+}
+
 function resolvePlayerBodyCollisions() {
   const players = [myPlayer, ...Object.values(remotePlayers)].filter(isPlayerBodyBlocking);
   for (let i = 0; i < players.length; i++) {
     for (let j = i + 1; j < players.length; j++) {
       const a = players[i];
       const b = players[j];
-      const overlapX = Math.min(a.x + a.width - b.x, b.x + b.width - a.x);
-      const overlapY = Math.min(a.y + a.height - b.y, b.y + b.height - a.y);
+      const ar = getPlayerBodyRect(a);
+      const br = getPlayerBodyRect(b);
+      const overlapX = Math.min(ar.x + ar.w - br.x, br.x + br.w - ar.x);
+      const overlapY = Math.min(ar.y + ar.h - br.y, br.y + br.h - ar.y);
       if (overlapX <= 0 || overlapY <= 0) continue;
 
-      const dir = (a.x + a.width / 2) < (b.x + b.width / 2) ? -1 : 1;
-      if (a === myPlayer) {
-        a.x += dir * overlapX;
-        a.vx = dir < 0 ? Math.min(0, a.vx || 0) : Math.max(0, a.vx || 0);
-      } else if (b === myPlayer) {
-        b.x -= dir * overlapX;
-        b.vx = dir < 0 ? Math.max(0, b.vx || 0) : Math.min(0, b.vx || 0);
+      const centerDeltaX = (ar.x + ar.w / 2) - (br.x + br.w / 2);
+      const centerDeltaY = (ar.y + ar.h / 2) - (br.y + br.h / 2);
+      const sideDir = centerDeltaX < 0 ? -1 : 1;
+      const separateVertically = overlapY < overlapX * 0.62 && Math.abs(centerDeltaY) > ar.h * 0.2;
+
+      if (separateVertically) {
+        const yDir = centerDeltaY < 0 ? -1 : 1;
+        const amount = overlapY + 0.5;
+        if (a === myPlayer) {
+          pushBlockingPlayer(a, 0, yDir * amount);
+        } else if (b === myPlayer) {
+          pushBlockingPlayer(b, 0, -yDir * amount);
+        } else {
+          pushBlockingPlayer(a, 0, yDir * amount * 0.5);
+          pushBlockingPlayer(b, 0, -yDir * amount * 0.5);
+        }
       } else {
-        a.x += dir * overlapX * 0.5;
-        b.x -= dir * overlapX * 0.5;
-        a.vx *= -0.15;
-        b.vx *= -0.15;
+        const amount = overlapX + 0.5;
+        if (a === myPlayer) {
+          pushBlockingPlayer(a, sideDir * amount, 0);
+        } else if (b === myPlayer) {
+          pushBlockingPlayer(b, -sideDir * amount, 0);
+        } else {
+          pushBlockingPlayer(a, sideDir * amount * 0.5, 0);
+          pushBlockingPlayer(b, -sideDir * amount * 0.5, 0);
+        }
       }
       a.x = Math.max(0, Math.min(getStageWidth() - a.width, a.x));
       b.x = Math.max(0, Math.min(getStageWidth() - b.width, b.x));

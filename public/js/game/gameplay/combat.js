@@ -69,6 +69,46 @@ function spawnBloodBurst(x, y, dir = 1, amount = 14) {
   }
 }
 
+function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
+  const files = [
+    'Body.png',
+    'Head.png',
+    'Left_Arm.png',
+    'Left_Hand.png',
+    'Left_Leg.png',
+    'Right_Leg.png',
+    'clothes/Body_clothes.png',
+    'clothes/Arm_clothes.png',
+    'clothes/Hand_clothes.png',
+    'clothes/Hat.png',
+    'clothes/Left_Shoes.png',
+    'clothes/Right_Shoes.png',
+    'clothes/Sword.png',
+  ];
+  const cx = target.x + target.width / 2;
+  const cy = target.y + target.height * 0.42;
+  const force = 2.6 + Math.min(8, Math.max(0, damage) * 0.018);
+  files.forEach((file, i) => {
+    const img = warriorVectorOverlayImages[file];
+    if (!img?.complete || !img.naturalWidth) return;
+    const spread = (i / Math.max(1, files.length - 1) - 0.5) * 2;
+    const size = file.includes('Body') ? 33 : file.includes('Head') || file.includes('Hat') ? 24 : 18;
+    deathParts.push({
+      img,
+      x: cx + spread * 7,
+      y: cy + (Math.random() - 0.5) * 18,
+      vx: dir * (force + Math.random() * 4.5) + spread * 2.8,
+      vy: -4.8 - Math.random() * (5 + Math.min(4, damage * 0.01)),
+      w: size,
+      h: size * (img.naturalHeight / img.naturalWidth),
+      angle: (Math.random() - 0.5) * 1.4,
+      spin: (Math.random() - 0.5 + dir * 0.35) * (0.12 + Math.min(0.26, damage * 0.002)),
+      life: DEATH_PART_LIFE,
+      maxLife: DEATH_PART_LIFE,
+    });
+  });
+}
+
 function applyHitReaction(target, dir = 1, skillId = null) {
   if (!target) return;
   const force = getHitReactionForce(skillId, 0);
@@ -100,6 +140,11 @@ function startDeathMotion(target, dir = 1, damage = 0, skillId = null) {
   target.deathAngle = target.deathAngle || 0;
   target.deathSpin = dir * (0.15 + Math.min(0.34, Math.max(0, damage) * 0.006));
   target.onGround = false;
+  if (!target.bodyShattered) {
+    target.bodyShattered = true;
+    spawnDeathPartsBurst(target, dir, damage);
+    spawnBloodBurst(target.x + target.width / 2, target.y + target.height * 0.42, dir, 30);
+  }
 }
 
 function dealDamage(target, damage, skillId, hitDir = 1) {
@@ -244,6 +289,36 @@ function updateProjectiles() {
     b.vx *= 0.94;
     b.life--;
     return b.life > 0;
+  });
+  deathParts = deathParts.filter(part => {
+    part.x += part.vx;
+    part.y += part.vy;
+    part.vy += GRAVITY * 0.28;
+    part.angle += part.spin;
+
+    let bounced = false;
+    getPlatforms().forEach(plat => {
+      if (
+        part.x > plat.x &&
+        part.x < plat.x + plat.w &&
+        part.y + part.h * 0.5 > plat.y &&
+        part.y - part.h * 0.5 < plat.y + plat.h
+      ) {
+        part.y = plat.y - part.h * 0.5;
+        part.vy = -Math.abs(part.vy) * 0.42;
+        part.vx *= 0.72;
+        part.spin *= -0.62;
+        bounced = true;
+      }
+    });
+    if (!bounced && (part.x < 0 || part.x > getStageWidth())) {
+      part.x = Math.max(0, Math.min(getStageWidth(), part.x));
+      part.vx *= -0.5;
+      part.spin *= -0.8;
+    }
+    part.vx *= 0.985;
+    part.life--;
+    return part.life > 0;
   });
 }
 

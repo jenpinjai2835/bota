@@ -438,7 +438,7 @@
   .hp-fill.high { background: linear-gradient(90deg, #1F9E55, #57E37F); box-shadow: 0 0 10px rgba(87,227,127,0.25); }
   .hp-fill.med { background: linear-gradient(90deg, #D27A18, #FFC247); box-shadow: 0 0 10px rgba(255,194,71,0.24); }
   .hp-ticks { position: absolute; inset: 0; pointer-events: none; }
-  .hp-ticks span { position: absolute; top: 1px; bottom: 1px; width: 1px; background: rgba(255,255,255,0.4); transform: translateX(-0.5px); box-shadow: 0 0 2px rgba(0,0,0,0.55); }
+  .hp-ticks span { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(0,0,0,0.88); transform: translateX(-1px); box-shadow: 0 0 0 1px rgba(255,255,255,0.18); }
   .mana-bar { height: 6px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 5px; overflow: hidden; }
   .mana-fill { height: 100%; background: linear-gradient(90deg, #2368D8, #6CCBFF); border-radius: 999px; transition: width 0.2s; box-shadow: 0 0 10px rgba(91,178,255,0.28); }
   .phud-score { font-size: 13px; color: var(--gold-light); text-align: right; font-family: 'Cinzel', serif; }

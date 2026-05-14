@@ -15,8 +15,8 @@ function buildHUD(state) {
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:16px">${ch.icon}</span>
         <div>
-          <div class="phud-name">${p.name}</div>
-          <div class="phud-char">${ch.class}</div>
+          <div class="phud-name">${getPlayerClassLabel({ ...p, charData: ch })}</div>
+          <div class="phud-char">${ch.name}</div>
         </div>
         <div class="phud-score" style="margin-left:auto" id="score-${p.id}">0</div>
       </div>
@@ -105,7 +105,9 @@ function updateScoreboard() {
   sorted.forEach((s, i) => {
     const row = document.createElement('div');
     row.className = 'score-row';
-    row.innerHTML = `<span class="rank">#${i+1}</span><span class="sname">${s.name}${s.id === myPlayerId ? ' ★' : ''}</span><span class="sdead">💀 ${s.deaths || 0}</span><span class="spts">${s.score} pts</span>`;
+    const player = s.id === myPlayerId ? myPlayer : remotePlayers[s.id];
+    const label = getPlayerClassLabel(player || s);
+    row.innerHTML = `<span class="rank">#${i+1}</span><span class="sname">${label}${s.id === myPlayerId ? ' ★' : ''}</span><span class="sdead">💀 ${s.deaths || 0}</span><span class="spts">${s.score} pts</span>`;
     list.appendChild(row);
   });
 }

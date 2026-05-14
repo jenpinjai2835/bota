@@ -190,3 +190,19 @@ function drawBloodParticle(ctx, b, sx, sy) {
   ctx.fill();
   ctx.restore();
 }
+
+function drawDeathPart(ctx, part, sx, sy) {
+  const alpha = Math.max(0, Math.min(1, part.life / Math.max(1, part.maxLife)));
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(part.x * sx, part.y * sy);
+  ctx.rotate(part.angle || 0);
+  ctx.drawImage(
+    part.img,
+    -part.w * sx / 2,
+    -part.h * sy / 2,
+    part.w * sx,
+    part.h * sy
+  );
+  ctx.restore();
+}

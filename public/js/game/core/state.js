@@ -18,6 +18,7 @@ let projectiles = [];
 let effects = [];
 let damageNumbers = [];
 let bloodParticles = [];
+let deathParts = [];
 let skillCooldowns = {};
 let scores = {};
 let isAlive = true;
@@ -28,6 +29,7 @@ const MIN_CHARACTER_HP = 500;
 const MELEE_Z_RANGE_MULTIPLIER = 1.5;
 const DEATH_BODY_FADE_START_MS = 3800;
 const DEATH_BODY_FADE_DURATION_MS = 1200;
+const DEATH_PART_LIFE = 300;
 const spriteImages = {};
 const warriorVectorOverlayImages = {};
 const WARRIOR_VECTOR_OVERLAY_BASE = '/assets/sprites/warrior-vector-parts/right-side/';
@@ -179,6 +181,11 @@ function getMaxMana(ch) {
 
 function getCharacterMaxHp(ch) {
   return Math.max(MIN_CHARACTER_HP, ch?.maxHp || 100);
+}
+
+function getPlayerClassLabel(playerOrScore) {
+  const ch = playerOrScore?.charData || CHARACTERS.find(c => c.id === playerOrScore?.character);
+  return ch?.class || ch?.name || playerOrScore?.name || 'Fighter';
 }
 
 function getManaRegen(ch) {

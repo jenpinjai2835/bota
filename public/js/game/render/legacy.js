@@ -148,7 +148,7 @@ function legacyDrawPlayer(ctx, p, sx, sy, isMe) {
   ctx.fillStyle = isMe ? '#F5E182' : '#E8D5B0';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(p.name, x + w/2, y - 4);
+  ctx.fillText(getPlayerClassLabel(p), x + w/2, y - 4);
 
   // HP bar (above name)
   const bw = w * 1.2, bh = 4 * sy;

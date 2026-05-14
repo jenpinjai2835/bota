@@ -80,6 +80,7 @@ function handleMessage(msg) {
         myPlayer.deathFadeStartedAt = 0;
         myPlayer.deathAngle = 0;
         myPlayer.deathSpin = 0;
+        myPlayer.bodyShattered = false;
         document.getElementById('death-overlay').classList.remove('visible');
         if (respawnTimer) clearInterval(respawnTimer);
         respawnTimer = null;
@@ -96,6 +97,7 @@ function handleMessage(msg) {
         remotePlayers[msg.playerId].deathFadeStartedAt = 0;
         remotePlayers[msg.playerId].deathAngle = 0;
         remotePlayers[msg.playerId].deathSpin = 0;
+        remotePlayers[msg.playerId].bodyShattered = false;
       }
       break;
     case 'score_update':
