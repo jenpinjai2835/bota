@@ -61,6 +61,43 @@ function drawPillar(ctx, pillar, stage, sx, sy) {
   }
 }
 
+function drawBattlefieldFloor(ctx, stage, sx, sy) {
+  const x = 0;
+  const y = BATTLEFIELD_TOP_Y * sy;
+  const w = WORLD_W * sx;
+  const h = (BATTLEFIELD_BOTTOM_Y - BATTLEFIELD_TOP_Y) * sy;
+  const grad = ctx.createLinearGradient(0, y, 0, y + h);
+  grad.addColorStop(0, withAlpha(stage.decorColor, 0.1));
+  grad.addColorStop(0.5, 'rgba(80,45,20,0.34)');
+  grad.addColorStop(1, 'rgba(120,75,24,0.56)');
+  ctx.save();
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(x + 78 * sx, y);
+  ctx.lineTo(x + w - 78 * sx, y);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = withAlpha(stage.decorColor, 0.48);
+  ctx.lineWidth = Math.max(1, 1.5 * Math.min(sx, sy));
+  ctx.beginPath();
+  ctx.moveTo(x + 78 * sx, y);
+  ctx.lineTo(x + w - 78 * sx, y);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  for (let i = 1; i < 4; i++) {
+    const yy = y + (h * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(x + (58 - i * 12) * sx, yy);
+    ctx.lineTo(x + w - (58 - i * 12) * sx, yy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawPlatform(ctx, plat, stage, sx, sy) {
   const x = plat.x * sx;
   const y = plat.y * sy;

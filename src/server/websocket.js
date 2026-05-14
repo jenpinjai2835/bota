@@ -97,8 +97,8 @@ function setupWebSocket(server, rooms) {
       h: 42,
       hp: 125,
       maxHp: 125,
-      damage: 14,
-      speed: 0.78,
+      damage: 16,
+      speed: 2.15,
       range: 34,
       attackAt: 0,
       state: 'walk',
@@ -153,7 +153,7 @@ function setupWebSocket(server, rooms) {
       if (dist > creep.range) {
         creep.state = 'walk';
         creep.x += dir * creep.speed;
-        creep.y += Math.sign((target.y || creep.y) - creep.y) * Math.min(0.22, Math.abs((target.y || creep.y) - creep.y));
+        creep.y += Math.sign((target.y || creep.y) - creep.y) * Math.min(0.75, Math.abs((target.y || creep.y) - creep.y));
       } else if ((creep.attackAt || 0) <= now) {
         creep.state = 'attack';
         creep.attackAt = now + 900;

@@ -24,7 +24,22 @@ function preloadMonsterAssets() {
 }
 
 function syncWorldState(msg) {
-  creeps = (msg.creeps || []).map(creep => ({ ...creeps.find(entry => entry.id === creep.id), ...creep }));
+  const incoming = msg.creeps || [];
+  const incomingIds = new Set(incoming.map(creep => creep.id));
+  creeps
+    .filter(creep => creep.hp > 0 && !incomingIds.has(creep.id))
+    .forEach(creep => spawnCreepDeathBurst(creep, creep.facing || (creep.teamId === 'sun' ? 1 : -1), 34));
+  creeps = incoming.map(creep => {
+    const existing = creeps.find(entry => entry.id === creep.id);
+    return {
+      ...existing,
+      ...creep,
+      renderX: existing?.renderX ?? creep.x,
+      renderY: existing?.renderY ?? creep.y,
+      targetX: creep.x,
+      targetY: creep.y,
+    };
+  });
   objectives = (msg.objectives || []).map(obj => ({ ...objectives.find(entry => entry.id === obj.id), ...obj }));
   gameWinner = msg.winner || gameWinner;
 }
@@ -57,10 +72,42 @@ function damageWorldUnit(unit, damage, skillId, hitDir = 1) {
 }
 
 function updateTowerShots() {
+  const step = 0.38;
+  creeps.forEach(creep => {
+    creep.renderX = (creep.renderX ?? creep.x) + ((creep.targetX ?? creep.x) - (creep.renderX ?? creep.x)) * step;
+    creep.renderY = (creep.renderY ?? creep.y) + ((creep.targetY ?? creep.y) - (creep.renderY ?? creep.y)) * step;
+  });
   towerShots = towerShots.filter(shot => {
     shot.life--;
     return shot.life > 0;
   });
+}
+
+function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
+  const frames = monsterImages[creep.type]?.idle || monsterImages[creep.type]?.walk || [];
+  const img = frames.find(frame => frame?.complete && frame.naturalWidth);
+  if (!img) return;
+  const cx = (creep.renderX ?? creep.x) + (creep.w || 42) / 2;
+  const cy = (creep.renderY ?? creep.y) + (creep.h || 42) * 0.52;
+  const force = 2.1 + Math.min(5, Math.max(0, damage) * 0.035);
+  for (let i = 0; i < 8; i++) {
+    const spread = (i / 7 - 0.5) * 2;
+    const size = 14 + (i % 3) * 5;
+    deathParts.push({
+      img,
+      x: cx + spread * 5,
+      y: cy + (Math.random() - 0.5) * 14,
+      vx: dir * (force + Math.random() * 3.2) + spread * 2.2,
+      vy: -3.4 - Math.random() * 4.4,
+      w: size,
+      h: size,
+      angle: (Math.random() - 0.5) * 1.6,
+      spin: (Math.random() - 0.5 + dir * 0.3) * 0.18,
+      life: Math.round(DEATH_PART_LIFE * 0.72),
+      maxLife: Math.round(DEATH_PART_LIFE * 0.72),
+    });
+  }
+  spawnBloodBurst(cx, cy, dir, 16);
 }
 
 function drawObjective(ctx, obj, sx, sy) {
@@ -101,13 +148,20 @@ function drawCreep(ctx, creep, sx, sy) {
   const meta = MONSTER_ACTIONS[action] || MONSTER_ACTIONS.walk;
   const frame = Math.floor(Date.now() / (1000 / meta.fps)) % Math.max(1, frames.length);
   const img = frames[frame];
-  const x = (creep.x + (creep.w || 42) / 2) * sx;
-  const y = (creep.y + (creep.h || 42)) * sy;
+  const drawX = creep.renderX ?? creep.x;
+  const drawY = creep.renderY ?? creep.y;
+  const x = (drawX + (creep.w || 42) / 2) * sx;
+  const y = (drawY + (creep.h || 42)) * sy;
   const scale = Math.min(sx, sy);
   const w = 58 * scale;
   const h = 58 * scale;
   const facing = creep.facing || (creep.teamId === 'sun' ? 1 : -1);
+  const hostile = myPlayer && creep.teamId !== myPlayer.teamId;
   ctx.save();
+  if (hostile) {
+    ctx.shadowColor = 'rgba(255,58,68,0.85)';
+    ctx.shadowBlur = 12;
+  }
   ctx.translate(x, y);
   ctx.scale(facing > 0 ? 1 : -1, 1);
   if (img?.complete && img.naturalWidth) {
@@ -119,16 +173,29 @@ function drawCreep(ctx, creep, sx, sy) {
     ctx.fill();
   }
   ctx.restore();
+  if (hostile) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,58,68,0.88)';
+    ctx.lineWidth = Math.max(1, 1.4 * scale);
+    ctx.beginPath();
+    ctx.ellipse(x, y - h * 0.38, w * 0.42, h * 0.45, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   drawUnitHealthBar(ctx, creep, x, y - h - 3 * sy, Math.max(32, 38 * scale), sx, sy);
 }
 
 function drawUnitHealthBar(ctx, unit, centerX, topY, width, sx, sy) {
   const hpPct = Math.max(0, Math.min(1, (unit.hp || 0) / Math.max(1, unit.maxHp || 1)));
   const h = Math.max(3, 4 * Math.min(sx, sy));
+  const hostile = myPlayer && unit.teamId && unit.teamId !== myPlayer.teamId;
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.68)';
   drawRoundRect(ctx, centerX - width / 2, topY, width, h, 2);
   ctx.fill();
+  ctx.strokeStyle = hostile ? 'rgba(255,58,68,0.98)' : 'rgba(76,232,128,0.78)';
+  ctx.lineWidth = Math.max(1, 1.2 * Math.min(sx, sy));
+  ctx.stroke();
   ctx.fillStyle = hpPct > 0.5 ? '#44D66E' : hpPct > 0.25 ? '#FFB02E' : '#FF3D46';
   drawRoundRect(ctx, centerX - width / 2, topY, width * hpPct, h, 2);
   ctx.fill();

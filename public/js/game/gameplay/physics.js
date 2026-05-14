@@ -30,8 +30,11 @@ function updatePlayer(p, dt) {
   }
   p.mana = Math.min(p.maxMana || getMaxMana(p.charData), p.mana + getManaRegen(p.charData) * Math.max(1, dt / 16.67));
 
-  // Gravity
-  p.vy += GRAVITY;
+  if (p.onGround && (p.vy || 0) >= 0) {
+    p.vy = 0;
+  } else {
+    p.vy += GRAVITY;
+  }
 
   // Horizontal friction
   if (p.onGround) p.vx *= 0.82;

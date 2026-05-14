@@ -8,6 +8,7 @@ function render(canvas) {
 
   ctx.clearRect(0, 0, W, H);
   drawBackground(ctx, stage, W, H, scaleX, scaleY);
+  drawBattlefieldFloor(ctx, stage, scaleX, scaleY);
   stage.pillars.forEach(pl => drawPillar(ctx, pl, stage, scaleX, scaleY));
   stage.platforms.forEach(plat => drawPlatform(ctx, plat, stage, scaleX, scaleY));
   matchItems.forEach(item => drawMatchItem(ctx, item, scaleX, scaleY));
