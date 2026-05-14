@@ -345,6 +345,15 @@ const WARRIOR_VECTOR_OVERLAY_FILES = [
   'Body.png',
   'Head.png',
   'Face_01.png',
+  'Face_02.png',
+  'Face_03.png',
+  'Face_04.png',
+  'Face_05.png',
+  'Face_06.png',
+  'Face_07.png',
+  'Face_08.png',
+  'Face_09.png',
+  'Face_10.png',
   'Left_Arm.png',
   'Left_Hand.png',
   'Left_Leg.png',
@@ -357,6 +366,9 @@ const WARRIOR_VECTOR_OVERLAY_FILES = [
   'clothes/Left_Shoes.png',
   'clothes/Right_Shoes.png',
   'clothes/Shiled.png',
+  'clothes/Slash.png',
+  'clothes/Slash_2.png',
+  'clothes/Sword.png',
 ];
 let warriorVectorAnimationsData = null;
 let warriorVectorAnimationsLoadStarted = false;
@@ -2462,7 +2474,7 @@ function drawWarriorVectorCharacter(ctx, drawW, drawH, p, action, source) {
 
   const scale = (drawH * 0.82) / boundsH;
   const offsetX = drawW * 0.02 - ((bounds.minX + bounds.maxX) * 0.5 * scale);
-  const offsetY = -drawH * 0.01 - bounds.maxY * scale;
+  const offsetY = drawH * 0.08 - bounds.maxY * scale;
 
   ctx.save();
   ctx.translate(offsetX, offsetY);
