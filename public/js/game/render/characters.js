@@ -426,6 +426,7 @@ function drawDragonfistFootwork(ctx, drawW, drawH, stride, lift, isMoving) {
 function getSpriteSheetId(ch, p, action) {
   const skill = getSkillForAction(ch, action);
   if (ch?.id === 'dragonfist') {
+    if (p.hp <= 0 || p.state === 'dead' || p.state === 'hurt' || p.hitStunUntil > Date.now()) return 'idle';
     if (p.state === 'idle') return 'idle';
     if (p.state === 'jump' || p.state === 'fall') return 'jump';
     if (['punch', 'flame', 'roar'].includes(action)) return 'attack';
@@ -517,6 +518,8 @@ function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
   const sy = Math.floor(frame / sheet.cols) * frameH;
   ctx.drawImage(img, sx, sy, frameW, frameH, -drawW / 2, -drawH * (source.footY || 1), drawW, drawH);
 }
+
+const warriorVectorBoundsCache = {};
 
 function getWarriorVectorTimelineKey(timeline, time, length) {
   const keys = timeline?.keys || [];
@@ -615,12 +618,12 @@ function getWarriorVectorAnimationTime(animation, p, action) {
   return Date.now() % animation.length;
 }
 
-function getWarriorVectorCharacterObjects(animationName, p, action) {
+function getWarriorVectorCharacterObjects(animationName, p, action, forcedTime = null) {
   const data = warriorVectorAnimationsData;
   const animation = data?.animations?.[animationName];
   if (!data?.files || !animation?.length) return [];
 
-  const time = getWarriorVectorAnimationTime(animation, p, action);
+  const time = forcedTime ?? getWarriorVectorAnimationTime(animation, p, action);
   const mainline = getWarriorVectorMainlineKey(animation, time);
   if (!mainline) return [];
 
@@ -654,6 +657,34 @@ function getWarriorVectorCharacterObjects(animationName, p, action) {
     })
     .filter(Boolean)
     .sort((a, b) => a.zIndex - b.zIndex);
+}
+
+function getWarriorVectorObjectsBounds(objects) {
+  const bounds = objects.reduce((acc, item) => {
+    getWarriorVectorObjectCorners(item).forEach(point => {
+      acc.minX = Math.min(acc.minX, point.x);
+      acc.minY = Math.min(acc.minY, point.y);
+      acc.maxX = Math.max(acc.maxX, point.x);
+      acc.maxY = Math.max(acc.maxY, point.y);
+    });
+    return acc;
+  }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) return null;
+  return { ...bounds, width, height };
+}
+
+function getWarriorVectorReferenceBounds() {
+  if (warriorVectorBoundsCache.idle) return warriorVectorBoundsCache.idle;
+  const objects = getWarriorVectorCharacterObjects(
+    'Idle',
+    { hp: 1, state: 'idle', hitStunUntil: 0 },
+    null,
+    0
+  );
+  warriorVectorBoundsCache.idle = getWarriorVectorObjectsBounds(objects);
+  return warriorVectorBoundsCache.idle;
 }
 
 function getWarriorVectorObjectCorners(item) {
@@ -699,20 +730,11 @@ function drawWarriorVectorCharacter(ctx, drawW, drawH, p, action, source) {
   const objects = getWarriorVectorCharacterObjects(animationName, p, action);
   if (!objects.length) return false;
 
-  const bounds = objects.reduce((acc, item) => {
-    getWarriorVectorObjectCorners(item).forEach(point => {
-      acc.minX = Math.min(acc.minX, point.x);
-      acc.minY = Math.min(acc.minY, point.y);
-      acc.maxX = Math.max(acc.maxX, point.x);
-      acc.maxY = Math.max(acc.maxY, point.y);
-    });
-    return acc;
-  }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
-  const boundsW = bounds.maxX - bounds.minX;
-  const boundsH = bounds.maxY - bounds.minY;
-  if (!isFinite(boundsW) || !isFinite(boundsH) || boundsW <= 0 || boundsH <= 0) return false;
+  const bounds = getWarriorVectorObjectsBounds(objects);
+  if (!bounds) return false;
 
-  const scale = (drawH * 0.82) / boundsH;
+  const referenceBounds = getWarriorVectorReferenceBounds() || bounds;
+  const scale = (drawH * 0.82) / referenceBounds.height;
   const offsetX = drawW * 0.02 - ((bounds.minX + bounds.maxX) * 0.5 * scale);
   const offsetY = drawH * 0.08 - bounds.maxY * scale;
 
