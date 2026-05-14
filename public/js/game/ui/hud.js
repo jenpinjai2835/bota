@@ -16,12 +16,13 @@ function buildHUD() {
         <div class="phud-name" id="focus-class"></div>
         <div class="phud-char"><span id="focus-character"></span> &middot; LV <span id="focus-level">1</span></div>
       </div>
-      <div class="phud-score" id="focus-score">0</div>
     </div>
     <div class="hud-stat-line"><span>HP</span><span id="focus-hp-text"></span></div>
     <div class="hp-bar"><div class="hp-fill high" id="focus-hp" style="width:100%"></div><div class="hp-ticks" id="focus-hp-ticks"></div></div>
     <div class="hud-stat-line mana-line"><span>MP</span><span id="focus-mana-text"></span></div>
     <div class="mana-bar"><div class="mana-fill" id="focus-mana" style="width:100%"></div></div>
+    <div class="hud-stat-line exp-line"><span>EXP</span><span id="focus-exp-text"></span></div>
+    <div class="exp-bar"><div class="exp-fill" id="focus-exp" style="width:0%"></div></div>
   `;
   container.appendChild(div);
 }
@@ -48,6 +49,9 @@ function updateHUD() {
   const ch = p.charData || CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
   const hpPct = Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100));
   const manaPct = Math.max(0, Math.min(100, ((p.mana || 0) / (p.maxMana || 1)) * 100));
+  const xp = Math.max(0, Math.floor(p.progression?.xp || 0));
+  const xpToNext = Math.max(1, Math.floor(p.progression?.xpToNext || getXpToNextLevel(p.progression?.level || 1)));
+  const xpPct = Math.max(0, Math.min(100, (xp / xpToNext) * 100));
 
   card.classList.toggle('is-me', p.id === myPlayerId);
   card.classList.toggle('is-enemy', p.id !== myPlayerId);
@@ -55,9 +59,9 @@ function updateHUD() {
   document.getElementById('focus-class').textContent = getPlayerClassLabel(p);
   document.getElementById('focus-character').textContent = ch.name || p.character || 'FIGHTER';
   document.getElementById('focus-level').textContent = p.progression?.level || 1;
-  document.getElementById('focus-score').textContent = scores[p.id]?.score || 0;
   document.getElementById('focus-hp-text').textContent = `${Math.max(0, Math.ceil(p.hp || 0))}/${p.maxHp || 0}`;
   document.getElementById('focus-mana-text').textContent = `${Math.max(0, Math.floor(p.mana || 0))}/${p.maxMana || getMaxMana(ch)}`;
+  document.getElementById('focus-exp-text').textContent = `${xp}/${xpToNext}`;
 
   const hpEl = document.getElementById('focus-hp');
   if (hpEl) {
@@ -67,6 +71,8 @@ function updateHUD() {
 
   const manaEl = document.getElementById('focus-mana');
   if (manaEl) manaEl.style.width = manaPct + '%';
+  const expEl = document.getElementById('focus-exp');
+  if (expEl) expEl.style.width = xpPct + '%';
 
   const ticksEl = document.getElementById('focus-hp-ticks');
   if (ticksEl && ticksEl.dataset.maxHp !== String(p.maxHp || 0)) {
@@ -137,12 +143,12 @@ function updateMiniMap() {
   const focused = getFocusedPlayer();
   const players = [...Object.values(remotePlayers), myPlayer].filter(Boolean);
   players.forEach(player => {
-    const team = getPlayerTeam(player);
     const x = pad + (player.x + player.width / 2) * sx;
     const y = pad + (player.y + player.height / 2) * sy;
     const isMe = player.id === myPlayerId;
+    const isEnemy = myPlayer && player.id !== myPlayerId && arePlayersHostile(myPlayer, player);
     const isFocused = focused?.id === player.id;
-    ctx.fillStyle = isMe ? '#4CE880' : (team?.color || '#FF4848');
+    ctx.fillStyle = isMe ? '#4CE880' : isEnemy ? '#FF3D46' : '#3D8BFF';
     ctx.beginPath();
     ctx.arc(x, y, isFocused ? 4.2 : 3.1, 0, Math.PI * 2);
     ctx.fill();
