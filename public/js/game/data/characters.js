@@ -22,7 +22,7 @@ const CHARACTERS = [
     },
     speed: 5, jumpPower: 14, maxHp: 120, maxMana: 110, manaRegen: 0.32,
     skills: [
-      { id: 'punch', name: 'Dragon Punch', icon: '👊', key: 'Z', damage: 25, range: 60, cooldown: 300, manaCost: 8, type: 'melee', color: '#FF4500' },
+      { id: 'punch', name: 'Dragon Punch', icon: '👊', key: 'Z', damage: 25, range: 40, cooldown: 300, manaCost: 8, type: 'melee', color: '#FF4500' },
       { id: 'flame', name: 'Flame Breath', icon: '🔥', key: 'X', damage: 18, range: 180, cooldown: 2000, manaCost: 24, type: 'projectile', color: '#FF6600' },
       { id: 'rush', name: 'Dragon Rush', icon: '💨', key: 'C', damage: 30, range: 120, cooldown: 4000, manaCost: 32, type: 'dash', color: '#FF2200' },
       { id: 'roar', name: 'Ancient Roar', icon: '🌋', key: 'V', damage: 15, range: 100, cooldown: 6000, manaCost: 45, type: 'aoe', color: '#FF8800' },
@@ -47,7 +47,7 @@ const CHARACTERS = [
     },
     speed: 7, jumpPower: 15, maxHp: 80,
     skills: [
-      { id: 'slash', name: 'Shadow Slash', icon: '🌑', key: 'Z', damage: 30, range: 55, cooldown: 200, type: 'melee', color: '#9B59B6' },
+      { id: 'slash', name: 'Shadow Slash', icon: '🌑', key: 'Z', damage: 30, range: 40, cooldown: 200, type: 'melee', color: '#9B59B6' },
       { id: 'blink', name: 'Blink Strike', icon: '⚡', key: 'X', damage: 40, range: 200, cooldown: 3000, type: 'dash', color: '#BDC3F7' },
       { id: 'shadow', name: 'Shadow Clone', icon: '👥', key: 'C', damage: 20, range: 80, cooldown: 5000, type: 'aoe', color: '#6C3483' },
       { id: 'vanish', name: 'Vanish', icon: '🌫️', key: 'V', damage: 50, range: 70, cooldown: 8000, type: 'melee', color: '#7D3C98' },
@@ -72,7 +72,7 @@ const CHARACTERS = [
     },
     speed: 3, jumpPower: 11, maxHp: 200,
     skills: [
-      { id: 'smash', name: 'Stone Smash', icon: '🗿', key: 'Z', damage: 35, range: 65, cooldown: 500, type: 'melee', color: '#95A5A6' },
+      { id: 'smash', name: 'Stone Smash', icon: '🗿', key: 'Z', damage: 35, range: 40, cooldown: 500, type: 'melee', color: '#95A5A6' },
       { id: 'wall', name: 'Rock Wall', icon: '🧱', key: 'X', damage: 25, range: 80, cooldown: 3500, type: 'aoe', color: '#7F8C8D' },
       { id: 'charge', name: 'Bull Charge', icon: '🐗', key: 'C', damage: 45, range: 200, cooldown: 5000, type: 'dash', color: '#626567' },
       { id: 'fortress', name: 'Fortress Mode', icon: '🏰', key: 'V', damage: 0, range: 0, cooldown: 10000, type: 'buff', color: '#ABB2B9' },
@@ -197,7 +197,7 @@ const CHARACTERS = [
     },
     speed: 6, jumpPower: 14, maxHp: 88,
     skills: [
-      { id: 'bite', name: 'Venom Bite', icon: '🐍', key: 'Z', damage: 20, range: 58, cooldown: 300, type: 'melee', color: '#1ABC9C' },
+      { id: 'bite', name: 'Venom Bite', icon: '🐍', key: 'Z', damage: 20, range: 40, cooldown: 300, type: 'melee', color: '#1ABC9C' },
       { id: 'poison', name: 'Poison Cloud', icon: '☁️', key: 'X', damage: 35, range: 100, cooldown: 3000, type: 'aoe', color: '#16A085' },
       { id: 'serpent', name: 'Serpent Strike', icon: '⚡', key: 'C', damage: 42, range: 160, cooldown: 5000, type: 'dash', color: '#1ABC9C' },
       { id: 'gorgon', name: 'Gorgon Gaze', icon: '👁️', key: 'V', damage: 55, range: 220, cooldown: 9000, type: 'projectile', color: '#76D7C4' },
