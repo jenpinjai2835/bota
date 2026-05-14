@@ -41,16 +41,22 @@ function setupWebSocket(server, rooms) {
     });
   }
 
+  const RESPAWN_DELAY_MS = 10000;
+
   function scheduleRespawn(roomId, targetId) {
     setTimeout(() => {
       const room = rooms.get(roomId);
       const target = room?.playerData[targetId];
       if (!room || !target) return;
 
-      const spawn = rooms.getRespawnPoint();
+      const spawn = rooms.getRespawnPoint(target.lastRespawnIndex);
+      target.lastRespawnIndex = spawn.index;
       target.hp = target.maxHp;
       target.x = spawn.x;
       target.y = spawn.y;
+      target.vx = 0;
+      target.vy = 0;
+      target.state = 'idle';
 
       room.players.forEach(pid => sendTo(pid, {
         type: 'player_respawn',
@@ -59,7 +65,7 @@ function setupWebSocket(server, rooms) {
         y: target.y,
         hp: target.hp,
       }));
-    }, 3000);
+    }, RESPAWN_DELAY_MS);
   }
 
   function handleMessage(ws, playerId, raw) {
@@ -160,6 +166,7 @@ function setupWebSocket(server, rooms) {
 
         const target = room.playerData[msg.targetId];
         if (!target) break;
+        if (target.hp <= 0) break;
 
         target.hp = Math.max(0, target.hp - msg.damage);
 
@@ -177,6 +184,7 @@ function setupWebSocket(server, rooms) {
           damage: msg.damage,
           hp: target.hp,
           skillId: msg.skillId,
+          hitDir: msg.hitDir || 1,
         }));
 
         sendScores(roomId, playerId);

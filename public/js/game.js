@@ -334,10 +334,12 @@ let myPlayer = null;
 let projectiles = [];
 let effects = [];
 let damageNumbers = [];
+let bloodParticles = [];
 let skillCooldowns = {};
 let scores = {};
 let isAlive = true;
 let respawnTimer = null;
+const RESPAWN_DELAY_MS = 10000;
 const spriteImages = {};
 const warriorVectorOverlayImages = {};
 const WARRIOR_VECTOR_OVERLAY_BASE = '/assets/sprites/warrior-vector-parts/right-side/';
@@ -375,7 +377,7 @@ let warriorVectorAnimationsLoadStarted = false;
 let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
 const predictedHitEffects = [];
 const ACTION_DURATIONS = {
-  punch: 720,
+  punch: 360,
   flame: 760,
   rush: 650,
   roar: 900,
@@ -627,7 +629,15 @@ function handleMessage(msg) {
       break;
     case 'player_state':
       if (remotePlayers[msg.playerId]) {
-        Object.assign(remotePlayers[msg.playerId], { x: msg.x, y: msg.y, vx: msg.vx, vy: msg.vy, facing: msg.facing, state: msg.state, hp: msg.hp });
+        Object.assign(remotePlayers[msg.playerId], {
+          x: msg.x,
+          y: msg.y,
+          vx: msg.vx,
+          vy: msg.vy,
+          facing: msg.facing,
+          state: msg.hp <= 0 ? 'dead' : msg.state,
+          hp: msg.hp,
+        });
         if (msg.action) {
           setPlayerAction(remotePlayers[msg.playerId], msg.action);
           spawnEffect(msg.x, msg.y, msg.action, remotePlayers[msg.playerId].charData?.color || '#fff');
@@ -642,12 +652,22 @@ function handleMessage(msg) {
         isAlive = true;
         myPlayer.hp = msg.hp;
         myPlayer.x = msg.x; myPlayer.y = msg.y;
+        myPlayer.vx = 0; myPlayer.vy = 0;
+        myPlayer.state = 'idle';
+        myPlayer.hitStunUntil = 0;
+        myPlayer.deathUntil = 0;
         document.getElementById('death-overlay').classList.remove('visible');
-        clearTimeout(respawnTimer);
+        if (respawnTimer) clearInterval(respawnTimer);
+        respawnTimer = null;
       } else if (remotePlayers[msg.playerId]) {
         remotePlayers[msg.playerId].hp = msg.hp;
         remotePlayers[msg.playerId].x = msg.x;
         remotePlayers[msg.playerId].y = msg.y;
+        remotePlayers[msg.playerId].vx = 0;
+        remotePlayers[msg.playerId].vy = 0;
+        remotePlayers[msg.playerId].state = 'idle';
+        remotePlayers[msg.playerId].hitStunUntil = 0;
+        remotePlayers[msg.playerId].deathUntil = 0;
       }
       break;
     case 'score_update':
@@ -1058,7 +1078,13 @@ function getPlatforms() { return currentStage?.platforms || []; }
 function getStageWidth() { return WORLD_W; }
 
 function updatePlayer(p, dt) {
-  if (!isAlive && p === myPlayer) return;
+  if (p.hp <= 0 || p.state === 'dead') {
+    p.vx = 0;
+    p.vy = 0;
+    p.state = 'dead';
+    p.onGround = true;
+    return;
+  }
 
   if (typeof p.mana !== 'number') {
     p.maxMana = p.maxMana || getMaxMana(p.charData);
@@ -1109,6 +1135,11 @@ function handleInput() {
   if (!myPlayer || !isAlive) return;
   const ch = myPlayer.charData;
   const spd = ch.speed;
+  if (myPlayer.hitStunUntil > Date.now()) {
+    myPlayer.state = 'hurt';
+    myPlayer.vx *= 0.9;
+    return;
+  }
 
   if (keys['ArrowLeft'] || keys['a'] || keys['A']) { myPlayer.vx -= spd * 0.4; myPlayer.facing = -1; }
   if (keys['ArrowRight'] || keys['d'] || keys['D']) { myPlayer.vx += spd * 0.4; myPlayer.facing = 1; }
@@ -1205,12 +1236,13 @@ function sendInput() {
 function doMeleeHit(attacker, skill) {
   const all = attacker === myPlayer ? Object.values(remotePlayers) : (myPlayer ? [myPlayer] : []);
   all.forEach(target => {
+    if (!target || target.hp <= 0) return;
     const dx = (target.x + target.width/2) - (attacker.x + attacker.width/2);
     const dy = (target.y + target.height/2) - (attacker.y + attacker.height/2);
     const dist = Math.sqrt(dx*dx + dy*dy);
     const inFront = (attacker.facing > 0 ? dx > 0 : dx < 0);
     if (dist < skill.range && inFront) {
-      dealDamage(target, skill.damage, skill.id);
+      dealDamage(target, skill.damage, skill.id, Math.sign(dx) || attacker.facing || 1);
     }
   });
 }
@@ -1237,7 +1269,7 @@ function spawnAOE(owner, skill) {
     const dx = (target.x + target.width/2) - cx;
     const dy = (target.y + target.height/2) - cy;
     if (Math.sqrt(dx*dx + dy*dy) < skill.range) {
-      dealDamage(target, skill.damage, skill.id);
+      dealDamage(target, skill.damage, skill.id, Math.sign(dx) || owner.facing || 1);
     }
   });
 }
@@ -1246,19 +1278,51 @@ function spawnEffect(x, y, id, color, radius = 40) {
   effects.push({ x, y, color: color || '#fff', radius, maxRadius: radius, life: 30, maxLife: 30, id });
 }
 
-function dealDamage(target, damage, skillId) {
+function spawnBloodBurst(x, y, dir = 1, amount = 14) {
+  for (let i = 0; i < amount; i++) {
+    const speed = 1.5 + Math.random() * 4.2;
+    bloodParticles.push({
+      x: x + (Math.random() - 0.5) * 14,
+      y: y + (Math.random() - 0.5) * 18,
+      vx: dir * speed + (Math.random() - 0.5) * 1.2,
+      vy: -1.9 - Math.random() * 3.2,
+      size: 2.2 + Math.random() * 4.4,
+      life: 34 + Math.floor(Math.random() * 18),
+      maxLife: 52,
+    });
+  }
+}
+
+function applyHitReaction(target, dir = 1, skillId = null) {
+  if (!target) return;
+  const force = skillId === 'rush' ? 9.5 : skillId === 'roar' ? 6.8 : 5.7;
+  target.vx = dir * force;
+  target.vy = Math.min(target.vy || 0, -3.3);
+  target.facing = -dir;
+  target.hitStunUntil = Date.now() + 260;
+  target.hitDir = dir;
+  if (target.hp > 0) target.state = 'hurt';
+}
+
+function dealDamage(target, damage, skillId, hitDir = 1) {
   if (!isAlive && target === myPlayer) return;
   const targetId = target.id || (target === myPlayer ? myPlayerId : null);
-  send({ type: 'player_hit', targetId, damage, skillId });
+  send({ type: 'player_hit', targetId, damage, skillId, hitDir });
   spawnEffect(target.x + target.width/2, target.y + target.height/2, skillId, '#FF4444', 30);
   spawnDamageNumber(target.x + target.width/2, target.y + 8, damage, '#FFD166');
+  spawnBloodBurst(target.x + target.width/2, target.y + target.height * 0.38, hitDir);
+  applyHitReaction(target, hitDir, skillId);
   rememberPredictedHit(targetId, skillId, damage);
 
   if (target === myPlayer) {
     myPlayer.hp = Math.max(0, myPlayer.hp - damage);
-    if (myPlayer.hp <= 0) onMyDeath();
+    if (myPlayer.hp <= 0) onMyDeath(hitDir);
   } else {
     target.hp = Math.max(0, target.hp - damage);
+    if (target.hp <= 0) {
+      target.state = 'dead';
+      target.deathUntil = Date.now() + RESPAWN_DELAY_MS;
+    }
   }
 }
 
@@ -1267,12 +1331,19 @@ function handleHitEffect(msg) {
   if (target) {
     const alreadyShown = consumePredictedHit(msg);
     target.hp = msg.hp;
+    const hitDir = msg.hitDir || (target.facing ? -target.facing : 1);
+    applyHitReaction(target, hitDir, msg.skillId);
     if (!alreadyShown) {
       spawnEffect(target.x + target.width/2, target.y + target.height/2, msg.skillId, '#FF4444', 35);
       spawnDamageNumber(target.x + target.width/2, target.y + 8, msg.damage, '#FFD166');
+      spawnBloodBurst(target.x + target.width/2, target.y + target.height * 0.38, hitDir);
+    }
+    if (msg.hp <= 0 && msg.targetId === myPlayerId) {
+      onMyDeath(hitDir);
     }
     if (msg.hp <= 0 && msg.targetId !== myPlayerId) {
-      // remote death flash
+      target.state = 'dead';
+      target.deathUntil = Date.now() + RESPAWN_DELAY_MS;
       spawnEffect(target.x + target.width/2, target.y + target.height/2, 'death', '#FF0000', 60);
     }
   }
@@ -1300,16 +1371,30 @@ function handleRemoteSkill(msg) {
   }
 }
 
-function onMyDeath() {
+function onMyDeath(hitDir = 1) {
+  if (myPlayer?.state === 'dead' && myPlayer.deathUntil > Date.now()) return;
   isAlive = false;
+  if (myPlayer) {
+    myPlayer.hp = 0;
+    myPlayer.vx = 0;
+    myPlayer.vy = 0;
+    myPlayer.state = 'dead';
+    myPlayer.deathUntil = Date.now() + RESPAWN_DELAY_MS;
+    myPlayer.hitDir = hitDir;
+    spawnBloodBurst(myPlayer.x + myPlayer.width / 2, myPlayer.y + myPlayer.height * 0.42, hitDir, 20);
+  }
   const overlay = document.getElementById('death-overlay');
   overlay.classList.add('visible');
-  let count = 3;
+  let count = Math.ceil(RESPAWN_DELAY_MS / 1000);
   document.getElementById('respawn-countdown').textContent = `กำลังกลับมา... ${count}`;
+  if (respawnTimer) clearInterval(respawnTimer);
   respawnTimer = setInterval(() => {
     count--;
     document.getElementById('respawn-countdown').textContent = count > 0 ? `กำลังกลับมา... ${count}` : 'กำลังฟื้นคืนชีพ...';
-    if (count <= 0) clearInterval(respawnTimer);
+    if (count <= 0) {
+      clearInterval(respawnTimer);
+      respawnTimer = null;
+    }
   }, 1000);
 }
 
@@ -1343,7 +1428,7 @@ function updateProjectiles() {
         const dx = (target.x + target.width/2) - p.x;
         const dy = (target.y + target.height/2) - p.y;
         if (Math.sqrt(dx*dx + dy*dy) < p.radius + 20) {
-          dealDamage(target, p.damage, p.skillId);
+          dealDamage(target, p.damage, p.skillId, Math.sign(dx) || Math.sign(p.vx) || 1);
           spawnEffect(p.x, p.y, p.skillId, p.color, 30);
           p.life = 0;
         }
@@ -1360,6 +1445,14 @@ function updateProjectiles() {
     n.vy += 0.025;
     n.life--;
     return n.life > 0;
+  });
+  bloodParticles = bloodParticles.filter(b => {
+    b.x += b.vx;
+    b.y += b.vy;
+    b.vy += 0.22;
+    b.vx *= 0.94;
+    b.life--;
+    return b.life > 0;
   });
 }
 
@@ -1757,6 +1850,25 @@ function drawDamageNumber(ctx, n, sx, sy) {
   ctx.restore();
 }
 
+function drawBloodParticle(ctx, b, sx, sy) {
+  const alpha = Math.max(0, b.life / b.maxLife);
+  const scale = Math.min(sx, sy);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = 'rgba(185, 12, 22, 0.75)';
+  ctx.lineWidth = Math.max(1.2, b.size * 0.55 * scale);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(b.x * sx, b.y * sy);
+  ctx.lineTo((b.x - b.vx * 1.8) * sx, (b.y - b.vy * 1.8) * sy);
+  ctx.stroke();
+  ctx.fillStyle = alpha > 0.45 ? '#D91F2A' : 'rgba(120, 8, 12, 0.9)';
+  ctx.beginPath();
+  ctx.arc(b.x * sx, b.y * sy, b.size * scale, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function render(canvas) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
@@ -1771,7 +1883,8 @@ function render(canvas) {
   projectiles.forEach(p => drawProjectile(ctx, p, scaleX, scaleY));
   effects.forEach(e => drawEffect(ctx, e, scaleX, scaleY));
   Object.values(remotePlayers).forEach(p => drawPlayer(ctx, p, scaleX, scaleY, false));
-  if (myPlayer && isAlive) drawPlayer(ctx, myPlayer, scaleX, scaleY, true);
+  if (myPlayer) drawPlayer(ctx, myPlayer, scaleX, scaleY, true);
+  bloodParticles.forEach(b => drawBloodParticle(ctx, b, scaleX, scaleY));
   damageNumbers.forEach(n => drawDamageNumber(ctx, n, scaleX, scaleY));
 
   const vignette = ctx.createRadialGradient(W / 2, H * 0.45, W * 0.18, W / 2, H * 0.5, W * 0.7);
@@ -1954,6 +2067,23 @@ function drawCharacterDetails(ctx, ch, w, h, color, run) {
 
 function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   const nameW = Math.max(96, plateW);
+  if (p.hp <= 0 && p.deathUntil) {
+    const remaining = Math.max(0, Math.ceil((p.deathUntil - Date.now()) / 1000));
+    const countdownY = topY - 36 * sy;
+    ctx.save();
+    ctx.fillStyle = 'rgba(7,5,6,0.78)';
+    drawRoundRect(ctx, centerX - 12 * sy, countdownY - 14 * sy, 24 * sy, 20 * sy, 5);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,61,70,0.9)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = '#FFDF8B';
+    ctx.font = `900 ${Math.max(13, 15 * Math.min(sx, sy))}px Cinzel, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(remaining), centerX, countdownY - 4 * sy);
+    ctx.restore();
+  }
   drawRoundRect(ctx, centerX - nameW / 2, topY - 24 * sy, nameW, 20 * sy, 4);
   ctx.fillStyle = 'rgba(7,5,6,0.72)';
   ctx.fill();
@@ -2358,6 +2488,7 @@ function getWarriorVectorImageInfo(data, folder, file) {
 
 function getWarriorVectorAnimationName(p, action) {
   if (p.hp <= 0) return 'Died';
+  if (p.hitStunUntil > Date.now()) return 'Hurt';
   if (action === 'rush') return 'Run';
   if (action === 'punch') return 'Attack_1';
   if (action === 'flame' || action === 'roar') return 'Attack_2';
@@ -2369,6 +2500,10 @@ function getWarriorVectorAnimationName(p, action) {
 
 function getWarriorVectorAnimationTime(animation, p, action) {
   if (!animation?.length) return 0;
+  if (p.hp <= 0) return animation.length - 1;
+  if (p.hitStunUntil > Date.now()) {
+    return Math.min(animation.length - 1, (1 - (p.hitStunUntil - Date.now()) / 260) * animation.length);
+  }
   if (action && action !== 'rush') {
     return Math.min(animation.length - 1, getActionProgress(p) * animation.length);
   }
@@ -2514,7 +2649,7 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
 
 function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const ch = p.charData;
-  const action = getActiveAction(p);
+  const action = p.hp <= 0 ? null : getActiveAction(p);
   const source = ch?.sprite
     ? getCharacterSpriteSource(ch, p, action)
     : { img: spriteImages[ch?.id], ch, baseFacing: ch?.sprite?.baseFacing || 1, scale: ch?.sprite?.scale || 1.7, visualHeight: 1 };

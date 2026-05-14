@@ -10,7 +10,9 @@ const SPAWN_POINTS = [
 
 const RESPAWN_POINTS = [
   { x: 150, y: 454 },
+  { x: 250, y: 454 },
   { x: 350, y: 454 },
+  { x: 450, y: 454 },
   { x: 550, y: 454 },
 ];
 
@@ -49,6 +51,7 @@ function createPlayer(playerId, { name, character }, index = 0) {
     onGround: true,
     score: 0,
     deaths: 0,
+    lastRespawnIndex: index % RESPAWN_POINTS.length,
   };
 }
 
@@ -146,6 +149,7 @@ class RoomStore {
       player.y = spawn.y;
       player.hp = player.maxHp;
       player.state = 'idle';
+      player.lastRespawnIndex = i % RESPAWN_POINTS.length;
       player.score = 0;
       player.deaths = 0;
     });
@@ -165,8 +169,12 @@ class RoomStore {
     }));
   }
 
-  getRespawnPoint() {
-    return RESPAWN_POINTS[Math.floor(Math.random() * RESPAWN_POINTS.length)];
+  getRespawnPoint(excludeIndex = -1) {
+    let index = Math.floor(Math.random() * RESPAWN_POINTS.length);
+    if (RESPAWN_POINTS.length > 1 && index === excludeIndex) {
+      index = (index + 1 + Math.floor(Math.random() * (RESPAWN_POINTS.length - 1))) % RESPAWN_POINTS.length;
+    }
+    return { ...RESPAWN_POINTS[index], index };
   }
 }
 
