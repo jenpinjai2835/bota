@@ -25,6 +25,7 @@ function buildHUD() {
     <div class="exp-bar"><div class="exp-fill" id="focus-exp" style="width:0%"></div></div>
   `;
   container.appendChild(div);
+  updateCombatStatsPanel();
 }
 
 function buildHpTicks(maxHp) {
@@ -81,6 +82,108 @@ function updateHUD() {
   }
 
   updateMiniMap();
+  updateCombatStatsPanel();
+}
+
+function getScoreRecord(playerId) {
+  const player = getPlayerById(playerId);
+  const score = scores[playerId] || {};
+  return {
+    id: playerId,
+    name: score.name || player?.name || 'Player',
+    character: score.character || player?.character,
+    teamId: score.teamId || player?.teamId || assignTeamId(0),
+    kills: score.kills ?? Math.floor((score.score || 0) / 100),
+    deaths: score.deaths || 0,
+    assists: score.assists || 0,
+  };
+}
+
+function getCombatStatRows() {
+  const ids = new Set(Object.keys(scores));
+  if (myPlayer) ids.add(myPlayer.id);
+  Object.values(remotePlayers).forEach(p => ids.add(p.id));
+  return Array.from(ids).map(getScoreRecord);
+}
+
+function getCharacterNameById(characterId) {
+  return CHARACTERS.find(ch => ch.id === characterId)?.name || characterId || 'FIGHTER';
+}
+
+function setCombatStatsExpanded(expanded) {
+  combatStatsExpanded = expanded;
+  combatStatsRenderSignature = '';
+  updateCombatStatsPanel();
+}
+
+function toggleMuteChat(playerId) {
+  if (!playerId || playerId === myPlayerId) return;
+  if (mutedChatPlayerIds.has(playerId)) {
+    mutedChatPlayerIds.delete(playerId);
+  } else {
+    mutedChatPlayerIds.add(playerId);
+  }
+  combatStatsRenderSignature = '';
+  updateCombatStatsPanel();
+}
+
+function updateCombatStatsPanel() {
+  const panel = document.getElementById('combat-stats-panel');
+  if (!panel || !gameRunning) return;
+  const rows = getCombatStatRows();
+  const visibleRows = combatStatsExpanded ? rows : rows.filter(row => row.id === myPlayerId);
+  const teams = TEAM_DEFINITIONS.map(team => ({
+    ...team,
+    rows: visibleRows.filter(row => row.teamId === team.id),
+  })).filter(team => combatStatsExpanded ? team.rows.length : true);
+  const myRow = rows.find(row => row.id === myPlayerId);
+  const signature = JSON.stringify({
+    expanded: combatStatsExpanded,
+    muted: Array.from(mutedChatPlayerIds).sort(),
+    rows: visibleRows,
+    my: myRow,
+  });
+  if (signature === combatStatsRenderSignature) return;
+  combatStatsRenderSignature = signature;
+
+  panel.className = `combat-stats-panel ${combatStatsExpanded ? 'expanded' : 'collapsed'}`;
+  panel.innerHTML = `
+    <div class="combat-stats-head">
+      <button class="combat-stats-toggle" type="button" onclick="setCombatStatsExpanded(${combatStatsExpanded ? 'false' : 'true'})">${combatStatsExpanded ? 'ME' : 'ALL'}</button>
+      <div>
+        <div class="combat-stats-title">Battle Status</div>
+        <div class="combat-stats-sub">${myRow ? `${myRow.kills} / ${myRow.deaths} / ${myRow.assists}` : '0 / 0 / 0'} K / D / A</div>
+      </div>
+      <div class="combat-stats-kda">K / D / A</div>
+    </div>
+    <div class="combat-stats-body">
+      ${combatStatsExpanded ? teams.map(renderCombatStatsTeam).join('') : (myRow ? renderCombatStatsRow(myRow, true) : '')}
+    </div>
+  `;
+}
+
+function renderCombatStatsTeam(team) {
+  return `
+    <div class="combat-team-block">
+      <div class="combat-team-title" style="--team-color:${team.color || '#D4AF37'}">${team.name || team.id}</div>
+      ${team.rows.map(row => renderCombatStatsRow(row, false)).join('')}
+    </div>
+  `;
+}
+
+function renderCombatStatsRow(row, compact = false) {
+  const isMe = row.id === myPlayerId;
+  const muted = mutedChatPlayerIds.has(row.id);
+  return `
+    <div class="combat-stat-row ${isMe ? 'is-me' : ''} ${compact ? 'compact' : ''}">
+      <div class="combat-stat-ident">
+        <div class="combat-user">${row.name}${isMe ? ' (YOU)' : ''}</div>
+        <div class="combat-char">${getCharacterNameById(row.character)}</div>
+      </div>
+      <div class="combat-row-kda">${row.kills} / ${row.deaths} / ${row.assists}</div>
+      ${isMe ? '<div class="combat-mute-placeholder">CHAT</div>' : `<button class="combat-mute-btn ${muted ? 'muted' : ''}" type="button" onclick="toggleMuteChat('${row.id}')">${muted ? 'Unmute' : 'Mute'}</button>`}
+    </div>
+  `;
 }
 
 function updateMiniMap() {
@@ -225,7 +328,7 @@ function updateScoreboard() {
     row.className = 'score-row';
     const player = s.id === myPlayerId ? myPlayer : remotePlayers[s.id];
     const label = getPlayerClassLabel(player || s);
-    row.innerHTML = `<span class="rank">#${i + 1}</span><span class="sname">${label}${s.id === myPlayerId ? ' *' : ''}</span><span class="sdead">KO ${s.deaths || 0}</span><span class="spts">${s.score} pts</span>`;
+    row.innerHTML = `<span class="rank">#${i + 1}</span><span class="sname">${label}${s.id === myPlayerId ? ' *' : ''}</span><span class="sdead">${s.kills || 0}/${s.deaths || 0}/${s.assists || 0}</span><span class="spts">${s.score || 0} pts</span>`;
     list.appendChild(row);
   });
 }

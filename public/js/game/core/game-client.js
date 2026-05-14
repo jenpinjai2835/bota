@@ -22,6 +22,9 @@ function leaveGame() {
   focusedPlayerId = null;
   lastKillAnnouncementKey = null;
   lastKillAnnouncementAt = 0;
+  combatStatsExpanded = false;
+  combatStatsRenderSignature = '';
+  mutedChatPlayerIds.clear();
   localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
   Object.keys(keys).forEach(key => { delete keys[key]; });
 
@@ -46,6 +49,7 @@ function leaveGame() {
   document.getElementById('score-list').innerHTML = '';
   document.getElementById('hud-players').innerHTML = '';
   document.getElementById('skills-bar').innerHTML = '';
+  document.getElementById('combat-stats-panel').innerHTML = '';
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.close();
@@ -111,7 +115,19 @@ function startGameClient(state) {
   projectiles = []; effects = []; damageNumbers = []; deathParts = [];
   resetMatchItems(state.matchItems || []);
   scores = {};
-  state.players.forEach(p => { scores[p.id] = { id: p.id, name: p.name, score: 0, deaths: 0 }; });
+  state.players.forEach(p => {
+    scores[p.id] = {
+      id: p.id,
+      name: p.name,
+      character: p.character,
+      teamId: p.teamId || assignTeamId(0),
+      kills: p.kills || 0,
+      deaths: p.deaths || 0,
+      assists: p.assists || 0,
+      score: p.score || 0,
+    };
+  });
+  updateCombatStatsPanel();
 
   gameLoop();
 }

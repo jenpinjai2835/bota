@@ -127,6 +127,7 @@ function handleMessage(msg) {
       handleMatchItemSpawned(msg.item);
       break;
     case 'chat':
+      if (msg.fromId && mutedChatPlayerIds.has(msg.fromId)) break;
       addChat(msg.from, msg.msg);
       break;
     case 'room_list':

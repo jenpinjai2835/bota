@@ -7,6 +7,7 @@ function createPlayerId() {
 function setupWebSocket(server, rooms) {
   const wss = new WebSocket.Server({ server });
   const clients = new Map();
+  const ASSIST_WINDOW_MS = 8000;
 
   function sendTo(playerId, message) {
     const ws = clients.get(playerId);
@@ -171,10 +172,26 @@ function setupWebSocket(server, rooms) {
         if (attacker?.teamId && target.teamId && attacker.teamId === target.teamId) break;
 
         target.hp = Math.max(0, target.hp - msg.damage);
+        target.recentAttackers = target.recentAttackers || {};
+        if (attacker && playerId !== msg.targetId) {
+          target.recentAttackers[playerId] = Date.now();
+        }
 
         if (target.hp <= 0) {
           target.deaths = (target.deaths || 0) + 1;
-          if (attacker) attacker.score = (attacker.score || 0) + 100;
+          if (attacker) {
+            attacker.kills = (attacker.kills || 0) + 1;
+            attacker.score = (attacker.score || 0) + 100;
+          }
+          const now = Date.now();
+          Object.entries(target.recentAttackers || {}).forEach(([assistId, hitAt]) => {
+            if (assistId === playerId || now - hitAt > ASSIST_WINDOW_MS) return;
+            const assister = room.playerData[assistId];
+            if (!assister || assister.teamId !== attacker?.teamId) return;
+            assister.assists = (assister.assists || 0) + 1;
+            assister.score = (assister.score || 0) + 35;
+          });
+          target.recentAttackers = {};
           scheduleRespawn(roomId, msg.targetId);
         }
 
@@ -241,6 +258,7 @@ function setupWebSocket(server, rooms) {
         const player = room.playerData[playerId];
         room.players.forEach(pid => sendTo(pid, {
           type: 'chat',
+          fromId: playerId,
           from: player ? player.name : 'Unknown',
           msg: String(msg.msg || '').substr(0, 100),
         }));

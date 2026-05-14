@@ -60,8 +60,11 @@ function createPlayer(playerId, { name, character }, index = 0) {
     vx: 0,
     vy: 0,
     onGround: true,
+    kills: 0,
+    assists: 0,
     score: 0,
     deaths: 0,
+    recentAttackers: {},
     lastRespawnIndex: index % RESPAWN_POINTS.length,
   };
 }
@@ -180,8 +183,11 @@ class RoomStore {
       player.hp = player.maxHp;
       player.state = 'idle';
       player.lastRespawnIndex = i % RESPAWN_POINTS.length;
+      player.kills = 0;
+      player.assists = 0;
       player.score = 0;
       player.deaths = 0;
+      player.recentAttackers = {};
     });
 
     return room;
@@ -194,8 +200,12 @@ class RoomStore {
     return room.players.map(pid => ({
       id: pid,
       name: room.playerData[pid].name,
+      character: room.playerData[pid].character,
+      teamId: room.playerData[pid].teamId,
+      kills: room.playerData[pid].kills || 0,
       score: room.playerData[pid].score || 0,
       deaths: room.playerData[pid].deaths || 0,
+      assists: room.playerData[pid].assists || 0,
     }));
   }
 
