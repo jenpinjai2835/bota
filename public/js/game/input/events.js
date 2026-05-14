@@ -32,20 +32,49 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     if (document.activeElement === chatInp) {
       sendChat();
-      chatInp.blur();
     } else if (gameRunning) {
-      chatInp.focus();
+      openChatInput();
     }
   }
 });
 
 document.addEventListener('keyup', (e) => { keys[e.key] = false; });
 
-document.getElementById('game-canvas').addEventListener('pointerdown', () => {
+document.getElementById('game-canvas').addEventListener('pointerdown', (e) => {
   if (!gameRunning) return;
   const chatInp = document.getElementById('chat-input');
-  if (document.activeElement === chatInp) chatInp.blur();
+  if (document.activeElement === chatInp) closeChatInput();
+  const clickedPlayer = getPlayerAtScreenPoint(e.clientX, e.clientY);
+  focusPlayer(clickedPlayer?.id || myPlayer?.id || null);
 });
+
+function getPlayerAtScreenPoint(screenX, screenY) {
+  const canvas = document.getElementById('game-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const x = screenX - rect.left;
+  const y = screenY - rect.top;
+  const scaleX = canvas.width / WORLD_W;
+  const scaleY = canvas.height / WORLD_H;
+  const candidates = [...Object.values(remotePlayers), myPlayer].filter(Boolean);
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    const p = candidates[i];
+    const px = p.x * scaleX;
+    const py = p.y * scaleY;
+    const pw = p.width * scaleX;
+    const ph = p.height * scaleY;
+    const padX = Math.max(18, pw * 0.65);
+    const padTop = Math.max(26, ph * 0.9);
+    if (
+      x >= px - padX &&
+      x <= px + pw + padX &&
+      y >= py - padTop &&
+      y <= py + ph + 12
+    ) {
+      return p;
+    }
+  }
+  return null;
+}
 
 // Mobile touch controls (basic)
 let touchStartX = null, touchStartY = null;

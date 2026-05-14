@@ -66,6 +66,17 @@ function handleMessage(msg) {
       break;
     case 'player_hit':
       handleHitEffect(msg);
+      if (msg.hp <= 0) {
+        const key = `${msg.attackerId}:${msg.targetId}:${msg.skillId}:${msg.damage}`;
+        const killer = getPlayerById(msg.attackerId);
+        const victim = getPlayerById(msg.targetId);
+        const now = Date.now();
+        if (killer && victim && (key !== lastKillAnnouncementKey || now - lastKillAnnouncementAt > 1500)) {
+          lastKillAnnouncementKey = key;
+          lastKillAnnouncementAt = now;
+          showKillBanner(killer, victim);
+        }
+      }
       break;
     case 'player_respawn':
       if (msg.playerId === myPlayerId) {

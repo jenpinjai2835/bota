@@ -221,13 +221,6 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   ctx.fill();
   drawHealthSegmentTicks(ctx, bx, by, bw, bh, p.maxHp || 100);
 
-  if (isMe) {
-    ctx.fillStyle = '#4CE880';
-    ctx.font = `${8 * Math.min(sx, sy)}px Cinzel, serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText('▲', centerX, by - 4);
-  }
 }
 
 function drawHealthSegmentTicks(ctx, x, y, w, h, maxHp) {
@@ -1005,11 +998,4 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   ctx.fill();
   drawHealthSegmentTicks(ctx, bx, by, bw, bh, p.maxHp || 100);
 
-  if (isMe) {
-    ctx.fillStyle = '#4CE880';
-    ctx.font = `${8 * Math.min(sx, sy)}px Cinzel, serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText('â–²', x + w / 2, by - 4);
-  }
 }

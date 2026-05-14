@@ -25,6 +25,9 @@ let skillCooldowns = {};
 let scores = {};
 let isAlive = true;
 let respawnTimer = null;
+let focusedPlayerId = null;
+let lastKillAnnouncementKey = null;
+let lastKillAnnouncementAt = 0;
 const RESPAWN_DELAY_MS = 10000;
 const CHARACTER_VISUAL_SCALE = 0.6;
 const MIN_CHARACTER_HP = 500;
@@ -188,6 +191,20 @@ function getCharacterMaxHp(ch) {
 function getPlayerClassLabel(playerOrScore) {
   const ch = playerOrScore?.charData || CHARACTERS.find(c => c.id === playerOrScore?.character);
   return ch?.class || ch?.name || playerOrScore?.name || 'Fighter';
+}
+
+function getPlayerById(playerId) {
+  if (!playerId) return null;
+  if (myPlayer && myPlayer.id === playerId) return myPlayer;
+  return remotePlayers[playerId] || null;
+}
+
+function getFocusedPlayer() {
+  return getPlayerById(focusedPlayerId) || myPlayer || Object.values(remotePlayers)[0] || null;
+}
+
+function focusPlayer(playerId) {
+  focusedPlayerId = getPlayerById(playerId) ? playerId : (myPlayer?.id || null);
 }
 
 function getManaRegen(ch) {

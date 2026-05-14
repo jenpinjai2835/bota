@@ -19,6 +19,9 @@ function leaveGame() {
   nextMatchItemSpawnAt = 0;
   scores = {};
   skillCooldowns = {};
+  focusedPlayerId = null;
+  lastKillAnnouncementKey = null;
+  lastKillAnnouncementAt = 0;
   localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
   Object.keys(keys).forEach(key => { delete keys[key]; });
 
@@ -31,6 +34,8 @@ function leaveGame() {
     const el = document.getElementById(id);
     if (el) el.classList.remove('visible');
   });
+  document.getElementById('chat-container')?.classList.remove('chat-open');
+  document.getElementById('kill-banner')?.classList.remove('visible');
 
   const canvas = document.getElementById('game-canvas');
   canvas.classList.remove('visible');
@@ -98,9 +103,9 @@ function startGameClient(state) {
 
   buildHUD(state);
   buildSkillsBar();
+  focusPlayer(myPlayer?.id || null);
   document.getElementById('hud').classList.add('visible');
   document.getElementById('skills-bar').classList.add('visible');
-  document.getElementById('chat-container').classList.add('visible');
   document.getElementById('controls-hint').classList.add('visible');
 
   projectiles = []; effects = []; damageNumbers = []; deathParts = [];

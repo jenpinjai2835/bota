@@ -1,68 +1,75 @@
-// HUD, skills, scoreboard, and chat
+// HUD, skills, scoreboard, major announcements, and chat
 // ============================================================
 //  HUD
 // ============================================================
-function buildHUD(state) {
+function buildHUD() {
   const container = document.getElementById('hud-players');
   container.innerHTML = '';
-  state.players.forEach(p => {
-    const ch = CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
-    const maxHp = Math.max(p.maxHp || 0, getCharacterMaxHp(ch));
-    const div = document.createElement('div');
-    div.className = 'player-hud-card' + (p.id === myPlayerId ? ' is-me' : '');
-    div.id = `hud-${p.id}`;
-    div.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:16px">${ch.icon}</span>
-        <div>
-          <div class="phud-name">${getPlayerClassLabel({ ...p, charData: ch })}</div>
-          <div class="phud-char">${ch.name} · LV <span id="level-${p.id}">1</span></div>
-        </div>
-        <div class="phud-score" style="margin-left:auto" id="score-${p.id}">0</div>
+
+  const div = document.createElement('div');
+  div.className = 'player-hud-card is-focus';
+  div.id = 'focused-hud-card';
+  div.innerHTML = `
+    <div class="hud-focus-head">
+      <span class="phud-icon" id="focus-icon"></span>
+      <div class="hud-focus-title">
+        <div class="phud-name" id="focus-class"></div>
+        <div class="phud-char"><span id="focus-character"></span> &middot; LV <span id="focus-level">1</span></div>
       </div>
-      <div class="hud-stat-line"><span>HP</span><span id="hp-text-${p.id}"></span></div>
-      <div class="hp-bar"><div class="hp-fill high" id="hp-${p.id}" style="width:100%"></div>${buildHpTicks(maxHp)}</div>
-      <div class="hud-stat-line mana-line"><span>MP</span><span id="mana-text-${p.id}">${getMaxMana(ch)}/${getMaxMana(ch)}</span></div>
-      <div class="mana-bar"><div class="mana-fill" id="mana-${p.id}" style="width:100%"></div></div>
-    `;
-    container.appendChild(div);
-  });
+      <div class="phud-score" id="focus-score">0</div>
+    </div>
+    <div class="hud-stat-line"><span>HP</span><span id="focus-hp-text"></span></div>
+    <div class="hp-bar"><div class="hp-fill high" id="focus-hp" style="width:100%"></div><div class="hp-ticks" id="focus-hp-ticks"></div></div>
+    <div class="hud-stat-line mana-line"><span>MP</span><span id="focus-mana-text"></span></div>
+    <div class="mana-bar"><div class="mana-fill" id="focus-mana" style="width:100%"></div></div>
+  `;
+  container.appendChild(div);
 }
 
 function buildHpTicks(maxHp) {
   const count = Math.floor(maxHp / 100);
   if (count <= 1) return '';
-  let html = '<div class="hp-ticks">';
+  let html = '';
   for (let i = 1; i < count; i++) {
     html += `<span style="left:${(i * 100 / maxHp) * 100}%"></span>`;
   }
-  return `${html}</div>`;
+  return html;
 }
 
 function updateHUD() {
-  const allPlayers = myPlayer ? [myPlayer, ...Object.values(remotePlayers)] : Object.values(remotePlayers);
-  allPlayers.forEach(p => {
-    const hpEl = document.getElementById(`hp-${p.id}`);
-    const hpText = document.getElementById(`hp-text-${p.id}`);
-    const manaEl = document.getElementById(`mana-${p.id}`);
-    const manaText = document.getElementById(`mana-text-${p.id}`);
-    const scoreEl = document.getElementById(`score-${p.id}`);
-    const levelEl = document.getElementById(`level-${p.id}`);
-    ensurePlayerSystems(p);
-    if (hpEl) {
-      const pct = Math.max(0, (p.hp / p.maxHp) * 100);
-      hpEl.style.width = pct + '%';
-      hpEl.className = 'hp-fill ' + (pct > 60 ? 'high' : pct > 30 ? 'med' : '');
-    }
-    if (hpText) hpText.textContent = '';
-    if (manaEl) {
-      const pct = Math.max(0, (p.mana / p.maxMana) * 100);
-      manaEl.style.width = pct + '%';
-    }
-    if (manaText) manaText.textContent = `${Math.max(0, Math.floor(p.mana || 0))}/${p.maxMana || getMaxMana(p.charData)}`;
-    if (scoreEl && scores[p.id]) scoreEl.textContent = scores[p.id].score;
-    if (levelEl) levelEl.textContent = p.progression?.level || 1;
-  });
+  const p = getFocusedPlayer();
+  const card = document.getElementById('focused-hud-card');
+  if (!p || !card) return;
+
+  ensurePlayerSystems(p);
+  const ch = p.charData || CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
+  const hpPct = Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100));
+  const manaPct = Math.max(0, Math.min(100, ((p.mana || 0) / (p.maxMana || 1)) * 100));
+
+  card.classList.toggle('is-me', p.id === myPlayerId);
+  card.classList.toggle('is-enemy', p.id !== myPlayerId);
+  document.getElementById('focus-icon').textContent = ch.icon || '';
+  document.getElementById('focus-class').textContent = getPlayerClassLabel(p);
+  document.getElementById('focus-character').textContent = ch.name || p.character || 'FIGHTER';
+  document.getElementById('focus-level').textContent = p.progression?.level || 1;
+  document.getElementById('focus-score').textContent = scores[p.id]?.score || 0;
+  document.getElementById('focus-hp-text').textContent = `${Math.max(0, Math.ceil(p.hp || 0))}/${p.maxHp || 0}`;
+  document.getElementById('focus-mana-text').textContent = `${Math.max(0, Math.floor(p.mana || 0))}/${p.maxMana || getMaxMana(ch)}`;
+
+  const hpEl = document.getElementById('focus-hp');
+  if (hpEl) {
+    hpEl.style.width = hpPct + '%';
+    hpEl.className = 'hp-fill ' + (hpPct > 60 ? 'high' : hpPct > 30 ? 'med' : '');
+  }
+
+  const manaEl = document.getElementById('focus-mana');
+  if (manaEl) manaEl.style.width = manaPct + '%';
+
+  const ticksEl = document.getElementById('focus-hp-ticks');
+  if (ticksEl && ticksEl.dataset.maxHp !== String(p.maxHp || 0)) {
+    ticksEl.dataset.maxHp = String(p.maxHp || 0);
+    ticksEl.innerHTML = buildHpTicks(p.maxHp || 0);
+  }
 }
 
 function buildSkillsBar() {
@@ -115,9 +122,24 @@ function updateScoreboard() {
     row.className = 'score-row';
     const player = s.id === myPlayerId ? myPlayer : remotePlayers[s.id];
     const label = getPlayerClassLabel(player || s);
-    row.innerHTML = `<span class="rank">#${i+1}</span><span class="sname">${label}${s.id === myPlayerId ? ' ★' : ''}</span><span class="sdead">💀 ${s.deaths || 0}</span><span class="spts">${s.score} pts</span>`;
+    row.innerHTML = `<span class="rank">#${i + 1}</span><span class="sname">${label}${s.id === myPlayerId ? ' *' : ''}</span><span class="sdead">KO ${s.deaths || 0}</span><span class="spts">${s.score} pts</span>`;
     list.appendChild(row);
   });
+}
+
+// ============================================================
+//  MAJOR ANNOUNCEMENTS
+// ============================================================
+function showKillBanner(killer, victim) {
+  const banner = document.getElementById('kill-banner');
+  if (!banner || !killer || !victim) return;
+  const killerLabel = getPlayerClassLabel(killer);
+  const victimLabel = getPlayerClassLabel(victim);
+  banner.innerHTML = `<span>${killerLabel}</span> DEFEATED <span>${victimLabel}</span>`;
+  banner.classList.remove('visible');
+  void banner.offsetWidth;
+  banner.classList.add('visible');
+  setTimeout(() => banner.classList.remove('visible'), 2600);
 }
 
 // ============================================================
@@ -135,7 +157,25 @@ function addChat(from, text) {
 
 function sendChat() {
   const inp = document.getElementById('chat-input');
-  if (!inp.value.trim()) return;
+  if (!inp.value.trim()) {
+    closeChatInput();
+    return;
+  }
   send({ type: 'chat', msg: inp.value.trim() });
   inp.value = '';
+  closeChatInput();
+}
+
+function openChatInput() {
+  const container = document.getElementById('chat-container');
+  const inp = document.getElementById('chat-input');
+  container.classList.add('visible', 'chat-open');
+  inp.focus();
+}
+
+function closeChatInput() {
+  const container = document.getElementById('chat-container');
+  const inp = document.getElementById('chat-input');
+  inp.blur();
+  container.classList.remove('chat-open');
 }
