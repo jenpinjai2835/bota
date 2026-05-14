@@ -39,7 +39,10 @@ function buildHpTicks(maxHp) {
 function updateHUD() {
   const p = getFocusedPlayer();
   const card = document.getElementById('focused-hud-card');
-  if (!p || !card) return;
+  if (!p || !card) {
+    updateMiniMap();
+    return;
+  }
 
   ensurePlayerSystems(p);
   const ch = p.charData || CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
@@ -70,6 +73,100 @@ function updateHUD() {
     ticksEl.dataset.maxHp = String(p.maxHp || 0);
     ticksEl.innerHTML = buildHpTicks(p.maxHp || 0);
   }
+
+  updateMiniMap();
+}
+
+function updateMiniMap() {
+  const canvas = document.getElementById('mini-map');
+  if (!canvas || !gameRunning) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const pad = 8;
+  const mapW = w - pad * 2;
+  const mapH = h - pad * 2;
+  const sx = mapW / WORLD_W;
+  const sy = mapH / WORLD_H;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(7,5,6,0.78)';
+  ctx.fillRect(0, 0, w, h);
+
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(92,50,24,0.42)');
+  grad.addColorStop(1, 'rgba(15,9,9,0.88)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(pad, pad, mapW, mapH);
+
+  ctx.strokeStyle = 'rgba(245,225,130,0.18)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const gx = pad + (mapW * i) / 4;
+    ctx.beginPath();
+    ctx.moveTo(gx, pad);
+    ctx.lineTo(gx, pad + mapH);
+    ctx.stroke();
+  }
+
+  const platforms = typeof getPlatforms === 'function' ? getPlatforms() : (currentStage?.platforms || []);
+  platforms.forEach(plat => {
+    ctx.fillStyle = 'rgba(212,175,55,0.42)';
+    ctx.fillRect(
+      pad + plat.x * sx,
+      pad + plat.y * sy,
+      Math.max(2, plat.w * sx),
+      Math.max(2, plat.h * sy)
+    );
+    ctx.fillStyle = 'rgba(92,42,16,0.72)';
+    ctx.fillRect(
+      pad + plat.x * sx,
+      pad + (plat.y + Math.max(2, plat.h * 0.35)) * sy,
+      Math.max(2, plat.w * sx),
+      Math.max(1, plat.h * sy * 0.65)
+    );
+  });
+
+  matchItems.forEach(item => {
+    ctx.fillStyle = item.definition?.color || '#F5E182';
+    ctx.beginPath();
+    ctx.arc(pad + item.x * sx, pad + item.y * sy, 2.3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  const focused = getFocusedPlayer();
+  const players = [...Object.values(remotePlayers), myPlayer].filter(Boolean);
+  players.forEach(player => {
+    const team = getPlayerTeam(player);
+    const x = pad + (player.x + player.width / 2) * sx;
+    const y = pad + (player.y + player.height / 2) * sy;
+    const isMe = player.id === myPlayerId;
+    const isFocused = focused?.id === player.id;
+    ctx.fillStyle = isMe ? '#4CE880' : (team?.color || '#FF4848');
+    ctx.beginPath();
+    ctx.arc(x, y, isFocused ? 4.2 : 3.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = isFocused ? '#FFFFFF' : 'rgba(0,0,0,0.75)';
+    ctx.lineWidth = isFocused ? 1.8 : 1;
+    ctx.stroke();
+  });
+
+  if (myPlayer) {
+    const viewW = w;
+    const viewH = h;
+    ctx.strokeStyle = 'rgba(255,255,255,0.38)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+      pad + Math.max(0, CAM.x) * sx,
+      pad + Math.max(0, CAM.y) * sy,
+      Math.min(mapW, viewW * sx),
+      Math.min(mapH, viewH * sy)
+    );
+  }
+
+  ctx.strokeStyle = 'rgba(245,225,130,0.36)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad + 0.5, pad + 0.5, mapW - 1, mapH - 1);
 }
 
 function buildSkillsBar() {
@@ -133,8 +230,8 @@ function updateScoreboard() {
 function showKillBanner(killer, victim) {
   const banner = document.getElementById('kill-banner');
   if (!banner || !killer || !victim) return;
-  const killerLabel = getPlayerClassLabel(killer);
-  const victimLabel = getPlayerClassLabel(victim);
+  const killerLabel = killer.name || getPlayerClassLabel(killer);
+  const victimLabel = victim.name || getPlayerClassLabel(victim);
   banner.innerHTML = `<span>${killerLabel}</span> DEFEATED <span>${victimLabel}</span>`;
   banner.classList.remove('visible');
   void banner.offsetWidth;

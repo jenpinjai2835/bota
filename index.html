@@ -80,7 +80,10 @@
 <!-- HUD -->
 <div id="hud">
   <button id="leave-game-btn" type="button" onclick="leaveGame()">ออกจากเกม</button>
-  <div class="hud-top" id="hud-players"></div>
+  <div class="hud-bottom-cluster">
+    <div class="hud-top" id="hud-players"></div>
+    <canvas id="mini-map" width="180" height="106" aria-hidden="true"></canvas>
+  </div>
 </div>
 
 <!-- SKILLS -->
