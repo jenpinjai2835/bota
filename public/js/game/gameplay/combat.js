@@ -52,9 +52,17 @@ function spawnAOE(owner, skill) {
   });
 }
 
-function spawnEffect(x, y, id, color, radius = 40) {
+function spawnEffect(x, y, id, color, radius = 40, options = {}) {
   const maxLife = id === 'level-up' ? 72 : 30;
-  effects.push({ x, y, color: color || '#fff', radius, maxRadius: radius, life: maxLife, maxLife, id });
+  effects.push({ x, y, color: color || '#fff', radius, maxRadius: radius, life: maxLife, maxLife, id, ...options });
+}
+
+function syncEffectFollowTarget(effect) {
+  if (!effect.followPlayerId) return;
+  const target = getPlayerById(effect.followPlayerId);
+  if (!target) return;
+  effect.x = target.x + target.width / 2;
+  effect.y = target.y + target.height * (effect.followYOffsetRatio ?? 0.35);
 }
 
 function spawnBloodBurst(x, y, dir = 1, amount = 14) {
@@ -280,7 +288,11 @@ function updateProjectiles() {
     return p.life > 0;
   });
 
-  effects = effects.filter(e => { e.life--; return e.life > 0; });
+  effects = effects.filter(e => {
+    syncEffectFollowTarget(e);
+    e.life--;
+    return e.life > 0;
+  });
   damageNumbers = damageNumbers.filter(n => {
     n.x += n.vx;
     n.y += n.vy;

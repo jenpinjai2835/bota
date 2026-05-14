@@ -145,7 +145,14 @@ function grantPlayerXp(player, amount) {
   }
   if (leveled) {
     syncPlayerStats(player);
-    spawnEffect(player.x + player.width / 2, player.y + player.height * 0.35, 'level-up', '#C783FF', 46);
+    spawnEffect(
+      player.x + player.width / 2,
+      player.y + player.height * 0.35,
+      'level-up',
+      '#C783FF',
+      46,
+      { followPlayerId: player.id, followYOffsetRatio: 0.35 }
+    );
   }
 }
 
