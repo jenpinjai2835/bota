@@ -53,7 +53,8 @@ function spawnAOE(owner, skill) {
 }
 
 function spawnEffect(x, y, id, color, radius = 40) {
-  effects.push({ x, y, color: color || '#fff', radius, maxRadius: radius, life: 30, maxLife: 30, id });
+  const maxLife = id === 'level-up' ? 72 : 30;
+  effects.push({ x, y, color: color || '#fff', radius, maxRadius: radius, life: maxLife, maxLife, id });
 }
 
 function spawnBloodBurst(x, y, dir = 1, amount = 14) {

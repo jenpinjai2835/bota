@@ -136,6 +136,10 @@ function drawProjectile(ctx, p, sx, sy) {
 }
 
 function drawEffect(ctx, e, sx, sy) {
+  if (e.id === 'level-up') {
+    drawLevelUpEffect(ctx, e, sx, sy);
+    return;
+  }
   const alpha = e.life / e.maxLife;
   const r = e.radius * (1 - alpha * 0.35) * Math.min(sx, sy);
   const x = e.x * sx;
@@ -153,6 +157,83 @@ function drawEffect(ctx, e, sx, sy) {
   ctx.beginPath();
   ctx.arc(x, y, r * 0.82, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+function drawLevelUpEffect(ctx, e, sx, sy) {
+  const progress = 1 - e.life / e.maxLife;
+  const alpha = Math.max(0, Math.min(1, e.life / e.maxLife));
+  const scale = Math.min(sx, sy);
+  const x = e.x * sx;
+  const y = e.y * sy;
+  const baseRadius = e.radius * scale;
+  const ringRadius = baseRadius * (0.45 + progress * 1.35);
+  const lift = baseRadius * (0.25 + progress * 0.85);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  const aura = ctx.createRadialGradient(x, y, 0, x, y, baseRadius * 1.75);
+  aura.addColorStop(0, `rgba(255, 247, 184, ${0.42 * alpha})`);
+  aura.addColorStop(0.38, withAlpha(e.color, 0.22 * alpha));
+  aura.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = aura;
+  ctx.beginPath();
+  ctx.arc(x, y, baseRadius * 1.75, 0, Math.PI * 2);
+  ctx.fill();
+
+  for (let i = 0; i < 3; i++) {
+    const ringAlpha = alpha * (0.92 - i * 0.22);
+    const rr = ringRadius + i * baseRadius * 0.22;
+    ctx.strokeStyle = i === 1 ? `rgba(255, 232, 132, ${ringAlpha})` : withAlpha(e.color, ringAlpha);
+    ctx.lineWidth = Math.max(1.5, (4 - i) * scale);
+    ctx.beginPath();
+    ctx.ellipse(x, y + baseRadius * 0.16, rr, rr * 0.32, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2 + progress * Math.PI * 1.6;
+    const shardRadius = baseRadius * (0.18 + progress * 1.15);
+    const sxp = x + Math.cos(angle) * shardRadius;
+    const syp = y - lift + Math.sin(angle) * shardRadius * 0.45;
+    const shardSize = (3.2 + (i % 3) * 1.2) * scale * alpha;
+    ctx.fillStyle = i % 2 ? `rgba(255, 236, 138, ${alpha})` : withAlpha(e.color, alpha);
+    ctx.beginPath();
+    ctx.moveTo(sxp, syp - shardSize * 1.6);
+    ctx.lineTo(sxp + shardSize, syp);
+    ctx.lineTo(sxp, syp + shardSize * 1.6);
+    ctx.lineTo(sxp - shardSize, syp);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  const beamWidth = baseRadius * 0.56 * (1 - progress * 0.45);
+  const beam = ctx.createLinearGradient(x, y + baseRadius * 0.45, x, y - baseRadius * 2.35);
+  beam.addColorStop(0, 'rgba(255, 236, 138, 0)');
+  beam.addColorStop(0.2, `rgba(255, 236, 138, ${0.24 * alpha})`);
+  beam.addColorStop(0.64, withAlpha(e.color, 0.34 * alpha));
+  beam.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = beam;
+  ctx.beginPath();
+  ctx.moveTo(x - beamWidth, y + baseRadius * 0.42);
+  ctx.lineTo(x + beamWidth, y + baseRadius * 0.42);
+  ctx.lineTo(x + beamWidth * 0.3, y - baseRadius * 2.35);
+  ctx.lineTo(x - beamWidth * 0.3, y - baseRadius * 2.35);
+  ctx.closePath();
+  ctx.fill();
+
+  const textAlpha = Math.min(1, alpha * 1.6) * (progress < 0.18 ? progress / 0.18 : 1);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = textAlpha;
+  ctx.font = `900 ${Math.max(14, 17 * scale)}px Cinzel, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = Math.max(3, 4 * scale);
+  ctx.strokeStyle = 'rgba(0,0,0,0.72)';
+  ctx.fillStyle = '#FFF0A4';
+  ctx.strokeText('LEVEL UP', x, y - baseRadius * (1.35 + progress * 0.45));
+  ctx.fillText('LEVEL UP', x, y - baseRadius * (1.35 + progress * 0.45));
+  ctx.restore();
 }
 
 function drawDamageNumber(ctx, n, sx, sy) {
