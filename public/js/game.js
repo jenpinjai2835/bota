@@ -339,6 +339,34 @@ let scores = {};
 let isAlive = true;
 let respawnTimer = null;
 const spriteImages = {};
+const dragonfistBoneImages = {};
+const DRAGONFIST_BONE_PARTS = [
+  'back-hair-ponytail',
+  'belt-buckle-dragon-medallion',
+  'chest-torso-front',
+  'dragon-aura-ring-1',
+  'dragon-aura-slash',
+  'front-hair',
+  'head-base-face',
+  'left-foot',
+  'left-forearm',
+  'left-hand-fist',
+  'left-shin',
+  'left-shoulder-armor',
+  'left-thigh',
+  'left-upper-arm',
+  'neck',
+  'pelvis-waist',
+  'right-foot',
+  'right-forearm',
+  'right-hand-fist',
+  'right-shin',
+  'right-shoulder-armor',
+  'right-thigh',
+  'right-upper-arm',
+  'waist-sash-back',
+  'waist-sash-front',
+];
 let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
 const predictedHitEffects = [];
 const ACTION_DURATIONS = {
@@ -374,6 +402,12 @@ function preloadSpriteAssets() {
       img.src = sheet.src;
       spriteImages[key] = img;
     });
+  });
+  DRAGONFIST_BONE_PARTS.forEach(part => {
+    if (dragonfistBoneImages[part]) return;
+    const img = new Image();
+    img.src = `/assets/sprites/dragonfist-parts/${part}.png`;
+    dragonfistBoneImages[part] = img;
   });
 }
 
@@ -2228,6 +2262,87 @@ function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
   ctx.drawImage(img, sx, sy, frameW, frameH, -drawW / 2, -drawH * (source.footY || 1), drawW, drawH);
 }
 
+function areDragonfistBonesReady() {
+  return DRAGONFIST_BONE_PARTS.every(part => {
+    const img = dragonfistBoneImages[part];
+    return img?.complete && img.naturalWidth;
+  });
+}
+
+function drawDragonfistBonePart(ctx, part, x, y, pivotX, pivotY, scale = 1, rotation = 0, alpha = 1) {
+  const img = dragonfistBoneImages[part];
+  if (!img?.complete || !img.naturalWidth) return;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha *= alpha;
+  ctx.drawImage(img, -pivotX, -pivotY);
+  ctx.restore();
+}
+
+function drawDragonfistIdleBones(ctx, drawW, drawH, p, action) {
+  if (!areDragonfistBonesReady() || action || p.state !== 'idle') return false;
+
+  const t = Date.now() * 0.001;
+  const breath = Math.sin(t * Math.PI * 2 * 0.72);
+  const delayed = Math.sin(t * Math.PI * 2 * 0.72 - 0.75);
+  const settle = Math.sin(t * Math.PI * 2 * 0.36);
+  const scale = drawH / 256;
+  const originX = -128;
+  const originY = -240;
+
+  ctx.save();
+  ctx.scale(scale, scale);
+  ctx.translate(originX, originY);
+
+  const torsoY = -2.4 * breath;
+  const pelvisY = -0.7 * breath;
+  const swayX = 1.1 * settle;
+  const torsoRot = 0.018 * settle;
+  const headRot = 0.012 * delayed;
+  const hairRot = -0.052 * delayed;
+  const sashRot = 0.07 * delayed;
+  const shoulderLift = -1.1 * breath;
+  const armSwing = 0.025 * delayed;
+
+  drawDragonfistBonePart(ctx, 'dragon-aura-ring-1', 129, 134 + torsoY, 100, 83, 0.42, t * 0.25, 0.12 + breath * 0.02);
+  drawDragonfistBonePart(ctx, 'dragon-aura-slash', 128, 132 + torsoY, 110, 88, 0.34, -0.2 + delayed * 0.08, 0.1);
+
+  drawDragonfistBonePart(ctx, 'waist-sash-back', 130 + swayX, 151 + pelvisY, 74, 18, 0.43, -0.03 + sashRot);
+  drawDragonfistBonePart(ctx, 'right-thigh', 146, 167 + pelvisY, 56, 20, 0.45, -0.07 + 0.015 * breath);
+  drawDragonfistBonePart(ctx, 'right-shin', 146, 213, 52, 18, 0.43, 0.03);
+  drawDragonfistBonePart(ctx, 'right-foot', 151, 236, 36, 120, 0.46, 0.03);
+  drawDragonfistBonePart(ctx, 'left-thigh', 111, 166 + pelvisY, 58, 20, 0.45, 0.08 - 0.015 * breath);
+  drawDragonfistBonePart(ctx, 'left-shin', 108, 213, 42, 18, 0.43, -0.03);
+  drawDragonfistBonePart(ctx, 'left-foot', 104, 236, 42, 124, 0.46, -0.03);
+
+  drawDragonfistBonePart(ctx, 'pelvis-waist', 127 + swayX * 0.3, 147 + pelvisY, 91, 30, 0.5, 0.006 * delayed);
+  drawDragonfistBonePart(ctx, 'chest-torso-front', 128 + swayX, 107 + torsoY, 113, 112, 0.52, torsoRot);
+
+  drawDragonfistBonePart(ctx, 'right-upper-arm', 170 + swayX, 105 + torsoY + shoulderLift, 47, 22, 0.42, 0.2 + armSwing);
+  drawDragonfistBonePart(ctx, 'right-forearm', 175 + swayX, 151 + torsoY, 45, 24, 0.39, 0.2 - armSwing);
+  drawDragonfistBonePart(ctx, 'right-hand-fist', 174 + swayX, 198 + torsoY, 39, 18, 0.43, 0.05 - armSwing);
+  drawDragonfistBonePart(ctx, 'right-shoulder-armor', 166 + swayX, 91 + torsoY + shoulderLift, 50, 36, 0.39, 0.05 + armSwing);
+
+  drawDragonfistBonePart(ctx, 'left-upper-arm', 84 + swayX, 105 + torsoY + shoulderLift, 42, 22, 0.42, -0.2 + armSwing);
+  drawDragonfistBonePart(ctx, 'left-forearm', 80 + swayX, 151 + torsoY, 48, 24, 0.39, -0.24 - armSwing);
+  drawDragonfistBonePart(ctx, 'left-hand-fist', 80 + swayX, 198 + torsoY, 38, 18, 0.43, -0.07 + armSwing);
+  drawDragonfistBonePart(ctx, 'left-shoulder-armor', 90 + swayX, 91 + torsoY + shoulderLift, 51, 36, 0.39, -0.06 - armSwing);
+
+  drawDragonfistBonePart(ctx, 'waist-sash-front', 131 + swayX, 153 + pelvisY, 77, 20, 0.43, 0.04 + sashRot);
+  drawDragonfistBonePart(ctx, 'belt-buckle-dragon-medallion', 129 + swayX, 151 + pelvisY, 74, 50, 0.27, 0.015 * delayed);
+
+  drawDragonfistBonePart(ctx, 'neck', 128 + swayX, 69 + torsoY, 48, 70, 0.42, torsoRot);
+  drawDragonfistBonePart(ctx, 'back-hair-ponytail', 132 + swayX, 54 + torsoY, 97, 92, 0.4, hairRot + 0.02);
+  drawDragonfistBonePart(ctx, 'head-base-face', 127 + swayX, 57 + torsoY, 80, 92, 0.43, headRot);
+  drawDragonfistBonePart(ctx, 'front-hair', 126 + swayX, 38 + torsoY, 82, 65, 0.45, hairRot * 0.55);
+
+  ctx.restore();
+  return true;
+}
+
 function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, lean, action, shouldFlip) {
   const runPhase = Date.now() * 0.018;
   const idleBreath = p.state === 'idle' && source.sheetId !== 'idle'
@@ -2244,7 +2359,9 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
   ctx.rotate(lean + (action === 'punch' ? (p.facing || 1) * punchDrive * 0.08 : 0));
   if (shouldFlip) ctx.scale(-1, 1);
   ctx.scale(1 + punchDrive * 0.01, 1 + idleBreath - rushDrive * 0.015);
-  if (source.sheet) {
+  if (source.ch?.id === 'dragonfist' && drawDragonfistIdleBones(ctx, drawW, drawH, p, action)) {
+    // Runtime bones rendered successfully for idle.
+  } else if (source.sheet) {
     drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action);
   } else {
     ctx.drawImage(source.img, -drawW / 2, -drawH, drawW, drawH);

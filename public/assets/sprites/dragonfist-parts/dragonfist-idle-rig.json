@@ -1,0 +1,41 @@
+{
+  "name": "dragonfist-idle",
+  "frameSize": { "width": 256, "height": 256 },
+  "frames": 8,
+  "fps": 6,
+  "partsDirectory": "/assets/sprites/dragonfist-parts",
+  "notes": "Simple 2D skeletal layout baked from separated PNG parts. Pivots are tuned for an idle breathing loop.",
+  "bones": [
+    { "name": "root", "parent": null },
+    { "name": "pelvis", "parent": "root", "part": "pelvis-waist.png" },
+    { "name": "torso", "parent": "pelvis", "part": "chest-torso-front.png" },
+    { "name": "neck", "parent": "torso", "part": "neck.png" },
+    { "name": "head", "parent": "neck", "part": "head-base-face.png" },
+    { "name": "frontHair", "parent": "head", "part": "front-hair.png" },
+    { "name": "backHair", "parent": "head", "part": "back-hair-ponytail.png" },
+    { "name": "leftUpperArm", "parent": "torso", "part": "left-upper-arm.png" },
+    { "name": "leftForearm", "parent": "leftUpperArm", "part": "left-forearm.png" },
+    { "name": "leftFist", "parent": "leftForearm", "part": "left-hand-fist.png" },
+    { "name": "rightUpperArm", "parent": "torso", "part": "right-upper-arm.png" },
+    { "name": "rightForearm", "parent": "rightUpperArm", "part": "right-forearm.png" },
+    { "name": "rightFist", "parent": "rightForearm", "part": "right-hand-fist.png" },
+    { "name": "leftThigh", "parent": "pelvis", "part": "left-thigh.png" },
+    { "name": "leftShin", "parent": "leftThigh", "part": "left-shin.png" },
+    { "name": "leftFoot", "parent": "leftShin", "part": "left-foot.png" },
+    { "name": "rightThigh", "parent": "pelvis", "part": "right-thigh.png" },
+    { "name": "rightShin", "parent": "rightThigh", "part": "right-shin.png" },
+    { "name": "rightFoot", "parent": "rightShin", "part": "right-foot.png" },
+    { "name": "waistSashFront", "parent": "pelvis", "part": "waist-sash-front.png" },
+    { "name": "waistSashBack", "parent": "pelvis", "part": "waist-sash-back.png" }
+  ],
+  "idleAction": {
+    "loop": true,
+    "keys": [
+      { "frame": 0, "breath": 0, "sway": 0 },
+      { "frame": 2, "breath": 1, "sway": 1 },
+      { "frame": 4, "breath": 0, "sway": 0 },
+      { "frame": 6, "breath": -1, "sway": -1 },
+      { "frame": 8, "breath": 0, "sway": 0 }
+    ]
+  }
+}
