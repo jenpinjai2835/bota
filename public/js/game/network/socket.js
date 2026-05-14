@@ -76,6 +76,10 @@ function handleMessage(msg) {
         myPlayer.state = 'idle';
         myPlayer.hitStunUntil = 0;
         myPlayer.deathUntil = 0;
+        myPlayer.deathStartedAt = 0;
+        myPlayer.deathFadeStartedAt = 0;
+        myPlayer.deathAngle = 0;
+        myPlayer.deathSpin = 0;
         document.getElementById('death-overlay').classList.remove('visible');
         if (respawnTimer) clearInterval(respawnTimer);
         respawnTimer = null;
@@ -88,6 +92,10 @@ function handleMessage(msg) {
         remotePlayers[msg.playerId].state = 'idle';
         remotePlayers[msg.playerId].hitStunUntil = 0;
         remotePlayers[msg.playerId].deathUntil = 0;
+        remotePlayers[msg.playerId].deathStartedAt = 0;
+        remotePlayers[msg.playerId].deathFadeStartedAt = 0;
+        remotePlayers[msg.playerId].deathAngle = 0;
+        remotePlayers[msg.playerId].deathSpin = 0;
       }
       break;
     case 'score_update':

@@ -24,6 +24,10 @@ let isAlive = true;
 let respawnTimer = null;
 const RESPAWN_DELAY_MS = 10000;
 const CHARACTER_VISUAL_SCALE = 0.6;
+const MIN_CHARACTER_HP = 500;
+const MELEE_Z_RANGE_MULTIPLIER = 1.5;
+const DEATH_BODY_FADE_START_MS = 3800;
+const DEATH_BODY_FADE_DURATION_MS = 1200;
 const spriteImages = {};
 const warriorVectorOverlayImages = {};
 const WARRIOR_VECTOR_OVERLAY_BASE = '/assets/sprites/warrior-vector-parts/right-side/';
@@ -171,6 +175,10 @@ function getActionProgress(player) {
 
 function getMaxMana(ch) {
   return ch?.maxMana || 100;
+}
+
+function getCharacterMaxHp(ch) {
+  return Math.max(MIN_CHARACTER_HP, ch?.maxHp || 100);
 }
 
 function getManaRegen(ch) {

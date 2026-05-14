@@ -192,8 +192,8 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   drawRoundRect(ctx, centerX - nameW / 2, topY - 24 * sy, nameW, 20 * sy, 4);
   ctx.fillStyle = 'rgba(7,5,6,0.72)';
   ctx.fill();
-  ctx.strokeStyle = isMe ? withAlpha('#F5E182', 0.8) : 'rgba(255,255,255,0.14)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = isMe ? 'rgba(76, 232, 128, 0.95)' : 'rgba(255, 72, 72, 0.92)';
+  ctx.lineWidth = Math.max(1, 1.35 * Math.min(sx, sy));
   ctx.stroke();
 
   let nameFontSize = Math.max(9, 11 * Math.min(sx, sy));
@@ -218,20 +218,31 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   drawRoundRect(ctx, bx, by, bw * hpPct, bh, 3);
   ctx.fillStyle = hpPct > 0.6 ? '#39D36A' : hpPct > 0.3 ? '#FFB02E' : '#FF3D46';
   ctx.fill();
-
-  ctx.font = `700 ${Math.max(8, 9 * Math.min(sx, sy))}px Cinzel, serif`;
-  ctx.fillStyle = '#F6E8C4';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(`${Math.ceil(p.hp)}/${p.maxHp}`, centerX, by + bh + 2);
+  drawHealthSegmentTicks(ctx, bx, by, bw, bh, p.maxHp || 100);
 
   if (isMe) {
-    ctx.fillStyle = '#F5E182';
+    ctx.fillStyle = '#4CE880';
     ctx.font = `${8 * Math.min(sx, sy)}px Cinzel, serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText('▲', centerX, by - 4);
   }
+}
+
+function drawHealthSegmentTicks(ctx, x, y, w, h, maxHp) {
+  const count = Math.floor(maxHp / 100);
+  if (count <= 1) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.36)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < count; i++) {
+    const tx = x + w * (i * 100 / maxHp);
+    ctx.beginPath();
+    ctx.moveTo(tx, y + 1);
+    ctx.lineTo(tx, y + h - 1);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawDragonfistActionFX(ctx, action, drawW, drawH, p) {
@@ -756,10 +767,11 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
   const rushDrive = action === 'rush' ? Math.sin(actionProgress * Math.PI) : 0;
   const stride = p.state === 'run' ? Math.sin(runPhase) : rushDrive * 0.8;
   const lift = p.state === 'run' ? Math.abs(Math.cos(runPhase)) : Math.abs(rushDrive);
+  const deathRoll = p.hp <= 0 ? (p.deathAngle || 0) : 0;
 
   ctx.save();
   ctx.translate(footX + (p.facing || 1) * punchDrive * 6, footY + bob - rushDrive * 2);
-  ctx.rotate(lean + (action === 'punch' ? (p.facing || 1) * punchDrive * 0.08 : 0));
+  ctx.rotate(deathRoll + lean + (action === 'punch' ? (p.facing || 1) * punchDrive * 0.08 : 0));
   if (shouldFlip) ctx.scale(-1, 1);
   ctx.scale(1 + punchDrive * 0.01, 1 + idleBreath - rushDrive * 0.015);
   if (source.ch?.id === 'dragonfist') {
@@ -772,6 +784,12 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
   }
   if (action === 'roar') drawDragonfistActionFX(ctx, action, drawW, drawH, p);
   ctx.restore();
+}
+
+function getDeathBodyAlpha(p) {
+  if (p.hp > 0) return 1;
+  const elapsed = Date.now() - (p.deathStartedAt || Date.now());
+  return Math.max(0, Math.min(1, 1 - (elapsed - DEATH_BODY_FADE_START_MS) / DEATH_BODY_FADE_DURATION_MS));
 }
 
 function drawSpritePlayer(ctx, p, sx, sy, isMe) {
@@ -808,8 +826,10 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const lean = p.state === 'run' ? p.facing * 0.06 : action ? p.facing * 0.045 * actionKick : 0;
   const baseFacing = source.baseFacing || 1;
   const shouldFlip = (p.facing || 1) !== baseFacing;
+  const bodyAlpha = getDeathBodyAlpha(p);
 
   ctx.save();
+  ctx.globalAlpha = bodyAlpha;
   ctx.fillStyle = 'rgba(0,0,0,0.46)';
   ctx.beginPath();
   ctx.ellipse(footX, footY + 2 * sy, drawW * 0.38, 8 * sy, 0, 0, Math.PI * 2);
@@ -830,14 +850,14 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
     ctx.restore();
   } else {
     ctx.translate(footX, footY + bob);
-    ctx.rotate(lean);
+    ctx.rotate((p.hp <= 0 ? (p.deathAngle || 0) : 0) + lean);
     if (shouldFlip) ctx.scale(-1, 1);
     ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
     drawDragonfistActionFX(ctx, action, drawW, drawH, p);
     ctx.restore();
   }
 
-  drawSpriteActionOverlay(ctx, p, footX, footY, drawW, drawH, action);
+  if (p.hp > 0) drawSpriteActionOverlay(ctx, p, footX, footY, drawW, drawH, action);
   drawPlayerPlate(ctx, p, footX, footY - visualH - 6 * sy, Math.max(82, drawW * (source.plateWidth || 1.25)), sx, sy, isMe);
   return true;
 }
@@ -956,8 +976,8 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   drawRoundRect(ctx, x + w / 2 - nameW / 2, nameY - 24 * sy, nameW, 20 * sy, 4);
   ctx.fillStyle = 'rgba(7,5,6,0.72)';
   ctx.fill();
-  ctx.strokeStyle = isMe ? withAlpha('#F5E182', 0.8) : 'rgba(255,255,255,0.14)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = isMe ? 'rgba(76, 232, 128, 0.95)' : 'rgba(255, 72, 72, 0.92)';
+  ctx.lineWidth = Math.max(1, 1.35 * Math.min(sx, sy));
   ctx.stroke();
 
   ctx.font = `700 ${Math.max(9, 11 * Math.min(sx, sy))}px Cinzel, serif`;
@@ -977,15 +997,10 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   drawRoundRect(ctx, bx, by, bw * hpPct, bh, 3);
   ctx.fillStyle = hpPct > 0.6 ? '#39D36A' : hpPct > 0.3 ? '#FFB02E' : '#FF3D46';
   ctx.fill();
-
-  ctx.font = `700 ${Math.max(8, 9 * Math.min(sx, sy))}px Cinzel, serif`;
-  ctx.fillStyle = '#F6E8C4';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(`${Math.ceil(p.hp)}/${p.maxHp}`, x + w / 2, by + bh + 2);
+  drawHealthSegmentTicks(ctx, bx, by, bw, bh, p.maxHp || 100);
 
   if (isMe) {
-    ctx.fillStyle = '#F5E182';
+    ctx.fillStyle = '#4CE880';
     ctx.font = `${8 * Math.min(sx, sy)}px Cinzel, serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';

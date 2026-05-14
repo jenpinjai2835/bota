@@ -13,10 +13,7 @@ function getStageWidth() { return WORLD_W; }
 
 function updatePlayer(p, dt) {
   if (p.hp <= 0 || p.state === 'dead') {
-    p.vx = 0;
-    p.vy = 0;
-    p.state = 'dead';
-    p.onGround = true;
+    updateDeadPlayer(p, dt);
     return;
   }
 
@@ -61,6 +58,99 @@ function updatePlayer(p, dt) {
     if (p === myPlayer) {
       p.hp = 0;
       onMyDeath();
+    }
+  }
+}
+
+function updateDeadPlayer(p, dt) {
+  const step = Math.max(0.5, Math.min(2.2, dt / 16.67 || 1));
+  p.hp = 0;
+  p.state = 'dead';
+  p.deathStartedAt = p.deathStartedAt || Date.now();
+
+  const oldX = p.x;
+  const oldY = p.y;
+  p.vy += GRAVITY * step;
+  p.x += (p.vx || 0) * step;
+  p.y += (p.vy || 0) * step;
+  p.deathAngle = (p.deathAngle || 0) + ((p.deathSpin || 0) + (p.vx || 0) * 0.012) * step;
+
+  p.onGround = false;
+  getPlatforms().forEach(plat => {
+    const intersects = p.x + p.width > plat.x &&
+      p.x < plat.x + plat.w &&
+      p.y + p.height > plat.y &&
+      p.y < plat.y + plat.h;
+    if (!intersects) return;
+
+    const oldBottom = oldY + p.height;
+    const oldRight = oldX + p.width;
+    if (oldBottom <= plat.y + 8 && p.vy >= 0) {
+      p.y = plat.y - p.height;
+      p.vy = Math.abs(p.vy) > 1.1 ? -Math.abs(p.vy) * 0.42 : 0;
+      p.vx *= 0.78;
+      p.deathSpin *= -0.55;
+      p.onGround = true;
+    } else if (oldRight <= plat.x) {
+      p.x = plat.x - p.width;
+      p.vx = -Math.abs(p.vx) * 0.58;
+      p.deathSpin *= -0.75;
+    } else if (oldX >= plat.x + plat.w) {
+      p.x = plat.x + plat.w;
+      p.vx = Math.abs(p.vx) * 0.58;
+      p.deathSpin *= -0.75;
+    }
+  });
+
+  if (p.x < 0) {
+    p.x = 0;
+    p.vx = Math.abs(p.vx || 0) * 0.55;
+    p.deathSpin *= -0.75;
+  }
+  if (p.x + p.width > getStageWidth()) {
+    p.x = getStageWidth() - p.width;
+    p.vx = -Math.abs(p.vx || 0) * 0.55;
+    p.deathSpin *= -0.75;
+  }
+
+  p.vx *= p.onGround ? Math.pow(0.9, step) : Math.pow(0.985, step);
+  if (p.onGround && Math.abs(p.vy) < 0.6) p.vy = 0;
+  if (p.y > WORLD_H + 120) {
+    p.y = WORLD_H + 120;
+    p.vy = 0;
+    p.vx *= 0.8;
+  }
+}
+
+function isPlayerBodyBlocking(p) {
+  return p && p.hp > 0 && p.state !== 'dead';
+}
+
+function resolvePlayerBodyCollisions() {
+  const players = [myPlayer, ...Object.values(remotePlayers)].filter(isPlayerBodyBlocking);
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      const a = players[i];
+      const b = players[j];
+      const overlapX = Math.min(a.x + a.width - b.x, b.x + b.width - a.x);
+      const overlapY = Math.min(a.y + a.height - b.y, b.y + b.height - a.y);
+      if (overlapX <= 0 || overlapY <= 0) continue;
+
+      const dir = (a.x + a.width / 2) < (b.x + b.width / 2) ? -1 : 1;
+      if (a === myPlayer) {
+        a.x += dir * overlapX;
+        a.vx = dir < 0 ? Math.min(0, a.vx || 0) : Math.max(0, a.vx || 0);
+      } else if (b === myPlayer) {
+        b.x -= dir * overlapX;
+        b.vx = dir < 0 ? Math.max(0, b.vx || 0) : Math.min(0, b.vx || 0);
+      } else {
+        a.x += dir * overlapX * 0.5;
+        b.x -= dir * overlapX * 0.5;
+        a.vx *= -0.15;
+        b.vx *= -0.15;
+      }
+      a.x = Math.max(0, Math.min(getStageWidth() - a.width, a.x));
+      b.x = Math.max(0, Math.min(getStageWidth() - b.width, b.x));
     }
   }
 }

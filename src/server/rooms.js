@@ -1,4 +1,5 @@
 const MAX_PLAYERS = 5;
+const MIN_CHARACTER_HP = 500;
 
 const SPAWN_POINTS = [
   { x: 150, y: 454 },
@@ -34,7 +35,7 @@ function generateRoomId() {
 }
 
 function createPlayer(playerId, { name, character }, index = 0) {
-  const maxHp = CHARACTER_MAX_HP[character] || 100;
+  const maxHp = Math.max(MIN_CHARACTER_HP, CHARACTER_MAX_HP[character] || 100);
   return {
     id: playerId,
     name,

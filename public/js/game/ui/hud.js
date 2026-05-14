@@ -7,6 +7,7 @@ function buildHUD(state) {
   container.innerHTML = '';
   state.players.forEach(p => {
     const ch = CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
+    const maxHp = Math.max(p.maxHp || 0, getCharacterMaxHp(ch));
     const div = document.createElement('div');
     div.className = 'player-hud-card' + (p.id === myPlayerId ? ' is-me' : '');
     div.id = `hud-${p.id}`;
@@ -19,13 +20,23 @@ function buildHUD(state) {
         </div>
         <div class="phud-score" style="margin-left:auto" id="score-${p.id}">0</div>
       </div>
-      <div class="hud-stat-line"><span>HP</span><span id="hp-text-${p.id}">${ch.maxHp}/${ch.maxHp}</span></div>
-      <div class="hp-bar"><div class="hp-fill high" id="hp-${p.id}" style="width:100%"></div></div>
+      <div class="hud-stat-line"><span>HP</span><span id="hp-text-${p.id}"></span></div>
+      <div class="hp-bar"><div class="hp-fill high" id="hp-${p.id}" style="width:100%"></div>${buildHpTicks(maxHp)}</div>
       <div class="hud-stat-line mana-line"><span>MP</span><span id="mana-text-${p.id}">${getMaxMana(ch)}/${getMaxMana(ch)}</span></div>
       <div class="mana-bar"><div class="mana-fill" id="mana-${p.id}" style="width:100%"></div></div>
     `;
     container.appendChild(div);
   });
+}
+
+function buildHpTicks(maxHp) {
+  const count = Math.floor(maxHp / 100);
+  if (count <= 1) return '';
+  let html = '<div class="hp-ticks">';
+  for (let i = 1; i < count; i++) {
+    html += `<span style="left:${(i * 100 / maxHp) * 100}%"></span>`;
+  }
+  return `${html}</div>`;
 }
 
 function updateHUD() {
@@ -41,7 +52,7 @@ function updateHUD() {
       hpEl.style.width = pct + '%';
       hpEl.className = 'hp-fill ' + (pct > 60 ? 'high' : pct > 30 ? 'med' : '');
     }
-    if (hpText) hpText.textContent = `${Math.max(0, Math.ceil(p.hp))}/${p.maxHp}`;
+    if (hpText) hpText.textContent = '';
     if (manaEl) {
       const pct = Math.max(0, (p.mana / p.maxMana) * 100);
       manaEl.style.width = pct + '%';

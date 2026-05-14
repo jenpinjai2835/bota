@@ -401,12 +401,12 @@
     background:
       linear-gradient(145deg, rgba(245,225,130,0.08), transparent 42%),
       rgba(8,5,7,0.78);
-    border: 1px solid rgba(245,225,130,0.28);
+    border: 1px solid rgba(255,72,72,0.72);
     border-radius: 6px;
     padding: 9px 12px 10px;
     min-width: 154px;
     position: relative;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08);
+    box-shadow: 0 0 18px rgba(255,72,72,0.12), 0 10px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08);
     backdrop-filter: blur(8px);
   }
   .player-hud-card::before {
@@ -417,8 +417,8 @@
     background: linear-gradient(90deg, transparent, rgba(245,225,130,0.7), transparent);
   }
   .player-hud-card.is-me {
-    border-color: rgba(245,225,130,0.72);
-    box-shadow: 0 0 24px rgba(212,175,55,0.16), 0 10px 30px rgba(0,0,0,0.32);
+    border-color: rgba(76,232,128,0.9);
+    box-shadow: 0 0 24px rgba(76,232,128,0.16), 0 10px 30px rgba(0,0,0,0.32);
   }
   .phud-name { font-size: 12px; font-family: 'Cinzel', serif; color: var(--gold-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; text-shadow: 0 1px 10px rgba(212,175,55,0.3); }
   .phud-char { font-size: 9px; color: rgba(232,213,176,0.62); text-transform: uppercase; letter-spacing: 0.12em; }
@@ -433,10 +433,12 @@
     letter-spacing: 0.04em;
   }
   .hud-stat-line.mana-line { margin-top: 5px; color: rgba(163,210,255,0.9); }
-  .hp-bar { height: 7px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 7px; overflow: hidden; }
+  .hp-bar { height: 7px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 7px; overflow: hidden; position: relative; }
   .hp-fill { height: 100%; background: linear-gradient(90deg, #B8202C, var(--red-glow)); border-radius: 999px; transition: width 0.2s; box-shadow: 0 0 10px rgba(255,68,68,0.28); }
   .hp-fill.high { background: linear-gradient(90deg, #1F9E55, #57E37F); box-shadow: 0 0 10px rgba(87,227,127,0.25); }
   .hp-fill.med { background: linear-gradient(90deg, #D27A18, #FFC247); box-shadow: 0 0 10px rgba(255,194,71,0.24); }
+  .hp-ticks { position: absolute; inset: 0; pointer-events: none; }
+  .hp-ticks span { position: absolute; top: 1px; bottom: 1px; width: 1px; background: rgba(255,255,255,0.4); transform: translateX(-0.5px); box-shadow: 0 0 2px rgba(0,0,0,0.55); }
   .mana-bar { height: 6px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 5px; overflow: hidden; }
   .mana-fill { height: 100%; background: linear-gradient(90deg, #2368D8, #6CCBFF); border-radius: 999px; transition: width 0.2s; box-shadow: 0 0 10px rgba(91,178,255,0.28); }
   .phud-score { font-size: 13px; color: var(--gold-light); text-align: right; font-family: 'Cinzel', serif; }

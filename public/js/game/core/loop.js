@@ -15,6 +15,7 @@ function gameLoop(ts = 0) {
   handleInput();
   if (myPlayer) updatePlayer(myPlayer, dt);
   Object.values(remotePlayers).forEach(p => updatePlayer(p, dt));
+  resolvePlayerBodyCollisions();
   updateProjectiles();
   updateCamera(canvas);
   render(canvas);

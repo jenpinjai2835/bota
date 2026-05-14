@@ -4,16 +4,22 @@
 // ============================================================
 function doMeleeHit(attacker, skill) {
   const all = attacker === myPlayer ? Object.values(remotePlayers) : (myPlayer ? [myPlayer] : []);
+  const range = getMeleeHitRange(skill);
   all.forEach(target => {
     if (!target || target.hp <= 0) return;
     const dx = (target.x + target.width/2) - (attacker.x + attacker.width/2);
     const dy = (target.y + target.height/2) - (attacker.y + attacker.height/2);
     const dist = Math.sqrt(dx*dx + dy*dy);
     const inFront = (attacker.facing > 0 ? dx > 0 : dx < 0);
-    if (dist < skill.range && inFront) {
+    if (dist < range && inFront) {
       dealDamage(target, skill.damage, skill.id, Math.sign(dx) || attacker.facing || 1);
     }
   });
+}
+
+function getMeleeHitRange(skill) {
+  if (!skill) return 0;
+  return skill.range * (skill.type === 'melee' && skill.key === 'Z' ? MELEE_Z_RANGE_MULTIPLIER : 1);
 }
 
 function spawnProjectile(owner, skill) {
@@ -35,6 +41,7 @@ function spawnAOE(owner, skill) {
 
   const all = owner === myPlayer ? Object.values(remotePlayers) : (myPlayer ? [myPlayer] : []);
   all.forEach(target => {
+    if (!target || target.hp <= 0) return;
     const dx = (target.x + target.width/2) - cx;
     const dy = (target.y + target.height/2) - cy;
     if (Math.sqrt(dx*dx + dy*dy) < skill.range) {
@@ -64,13 +71,35 @@ function spawnBloodBurst(x, y, dir = 1, amount = 14) {
 
 function applyHitReaction(target, dir = 1, skillId = null) {
   if (!target) return;
-  const force = skillId === 'rush' ? 9.5 : skillId === 'roar' ? 6.8 : 5.7;
+  const force = getHitReactionForce(skillId, 0);
   target.vx = dir * force;
   target.vy = Math.min(target.vy || 0, -3.3);
   target.facing = -dir;
   target.hitStunUntil = Date.now() + 260;
   target.hitDir = dir;
   if (target.hp > 0) target.state = 'hurt';
+}
+
+function getHitReactionForce(skillId = null, damage = 0) {
+  const base = skillId === 'rush' ? 9.5 : skillId === 'roar' ? 6.8 : 5.7;
+  return base + Math.min(8, Math.max(0, damage) * 0.045);
+}
+
+function startDeathMotion(target, dir = 1, damage = 0, skillId = null) {
+  if (!target) return;
+  const now = Date.now();
+  const force = getHitReactionForce(skillId, damage);
+  target.hp = 0;
+  target.state = 'dead';
+  target.deathStartedAt = now;
+  target.deathFadeStartedAt = now + DEATH_BODY_FADE_START_MS;
+  target.deathUntil = now + RESPAWN_DELAY_MS;
+  target.hitDir = dir;
+  target.vx = dir * (force + 4 + Math.min(7, Math.max(0, damage) * 0.05));
+  target.vy = -5.4 - Math.min(6, Math.max(0, damage) * 0.035);
+  target.deathAngle = target.deathAngle || 0;
+  target.deathSpin = dir * (0.15 + Math.min(0.34, Math.max(0, damage) * 0.006));
+  target.onGround = false;
 }
 
 function dealDamage(target, damage, skillId, hitDir = 1) {
@@ -85,12 +114,11 @@ function dealDamage(target, damage, skillId, hitDir = 1) {
 
   if (target === myPlayer) {
     myPlayer.hp = Math.max(0, myPlayer.hp - damage);
-    if (myPlayer.hp <= 0) onMyDeath(hitDir);
+    if (myPlayer.hp <= 0) onMyDeath(hitDir, damage, skillId);
   } else {
     target.hp = Math.max(0, target.hp - damage);
     if (target.hp <= 0) {
-      target.state = 'dead';
-      target.deathUntil = Date.now() + RESPAWN_DELAY_MS;
+      startDeathMotion(target, hitDir, damage, skillId);
     }
   }
 }
@@ -108,11 +136,10 @@ function handleHitEffect(msg) {
       spawnBloodBurst(target.x + target.width/2, target.y + target.height * 0.38, hitDir);
     }
     if (msg.hp <= 0 && msg.targetId === myPlayerId) {
-      onMyDeath(hitDir);
+      onMyDeath(hitDir, msg.damage, msg.skillId);
     }
     if (msg.hp <= 0 && msg.targetId !== myPlayerId) {
-      target.state = 'dead';
-      target.deathUntil = Date.now() + RESPAWN_DELAY_MS;
+      startDeathMotion(target, hitDir, msg.damage, msg.skillId);
       spawnEffect(target.x + target.width/2, target.y + target.height/2, 'death', '#FF0000', 60);
     }
   }
@@ -140,16 +167,11 @@ function handleRemoteSkill(msg) {
   }
 }
 
-function onMyDeath(hitDir = 1) {
+function onMyDeath(hitDir = 1, damage = 0, skillId = null) {
   if (myPlayer?.state === 'dead' && myPlayer.deathUntil > Date.now()) return;
   isAlive = false;
   if (myPlayer) {
-    myPlayer.hp = 0;
-    myPlayer.vx = 0;
-    myPlayer.vy = 0;
-    myPlayer.state = 'dead';
-    myPlayer.deathUntil = Date.now() + RESPAWN_DELAY_MS;
-    myPlayer.hitDir = hitDir;
+    startDeathMotion(myPlayer, hitDir, damage, skillId);
     spawnBloodBurst(myPlayer.x + myPlayer.width / 2, myPlayer.y + myPlayer.height * 0.42, hitDir, 20);
   }
   const overlay = document.getElementById('death-overlay');
@@ -193,7 +215,7 @@ function updateProjectiles() {
     // Hit check (only for my projectiles)
     if (p.owner === myPlayerId) {
       Object.values(remotePlayers).forEach(target => {
-        if (!target) return;
+        if (!target || target.hp <= 0) return;
         const dx = (target.x + target.width/2) - p.x;
         const dy = (target.y + target.height/2) - p.y;
         if (Math.sqrt(dx*dx + dy*dy) < p.radius + 20) {

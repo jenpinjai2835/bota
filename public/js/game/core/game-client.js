@@ -66,9 +66,10 @@ function startGameClient(state) {
 
   state.players.forEach(p => {
     const ch = CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
+    const maxHp = Math.max(p.maxHp || 0, getCharacterMaxHp(ch));
     const pd = {
       id: p.id, name: p.name, character: p.character, charData: ch,
-      x: p.x, y: p.y, hp: p.hp, maxHp: ch.maxHp,
+      x: p.x, y: p.y, hp: Math.min(maxHp, p.hp || maxHp), maxHp,
       mana: getMaxMana(ch), maxMana: getMaxMana(ch),
       vx: 0, vy: 0, onGround: false, facing: 1,
       state: 'idle', score: 0, deaths: 0,
