@@ -1,6 +1,6 @@
 // Character identity, stat profiles, match items, and teams
 const STAT_PROFILE_PRESETS = {
-  brawler: { maxHp: 560, attackPower: 1.08, defense: 12, speed: 5, jumpPower: 14, knockbackPower: 1.08, knockbackResist: 0.08, maxMana: 110, manaRegen: 0.32 },
+  brawler: { maxHp: 560, attackPower: 1.02, attackSpeed: 1.05, defense: 12, speed: 5, jumpPower: 14, knockbackPower: 1.08, knockbackResist: 0.08, maxMana: 110, manaRegen: 0.32 },
   assassin: { maxHp: 500, attackPower: 1.18, defense: 5, speed: 7, jumpPower: 15, knockbackPower: 1.16, knockbackResist: 0.02, maxMana: 100, manaRegen: 0.28 },
   tank: { maxHp: 720, attackPower: 0.94, defense: 28, speed: 3, jumpPower: 11, knockbackPower: 0.92, knockbackResist: 0.28, maxMana: 90, manaRegen: 0.22 },
   ranger: { maxHp: 510, attackPower: 1.08, defense: 8, speed: 5, jumpPower: 14, knockbackPower: 1, knockbackResist: 0.05, maxMana: 105, manaRegen: 0.26 },
@@ -66,6 +66,16 @@ function applyCharacterIdentityDefaults() {
     ch.maxMana = ch.baseStats.maxMana || ch.maxMana || 100;
     ch.manaRegen = ch.baseStats.manaRegen || ch.manaRegen || 0.24;
   });
+  const dragonfist = CHARACTERS.find(ch => ch.id === 'dragonfist');
+  if (dragonfist) {
+    const balance = {
+      punch: { name: 'Dragon Strike', damage: 20, cooldown: 760, manaCost: 0, basicAttack: true },
+      flame: { damage: 28, cooldown: 3200, manaCost: 32 },
+      rush: { damage: 36, cooldown: 5200, manaCost: 42 },
+      roar: { damage: 24, cooldown: 7800, manaCost: 58 },
+    };
+    dragonfist.skills.forEach(skill => Object.assign(skill, balance[skill.id] || {}));
+  }
 }
 
 applyCharacterIdentityDefaults();

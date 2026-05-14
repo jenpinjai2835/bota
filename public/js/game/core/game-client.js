@@ -16,6 +16,10 @@ function leaveGame() {
   damageNumbers = [];
   deathParts = [];
   matchItems = [];
+  creeps = [];
+  objectives = [];
+  towerShots = [];
+  gameWinner = null;
   nextMatchItemSpawnAt = 0;
   scores = {};
   skillCooldowns = {};
@@ -60,6 +64,7 @@ function leaveGame() {
   }
   ws = null;
   myPlayerId = null;
+  localStorage.removeItem('bota_last_room_id');
 
   showScreen('screen-menu');
 }
@@ -88,11 +93,13 @@ function startGameClient(state) {
       teamId: p.teamId || assignTeamId(0),
       x: p.x, y: p.y, hp: p.hp >= (p.maxHp || maxHp) ? maxHp : Math.min(maxHp, p.hp || maxHp), maxHp,
       mana: getMaxMana(ch), maxMana: getMaxMana(ch),
-      vx: 0, vy: 0, onGround: false, facing: 1,
+      vx: 0, vy: 0, onGround: true, facing: p.teamId === 'moon' ? -1 : 1,
       state: 'idle', score: 0, deaths: 0,
       action: null, actionStartedAt: 0, actionUntil: 0,
       bodyShattered: false,
       width: 44, height: 66,
+      isAI: !!p.isAI,
+      connected: p.connected !== false,
     };
     ensurePlayerSystems(pd);
     if (p.id === myPlayerId) {
@@ -116,7 +123,10 @@ function startGameClient(state) {
   document.getElementById('skills-bar').classList.add('visible');
   document.getElementById('controls-hint').classList.add('visible');
 
-  projectiles = []; effects = []; damageNumbers = []; deathParts = [];
+  projectiles = []; effects = []; damageNumbers = []; deathParts = []; bloodParticles = []; towerShots = [];
+  creeps = state.creeps || [];
+  objectives = state.objectives || [];
+  gameWinner = state.winner || null;
   resetMatchItems(state.matchItems || []);
   scores = {};
   state.players.forEach(p => {

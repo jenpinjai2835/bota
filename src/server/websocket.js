@@ -7,9 +7,20 @@ function createPlayerId() {
 function setupWebSocket(server, rooms) {
   const wss = new WebSocket.Server({ server });
   const clients = new Map();
+  const worldLoops = new Map();
   const ASSIST_WINDOW_MS = 8000;
   const UNIT_DEATH_XP = 110;
+  const CREEP_DEATH_XP = 38;
   const XP_SHARE_RADIUS = 280;
+  const CREEP_WAVE_MS = 8500;
+  const CREEP_LIMIT_PER_TEAM = 12;
+  const CREEP_TYPES = ['monster_1', 'monster_3', 'monster_6'];
+  const TEAM_IDS = ['sun', 'moon'];
+  const TEAM_DIR = { sun: 1, moon: -1 };
+  const CREEP_SPAWN = {
+    sun: { x: 118, y: 454 },
+    moon: { x: 690, y: 454 },
+  };
 
   function sendTo(playerId, message) {
     const ws = clients.get(playerId);
@@ -30,7 +41,7 @@ function setupWebSocket(server, rooms) {
   function sendScores(roomId, attackerId) {
     const scores = rooms.getScores(roomId);
     broadcast(roomId, { type: 'score_update', scores });
-    sendTo(attackerId, { type: 'score_update', scores });
+    if (attackerId) sendTo(attackerId, { type: 'score_update', scores });
   }
 
   function distanceBetween(a, b) {
@@ -43,19 +54,20 @@ function setupWebSocket(server, rooms) {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  function awardUnitDeathXp(room, target, attacker) {
+  function awardUnitDeathXp(room, target, attacker, xpAmount = UNIT_DEATH_XP) {
     if (!room || !target || !attacker?.teamId) return;
     const recipients = room.players
       .map(pid => room.playerData[pid])
       .filter(player =>
         player &&
+        !player.isAI &&
         player.teamId === attacker.teamId &&
         player.hp > 0 &&
         distanceBetween(player, target) <= XP_SHARE_RADIUS
       );
     if (!recipients.length) return;
 
-    const amount = Math.max(1, Math.floor(UNIT_DEATH_XP / recipients.length));
+    const amount = Math.max(1, Math.floor(xpAmount / recipients.length));
     recipients.forEach(player => sendTo(player.id, {
       type: 'xp_award',
       amount,
@@ -63,6 +75,131 @@ function setupWebSocket(server, rooms) {
       targetId: target.id,
       sharedWith: recipients.length,
     }));
+  }
+
+  function getLivingObjectives(room, teamId = null) {
+    return (room.objectives || []).filter(obj => obj.hp > 0 && (!teamId || obj.teamId === teamId));
+  }
+
+  function spawnCreep(room, teamId) {
+    const existing = (room.creeps || []).filter(creep => creep.teamId === teamId && creep.hp > 0).length;
+    if (existing >= CREEP_LIMIT_PER_TEAM) return;
+    const spawn = CREEP_SPAWN[teamId];
+    const type = CREEP_TYPES[(room.creepSeq || 0) % CREEP_TYPES.length];
+    room.creepSeq = (room.creepSeq || 0) + 1;
+    room.creeps.push({
+      id: `cr_${teamId}_${Date.now()}_${room.creepSeq}`,
+      type,
+      teamId,
+      x: spawn.x,
+      y: spawn.y + ((room.creepSeq % 3) - 1) * 28,
+      w: 42,
+      h: 42,
+      hp: 125,
+      maxHp: 125,
+      damage: 14,
+      speed: 0.78,
+      range: 34,
+      attackAt: 0,
+      state: 'walk',
+      facing: TEAM_DIR[teamId],
+    });
+  }
+
+  function findNearestEnemyUnit(room, creep) {
+    const enemyCreeps = (room.creeps || []).filter(other => other.hp > 0 && other.teamId !== creep.teamId);
+    const enemyObjectives = getLivingObjectives(room).filter(obj => obj.teamId !== creep.teamId);
+    return [...enemyCreeps, ...enemyObjectives]
+      .map(unit => ({ unit, distance: distanceBetween(creep, unit) }))
+      .sort((a, b) => a.distance - b.distance)[0]?.unit || null;
+  }
+
+  function damageCreep(room, creep, amount, attacker = null) {
+    if (!creep || creep.hp <= 0) return false;
+    creep.hp = Math.max(0, creep.hp - amount);
+    if (creep.hp > 0) return false;
+    creep.state = 'dead';
+    if (attacker) awardUnitDeathXp(room, creep, attacker, CREEP_DEATH_XP);
+    return true;
+  }
+
+  function damageObjective(room, objective, amount) {
+    if (!objective || objective.hp <= 0) return;
+    objective.hp = Math.max(0, objective.hp - amount);
+    if (objective.type === 'ancient' && objective.hp <= 0 && !room.winner) {
+      room.winner = objective.teamId === 'sun' ? 'moon' : 'sun';
+    }
+  }
+
+  function tickWorld(roomId) {
+    const room = rooms.get(roomId);
+    if (!room || room.status !== 'playing') return stopWorldLoop(roomId);
+    const now = Date.now();
+
+    if (!room.nextCreepWaveAt || now >= room.nextCreepWaveAt) {
+      TEAM_IDS.forEach(teamId => {
+        for (let i = 0; i < 3; i++) spawnCreep(room, teamId);
+      });
+      room.nextCreepWaveAt = now + CREEP_WAVE_MS;
+    }
+
+    (room.creeps || []).forEach(creep => {
+      if (creep.hp <= 0) return;
+      const target = findNearestEnemyUnit(room, creep);
+      if (!target) return;
+      const dir = Math.sign((target.x || 0) - creep.x) || TEAM_DIR[creep.teamId];
+      creep.facing = dir;
+      const dist = distanceBetween(creep, target);
+      if (dist > creep.range) {
+        creep.state = 'walk';
+        creep.x += dir * creep.speed;
+        creep.y += Math.sign((target.y || creep.y) - creep.y) * Math.min(0.22, Math.abs((target.y || creep.y) - creep.y));
+      } else if ((creep.attackAt || 0) <= now) {
+        creep.state = 'attack';
+        creep.attackAt = now + 900;
+        if (target.id?.startsWith?.('cr_')) damageCreep(room, target, creep.damage, creep);
+        else damageObjective(room, target, creep.damage);
+      }
+    });
+
+    getLivingObjectives(room).forEach(obj => {
+      if (obj.type !== 'tower' || (obj.attackAt || 0) > now) return;
+      const target = (room.creeps || [])
+        .filter(creep => creep.hp > 0 && creep.teamId !== obj.teamId && distanceBetween(obj, creep) <= (obj.range || 170))
+        .sort((a, b) => distanceBetween(obj, a) - distanceBetween(obj, b))[0];
+      if (!target) return;
+      obj.attackAt = now + 1100;
+      damageCreep(room, target, obj.damage || 30, obj);
+      room.players.forEach(pid => sendTo(pid, {
+        type: 'tower_shot',
+        from: { x: obj.x + obj.w / 2, y: obj.y + obj.h * 0.35 },
+        to: { x: target.x + target.w / 2, y: target.y + target.h * 0.45 },
+        teamId: obj.teamId,
+      }));
+    });
+
+    room.creeps = (room.creeps || []).filter(creep => creep.hp > 0);
+    room.players.forEach(pid => sendTo(pid, {
+      type: 'world_state',
+      creeps: room.creeps || [],
+      objectives: room.objectives || [],
+      winner: room.winner || null,
+    }));
+    if (room.winner) {
+      room.players.forEach(pid => sendTo(pid, { type: 'game_over', winner: room.winner }));
+      stopWorldLoop(roomId);
+    }
+  }
+
+  function startWorldLoop(roomId) {
+    stopWorldLoop(roomId);
+    worldLoops.set(roomId, setInterval(() => tickWorld(roomId), 100));
+  }
+
+  function stopWorldLoop(roomId) {
+    const loop = worldLoops.get(roomId);
+    if (loop) clearInterval(loop);
+    worldLoops.delete(roomId);
   }
 
   function sendRoomList(playerId) {
@@ -84,7 +221,7 @@ function setupWebSocket(server, rooms) {
       const target = room?.playerData[targetId];
       if (!room || !target) return;
 
-      const spawn = rooms.getRespawnPoint(target.lastRespawnIndex);
+      const spawn = rooms.getTeamRespawnPoint(target.teamId, target.lastRespawnIndex);
       target.lastRespawnIndex = spawn.index;
       target.hp = target.maxHp;
       target.x = spawn.x;
@@ -103,7 +240,8 @@ function setupWebSocket(server, rooms) {
     }, RESPAWN_DELAY_MS);
   }
 
-  function handleMessage(ws, playerId, raw) {
+  function handleMessage(ws, connectionPlayerId, raw) {
+    const playerId = ws.playerId || connectionPlayerId;
     let msg;
     try {
       msg = JSON.parse(raw);
@@ -113,9 +251,11 @@ function setupWebSocket(server, rooms) {
 
     switch (msg.type) {
       case 'create_room': {
+        msg.character = 'dragonfist';
         const roomId = rooms.create(playerId, msg);
         ws.roomId = roomId;
         ws.playerId = playerId;
+        ws.sessionToken = msg.sessionToken || null;
         sendTo(playerId, { type: 'room_created', roomId, state: rooms.getState(roomId) });
         broadcastRoomList();
         break;
@@ -128,17 +268,44 @@ function setupWebSocket(server, rooms) {
 
       case 'join_room': {
         const roomId = String(msg.roomId || '').toUpperCase();
+        msg.character = 'dragonfist';
         const result = rooms.addPlayer(roomId, playerId, msg);
         if (!result.ok) {
           sendTo(playerId, { type: 'error', msg: result.error });
           break;
         }
 
+        if (result.rejoinedPlayerId) {
+          clients.delete(connectionPlayerId);
+          clients.set(result.rejoinedPlayerId, ws);
+          ws.playerId = result.rejoinedPlayerId;
+          rooms.reconnectPlayer(roomId, result.rejoinedPlayerId);
+          sendTo(result.rejoinedPlayerId, { type: 'connected', playerId: result.rejoinedPlayerId });
+        }
         ws.roomId = roomId;
-        ws.playerId = playerId;
-        sendTo(playerId, { type: 'room_joined', roomId, state: rooms.getState(roomId) });
-        broadcast(roomId, { type: 'player_joined', state: rooms.getState(roomId) }, playerId);
+        ws.sessionToken = msg.sessionToken || null;
+        sendTo(ws.playerId || playerId, { type: 'room_joined', roomId, state: rooms.getState(roomId), rejoined: !!result.rejoinedPlayerId });
+        broadcast(roomId, { type: 'player_joined', state: rooms.getState(roomId) }, ws.playerId || playerId);
         broadcastRoomList();
+        break;
+      }
+
+      case 'rejoin_session': {
+        const roomId = String(msg.roomId || '').toUpperCase();
+        const seat = rooms.findReconnectSeat(roomId, msg.sessionToken);
+        if (!seat) {
+          sendTo(connectionPlayerId, { type: 'rejoin_failed' });
+          break;
+        }
+        clients.delete(connectionPlayerId);
+        clients.set(seat.id, ws);
+        ws.roomId = roomId;
+        ws.playerId = seat.id;
+        ws.sessionToken = msg.sessionToken;
+        rooms.reconnectPlayer(roomId, seat.id);
+        sendTo(seat.id, { type: 'connected', playerId: seat.id });
+        sendTo(seat.id, { type: 'game_start', state: rooms.getState(roomId), rejoined: true });
+        broadcast(roomId, { type: 'player_joined', state: rooms.getState(roomId) }, seat.id);
         break;
       }
 
@@ -157,11 +324,38 @@ function setupWebSocket(server, rooms) {
         const roomId = ws.roomId;
         const room = rooms.get(roomId);
         if (!room || room.host !== playerId) break;
-        if (room.players.length < 1) break;
+        const canStart = rooms.canStart(roomId);
+        if (!canStart.ok) {
+          sendTo(playerId, { type: 'error', msg: canStart.reason });
+          break;
+        }
 
         rooms.startGame(roomId);
         const state = rooms.getState(roomId);
         room.players.forEach(pid => sendTo(pid, { type: 'game_start', state }));
+        startWorldLoop(roomId);
+        broadcastRoomList();
+        break;
+      }
+
+      case 'add_ai': {
+        const roomId = ws.roomId;
+        const room = rooms.get(roomId);
+        if (!room || room.host !== playerId) break;
+        rooms.addAI(roomId, msg.teamId);
+        broadcast(roomId, { type: 'room_update', state: rooms.getState(roomId) });
+        sendTo(playerId, { type: 'room_update', state: rooms.getState(roomId) });
+        broadcastRoomList();
+        break;
+      }
+
+      case 'remove_ai': {
+        const roomId = ws.roomId;
+        const room = rooms.get(roomId);
+        if (!room || room.host !== playerId) break;
+        rooms.removeAI(roomId, msg.teamId);
+        broadcast(roomId, { type: 'room_update', state: rooms.getState(roomId) });
+        sendTo(playerId, { type: 'room_update', state: rooms.getState(roomId) });
         broadcastRoomList();
         break;
       }
@@ -260,6 +454,26 @@ function setupWebSocket(server, rooms) {
         break;
       }
 
+      case 'unit_hit': {
+        const roomId = ws.roomId;
+        const room = rooms.get(roomId);
+        if (!room || room.status !== 'playing') break;
+        const attacker = room.playerData[playerId];
+        if (!attacker || attacker.hp <= 0) break;
+        const damage = Math.max(1, Math.min(500, Number(msg.damage) || 0));
+        const unitId = String(msg.unitId || '');
+        const creep = (room.creeps || []).find(entry => entry.id === unitId);
+        if (creep && creep.teamId !== attacker.teamId) {
+          damageCreep(room, creep, damage, attacker);
+          break;
+        }
+        const objective = (room.objectives || []).find(entry => entry.id === unitId);
+        if (objective && objective.teamId !== attacker.teamId) {
+          damageObjective(room, objective, damage);
+        }
+        break;
+      }
+
       case 'item_pickup': {
         const roomId = ws.roomId;
         const room = rooms.get(roomId);
@@ -321,13 +535,15 @@ function setupWebSocket(server, rooms) {
 
     ws.on('message', raw => handleMessage(ws, playerId, raw));
     ws.on('close', () => {
+      const activePlayerId = ws.playerId || playerId;
       const roomId = ws.roomId;
-      const room = rooms.removePlayer(roomId, playerId);
+      const room = rooms.markDisconnected(roomId, activePlayerId);
 
       if (room) {
-        broadcast(roomId, { type: 'player_left', playerId, state: rooms.getState(roomId) });
+        broadcast(roomId, { type: 'player_left', playerId: activePlayerId, state: rooms.getState(roomId) });
       }
 
+      clients.delete(activePlayerId);
       clients.delete(playerId);
       broadcastRoomList();
     });

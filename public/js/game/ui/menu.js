@@ -7,9 +7,11 @@ function buildCharGrid() {
   grid.innerHTML = '';
   CHARACTERS.forEach(ch => {
     const card = document.createElement('div');
-    card.className = 'char-card' + (ch.id === myCharId ? ' selected' : '');
+    const locked = ch.id !== 'dragonfist';
+    card.className = 'char-card' + (ch.id === myCharId ? ' selected' : '') + (locked ? ' locked' : '');
     card.innerHTML = `<div class="char-icon">${ch.icon}</div><div class="char-name">${ch.name}</div><div class="char-class">${ch.class}</div>`;
     card.onclick = () => {
+      if (locked) return;
       myCharId = ch.id;
       document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
@@ -34,6 +36,8 @@ function goToLobbyMenu() {
   myName = name;
   document.getElementById('menu-error').textContent = '';
   connectWebSocket(() => {
+    const lastRoomId = localStorage.getItem('bota_last_room_id');
+    if (lastRoomId) send({ type: 'rejoin_session', roomId: lastRoomId, sessionToken: mySessionToken });
     showScreen('screen-lobby-select');
     refreshRoomList();
   });

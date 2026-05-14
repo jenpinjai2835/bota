@@ -7,6 +7,8 @@ let myPlayerId = null;
 let myRoomId = null;
 let myName = '';
 let myCharId = 'dragonfist';
+let mySessionToken = localStorage.getItem('bota_session_token') || `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+localStorage.setItem('bota_session_token', mySessionToken);
 let isHost = false;
 let isReady = false;
 let roomState = null;
@@ -20,6 +22,10 @@ let damageNumbers = [];
 let bloodParticles = [];
 let deathParts = [];
 let matchItems = [];
+let creeps = [];
+let objectives = [];
+let towerShots = [];
+let gameWinner = null;
 let nextMatchItemSpawnAt = 0;
 let skillCooldowns = {};
 let scores = {};
@@ -36,10 +42,13 @@ const RESPAWN_DELAY_MS = 10000;
 const CHARACTER_VISUAL_SCALE = 0.6;
 const MIN_CHARACTER_HP = 500;
 const MELEE_Z_RANGE_MULTIPLIER = 1.5;
+const BATTLEFIELD_TOP_Y = 370;
+const BATTLEFIELD_BOTTOM_Y = 520;
 const DEATH_BODY_FADE_START_MS = 3800;
 const DEATH_BODY_FADE_DURATION_MS = 1200;
 const DEATH_PART_LIFE = 300;
 const spriteImages = {};
+const monsterImages = {};
 const warriorVectorOverlayImages = {};
 const WARRIOR_VECTOR_OVERLAY_BASE = '/assets/sprites/warrior-vector-parts/right-side/';
 const WARRIOR_VECTOR_OVERLAY_FILES = [
@@ -74,6 +83,7 @@ const WARRIOR_VECTOR_OVERLAY_FILES = [
 let warriorVectorAnimationsData = null;
 let warriorVectorAnimationsLoadStarted = false;
 let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
+let basicAttackReadyAt = 0;
 const predictedHitEffects = [];
 const ACTION_DURATIONS = {
   punch: 360,
@@ -216,6 +226,7 @@ function getManaRegen(ch) {
 }
 
 function getSkillManaCost(skill) {
+  if (skill?.basicAttack) return 0;
   if (typeof skill?.manaCost === 'number') return skill.manaCost;
   if (!skill) return 0;
   if (skill.type === 'melee') return 10;
@@ -224,6 +235,15 @@ function getSkillManaCost(skill) {
   if (skill.type === 'aoe') return 42;
   if (skill.type === 'heal') return 38;
   return 25;
+}
+
+function getAttackSpeed(player) {
+  return Math.max(0.35, (player?.stats?.attackSpeed || player?.charData?.baseStats?.attackSpeed || player?.charData?.attackSpeed || 1) + ((player?.progression?.level || 1) - 1) * 0.012);
+}
+
+function getBasicAttackCooldown(player, skill) {
+  const base = skill?.cooldown || 850;
+  return Math.max(180, Math.round(base / getAttackSpeed(player)));
 }
 
 function spawnDamageNumber(x, y, amount, color = '#FFE082') {

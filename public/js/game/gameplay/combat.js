@@ -16,6 +16,17 @@ function doMeleeHit(attacker, skill) {
       dealDamage(target, skill.damage, skill.id, Math.sign(dx) || attacker.facing || 1);
     }
   });
+  if (attacker === myPlayer) {
+    getAttackableUnits(myPlayer).forEach(unit => {
+      const center = getUnitCenter(unit);
+      const dx = center.x - (attacker.x + attacker.width/2);
+      const dy = center.y - (attacker.y + attacker.height/2);
+      const inFront = (attacker.facing > 0 ? dx > 0 : dx < 0);
+      if (Math.sqrt(dx*dx + dy*dy) < range && inFront) {
+        damageWorldUnit(unit, skill.damage, skill.id, Math.sign(dx) || attacker.facing || 1);
+      }
+    });
+  }
 }
 
 function getMeleeHitRange(skill) {
@@ -50,6 +61,16 @@ function spawnAOE(owner, skill) {
       dealDamage(target, skill.damage, skill.id, Math.sign(dx) || owner.facing || 1);
     }
   });
+  if (owner === myPlayer) {
+    getAttackableUnits(myPlayer).forEach(unit => {
+      const center = getUnitCenter(unit);
+      const dx = center.x - cx;
+      const dy = center.y - cy;
+      if (Math.sqrt(dx*dx + dy*dy) < skill.range) {
+        damageWorldUnit(unit, skill.damage, skill.id, Math.sign(dx) || owner.facing || 1);
+      }
+    });
+  }
 }
 
 function spawnEffect(x, y, id, color, radius = 40, options = {}) {
@@ -279,6 +300,17 @@ function updateProjectiles() {
         const dy = (target.y + target.height/2) - p.y;
         if (Math.sqrt(dx*dx + dy*dy) < p.radius + 20) {
           dealDamage(target, p.damage, p.skillId, Math.sign(dx) || Math.sign(p.vx) || 1);
+          spawnEffect(p.x, p.y, p.skillId, p.color, 30);
+          p.life = 0;
+        }
+      });
+      getAttackableUnits(myPlayer).forEach(unit => {
+        if (p.life <= 0) return;
+        const center = getUnitCenter(unit);
+        const dx = center.x - p.x;
+        const dy = center.y - p.y;
+        if (Math.sqrt(dx*dx + dy*dy) < p.radius + Math.max(18, (unit.w || 36) * 0.45)) {
+          damageWorldUnit(unit, p.damage, p.skillId, Math.sign(dx) || Math.sign(p.vx) || 1);
           spawnEffect(p.x, p.y, p.skillId, p.color, 30);
           p.life = 0;
         }

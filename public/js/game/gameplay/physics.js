@@ -10,6 +10,12 @@ const WORLD_H = 600;
 
 function getPlatforms() { return currentStage?.platforms || []; }
 function getStageWidth() { return WORLD_W; }
+function getBattlefieldTopY() { return BATTLEFIELD_TOP_Y; }
+function getBattlefieldBottomY() { return BATTLEFIELD_BOTTOM_Y; }
+function clampToBattlefieldDepth(p) {
+  if (!p) return;
+  p.y = Math.max(getBattlefieldTopY() - p.height, Math.min(getBattlefieldBottomY() - p.height, p.y));
+}
 
 function updatePlayer(p, dt) {
   ensurePlayerSystems(p);
@@ -49,6 +55,12 @@ function updatePlayer(p, dt) {
       p.onGround = true;
     }
   });
+
+  if (!p.onGround && p.vy >= 0 && p.y + p.height >= getBattlefieldTopY() && p.y + p.height <= getBattlefieldBottomY() + 8) {
+    p.vy = 0;
+    p.onGround = true;
+    clampToBattlefieldDepth(p);
+  }
 
   // World bounds
   if (p.x < 0) { p.x = 0; p.vx = 0; }
@@ -211,7 +223,12 @@ function handleInput() {
 
   if (keys['ArrowLeft'] || keys['a'] || keys['A']) { myPlayer.vx -= spd * 0.4; myPlayer.facing = -1; }
   if (keys['ArrowRight'] || keys['d'] || keys['D']) { myPlayer.vx += spd * 0.4; myPlayer.facing = 1; }
-  if (keys['ArrowUp'] || keys['w'] || keys['W'] || keys[' ']) tryJump();
+  if (myPlayer.onGround) {
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) myPlayer.y -= spd * 0.34;
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) myPlayer.y += spd * 0.34;
+    clampToBattlefieldDepth(myPlayer);
+  }
+  if (keys[' ']) tryJump();
 
   // Clamp speed
   myPlayer.vx = Math.max(-spd, Math.min(spd, myPlayer.vx));
@@ -223,7 +240,7 @@ function handleInput() {
 }
 
 function isJumpKey(key) {
-  return key === 'ArrowUp' || key === 'w' || key === 'W' || key === ' ';
+  return key === ' ';
 }
 
 function tryJump() {
@@ -242,12 +259,15 @@ function trySkill(skillIndex) {
   const now = Date.now();
   if (skillCooldowns[skill.id] > now) return;
   const manaCost = getSkillManaCost(skill);
+  const cooldown = skill.basicAttack ? getBasicAttackCooldown(myPlayer, skill) : skill.cooldown;
+  if (skill.basicAttack && basicAttackReadyAt > now) return;
   if ((myPlayer.mana || 0) < manaCost) {
     spawnEffect(myPlayer.x + myPlayer.width/2, myPlayer.y + myPlayer.height/2, 'no-mana', '#4AA3FF', 34);
     return;
   }
 
-  skillCooldowns[skill.id] = now + skill.cooldown;
+  skillCooldowns[skill.id] = now + cooldown;
+  if (skill.basicAttack) basicAttackReadyAt = now + cooldown;
   myPlayer.mana = Math.max(0, (myPlayer.mana || 0) - manaCost);
   setPlayerAction(myPlayer, skill.id);
 

@@ -252,6 +252,20 @@ function updateMiniMap() {
     ctx.stroke();
   });
 
+  objectives.forEach(obj => {
+    if (obj.hp <= 0) return;
+    ctx.fillStyle = obj.teamId === myPlayer?.teamId ? 'rgba(76,232,128,0.95)' : 'rgba(255,72,72,0.95)';
+    ctx.fillRect(pad + (obj.x + obj.w / 2) * sx - 2, pad + (obj.y + obj.h / 2) * sy - 2, 4, 4);
+  });
+
+  creeps.forEach(creep => {
+    if (creep.hp <= 0) return;
+    ctx.fillStyle = creep.teamId === myPlayer?.teamId ? '#7BF3A3' : '#FF5C5C';
+    ctx.beginPath();
+    ctx.arc(pad + (creep.x + creep.w / 2) * sx, pad + (creep.y + creep.h / 2) * sy, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
   if (myPlayer) {
     const viewW = w;
     const viewH = h;

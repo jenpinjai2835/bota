@@ -1,7 +1,9 @@
-const MAX_PLAYERS = 5;
+const MAX_PLAYERS = 10;
 const MIN_CHARACTER_HP = 500;
 const TEAM_IDS = ['sun', 'moon'];
+const TEAM_NAMES = { sun: 'Team 1', moon: 'Team 2' };
 const MATCH_ITEM_TYPES = ['healing_orb', 'mana_orb', 'power_rune', 'guard_rune', 'haste_rune'];
+const LOCKED_CHARACTER_ID = 'dragonfist';
 const ITEM_SPAWN_POINTS = [
   { x: 205, y: 460 },
   { x: 420, y: 388 },
@@ -11,19 +13,28 @@ const ITEM_SPAWN_POINTS = [
 ];
 
 const SPAWN_POINTS = [
-  { x: 150, y: 454 },
-  { x: 350, y: 454 },
-  { x: 550, y: 454 },
-  { x: 250, y: 454 },
-  { x: 450, y: 454 },
+  { x: 132, y: 454, teamId: 'sun' },
+  { x: 200, y: 418, teamId: 'sun' },
+  { x: 268, y: 486, teamId: 'sun' },
+  { x: 664, y: 454, teamId: 'moon' },
+  { x: 596, y: 418, teamId: 'moon' },
+  { x: 528, y: 486, teamId: 'moon' },
 ];
 
 const RESPAWN_POINTS = [
-  { x: 150, y: 454 },
-  { x: 250, y: 454 },
-  { x: 350, y: 454 },
-  { x: 450, y: 454 },
-  { x: 550, y: 454 },
+  { x: 132, y: 454, teamId: 'sun' },
+  { x: 200, y: 418, teamId: 'sun' },
+  { x: 664, y: 454, teamId: 'moon' },
+  { x: 596, y: 418, teamId: 'moon' },
+];
+
+const OBJECTIVE_BLUEPRINTS = [
+  { id: 'sun_ancient', type: 'ancient', teamId: 'sun', x: 52, y: 404, w: 70, h: 96, maxHp: 2500, name: 'Sun Ancient' },
+  { id: 'sun_tower_front', type: 'tower', teamId: 'sun', x: 218, y: 414, w: 42, h: 86, maxHp: 1000, name: 'Sun Front Tower', range: 190, damage: 34 },
+  { id: 'sun_tower_back', type: 'tower', teamId: 'sun', x: 128, y: 372, w: 42, h: 86, maxHp: 1000, name: 'Sun Back Tower', range: 190, damage: 34 },
+  { id: 'moon_ancient', type: 'ancient', teamId: 'moon', x: 718, y: 404, w: 70, h: 96, maxHp: 2500, name: 'Moon Ancient' },
+  { id: 'moon_tower_front', type: 'tower', teamId: 'moon', x: 580, y: 414, w: 42, h: 86, maxHp: 1000, name: 'Moon Front Tower', range: 190, damage: 34 },
+  { id: 'moon_tower_back', type: 'tower', teamId: 'moon', x: 670, y: 372, w: 42, h: 86, maxHp: 1000, name: 'Moon Back Tower', range: 190, damage: 34 },
 ];
 
 const CHARACTER_MAX_HP = {
@@ -43,16 +54,30 @@ function generateRoomId() {
   return Math.random().toString(36).substr(2, 6).toUpperCase();
 }
 
-function createPlayer(playerId, { name, character }, index = 0) {
-  const maxHp = Math.max(MIN_CHARACTER_HP, CHARACTER_MAX_HP[character] || 100);
+function normalizeTeamId(teamId, index = 0) {
+  return TEAM_IDS.includes(teamId) ? teamId : TEAM_IDS[index % TEAM_IDS.length];
+}
+
+function normalizeCharacter(character) {
+  return character === LOCKED_CHARACTER_ID ? character : LOCKED_CHARACTER_ID;
+}
+
+function createPlayer(playerId, { name, character, teamId, sessionToken, isAI = false }, index = 0) {
+  const selectedCharacter = normalizeCharacter(character);
+  const maxHp = Math.max(MIN_CHARACTER_HP, CHARACTER_MAX_HP[selectedCharacter] || 100);
+  const assignedTeamId = normalizeTeamId(teamId, index);
+  const spawn = SPAWN_POINTS.find(point => point.teamId === assignedTeamId) || SPAWN_POINTS[index % SPAWN_POINTS.length];
   return {
     id: playerId,
-    name,
-    character,
-    teamId: TEAM_IDS[index % TEAM_IDS.length],
-    ready: false,
-    x: 200 + index * 80,
-    y: 454,
+    name: name || (isAI ? 'AI Brawler' : 'Player'),
+    character: selectedCharacter,
+    teamId: assignedTeamId,
+    sessionToken: sessionToken || null,
+    isAI,
+    connected: !isAI,
+    ready: isAI,
+    x: spawn.x,
+    y: spawn.y,
     hp: maxHp,
     maxHp,
     facing: 1,
@@ -67,6 +92,14 @@ function createPlayer(playerId, { name, character }, index = 0) {
     recentAttackers: {},
     lastRespawnIndex: index % RESPAWN_POINTS.length,
   };
+}
+
+function createObjectives() {
+  return OBJECTIVE_BLUEPRINTS.map(obj => ({
+    ...obj,
+    hp: obj.maxHp,
+    attackAt: 0,
+  }));
 }
 
 function createMatchItem(index = 0) {
@@ -101,6 +134,10 @@ class RoomStore {
         [playerId]: createPlayer(playerId, payload),
       },
       matchItems: [],
+      creeps: [],
+      creepSeq: 0,
+      objectives: [],
+      winner: null,
       gameState: null,
     });
 
@@ -120,8 +157,19 @@ class RoomStore {
       host: room.host,
       stage: room.stage,
       status: room.status,
-      players: room.players.map(pid => room.playerData[pid]),
+      players: room.players.map(pid => {
+        const { sessionToken, ...safePlayer } = room.playerData[pid];
+        return safePlayer;
+      }),
       matchItems: room.matchItems || [],
+      creeps: room.creeps || [],
+      objectives: room.objectives || [],
+      winner: room.winner || null,
+      teams: TEAM_IDS.map(id => ({
+        id,
+        name: TEAM_NAMES[id],
+        count: room.players.filter(pid => room.playerData[pid]?.teamId === id).length,
+      })),
     };
   }
 
@@ -146,14 +194,26 @@ class RoomStore {
     if (room.status !== 'lobby') return { ok: false, error: 'Game already started' };
     if (room.players.length >= MAX_PLAYERS) return { ok: false, error: 'Room is full (max 5 players)' };
 
+    const existingSeat = this.findReconnectSeat(roomId, payload.sessionToken);
+    if (existingSeat) return { ok: true, room, rejoinedPlayerId: existingSeat.id };
+
     room.players.push(playerId);
     room.playerData[playerId] = createPlayer(playerId, payload, room.players.length - 1);
     return { ok: true, room };
   }
 
-  removePlayer(roomId, playerId) {
+  markDisconnected(roomId, playerId) {
     const room = this.get(roomId);
     if (!room) return null;
+    const player = room.playerData[playerId];
+    if (!player) return room;
+    if (player.isAI) return room;
+
+    if (room.status === 'playing') {
+      player.connected = false;
+      player.disconnectedAt = Date.now();
+      return room;
+    }
 
     room.players = room.players.filter(pid => pid !== playerId);
     delete room.playerData[playerId];
@@ -167,6 +227,70 @@ class RoomStore {
     return room;
   }
 
+  findReconnectSeat(roomId, sessionToken) {
+    const room = this.get(roomId);
+    if (!room || !sessionToken) return null;
+    return room.players.map(pid => room.playerData[pid]).find(player => player?.sessionToken === sessionToken && !player.isAI) || null;
+  }
+
+  reconnectPlayer(roomId, playerId) {
+    const room = this.get(roomId);
+    const player = room?.playerData[playerId];
+    if (!player) return null;
+    player.connected = true;
+    player.disconnectedAt = 0;
+    return room;
+  }
+
+  addAI(roomId, teamId) {
+    const room = this.get(roomId);
+    if (!room || room.status !== 'lobby') return null;
+    if (room.players.length >= MAX_PLAYERS) return null;
+    const normalizedTeamId = normalizeTeamId(teamId, room.players.length);
+    const aiCount = room.players.filter(pid => room.playerData[pid]?.isAI).length + 1;
+    const aiId = `ai_${roomId}_${Date.now()}_${aiCount}`;
+    room.players.push(aiId);
+    room.playerData[aiId] = createPlayer(aiId, {
+      name: `AI Brawler ${aiCount}`,
+      character: LOCKED_CHARACTER_ID,
+      teamId: normalizedTeamId,
+      isAI: true,
+    }, room.players.length - 1);
+    return room.playerData[aiId];
+  }
+
+  removeAI(roomId, teamId = null) {
+    const room = this.get(roomId);
+    if (!room || room.status !== 'lobby') return null;
+    const index = [...room.players].reverse().findIndex(pid => {
+      const player = room.playerData[pid];
+      return player?.isAI && (!teamId || player.teamId === teamId);
+    });
+    if (index < 0) return null;
+    const pid = [...room.players].reverse()[index];
+    room.players = room.players.filter(id => id !== pid);
+    delete room.playerData[pid];
+    return room;
+  }
+
+  getTeamCounts(roomId) {
+    const room = this.get(roomId);
+    if (!room) return { sun: 0, moon: 0 };
+    return TEAM_IDS.reduce((acc, teamId) => {
+      acc[teamId] = room.players.filter(pid => room.playerData[pid]?.teamId === teamId).length;
+      return acc;
+    }, {});
+  }
+
+  canStart(roomId) {
+    const room = this.get(roomId);
+    if (!room) return { ok: false, reason: 'Room not found' };
+    const counts = this.getTeamCounts(roomId);
+    if (counts.sun < 1 || counts.moon < 1) return { ok: false, reason: 'Both teams need at least one unit' };
+    if (counts.sun !== counts.moon) return { ok: false, reason: 'Team counts must be equal' };
+    return { ok: true };
+  }
+
   startGame(roomId) {
     const room = this.get(roomId);
     if (!room) return null;
@@ -176,10 +300,11 @@ class RoomStore {
     room.matchItemSpawnIndex = room.matchItems.length;
     room.players.forEach((pid, i) => {
       const player = room.playerData[pid];
-      const spawn = SPAWN_POINTS[i % SPAWN_POINTS.length];
+      const teamSpawns = SPAWN_POINTS.filter(point => point.teamId === player.teamId);
+      const spawn = teamSpawns[i % Math.max(1, teamSpawns.length)] || SPAWN_POINTS[i % SPAWN_POINTS.length];
       player.x = spawn.x;
       player.y = spawn.y;
-      player.teamId = TEAM_IDS[i % TEAM_IDS.length];
+      player.teamId = normalizeTeamId(player.teamId, i);
       player.hp = player.maxHp;
       player.state = 'idle';
       player.lastRespawnIndex = i % RESPAWN_POINTS.length;
@@ -189,6 +314,11 @@ class RoomStore {
       player.deaths = 0;
       player.recentAttackers = {};
     });
+    room.creeps = [];
+    room.creepSeq = 0;
+    room.nextCreepWaveAt = 0;
+    room.objectives = createObjectives();
+    room.winner = null;
 
     return room;
   }
@@ -217,6 +347,14 @@ class RoomStore {
     return { ...RESPAWN_POINTS[index], index };
   }
 
+  getTeamRespawnPoint(teamId, excludeIndex = -1) {
+    const points = RESPAWN_POINTS.filter(point => point.teamId === teamId);
+    if (!points.length) return this.getRespawnPoint(excludeIndex);
+    let index = Math.floor(Math.random() * points.length);
+    if (points.length > 1 && index === excludeIndex) index = (index + 1) % points.length;
+    return { ...points[index], index };
+  }
+
   pickupItem(roomId, itemId) {
     const room = this.get(roomId);
     if (!room?.matchItems) return null;
@@ -237,4 +375,4 @@ class RoomStore {
   }
 }
 
-module.exports = { RoomStore };
+module.exports = { RoomStore, TEAM_IDS, LOCKED_CHARACTER_ID };

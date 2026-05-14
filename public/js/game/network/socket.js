@@ -25,14 +25,19 @@ function handleMessage(msg) {
     case 'connected':
       myPlayerId = msg.playerId;
       break;
+    case 'rejoin_failed':
+      localStorage.removeItem('bota_last_room_id');
+      break;
     case 'room_created':
       myRoomId = msg.roomId;
+      localStorage.setItem('bota_last_room_id', myRoomId);
       isHost = true;
       roomState = msg.state;
       showLobbyRoom(msg.state);
       break;
     case 'room_joined':
       myRoomId = msg.roomId;
+      localStorage.setItem('bota_last_room_id', myRoomId);
       isHost = false;
       roomState = msg.state;
       showLobbyRoom(msg.state);
@@ -45,7 +50,18 @@ function handleMessage(msg) {
       break;
     case 'game_start':
       roomState = msg.state;
+      if (msg.state?.id) localStorage.setItem('bota_last_room_id', msg.state.id);
       startGameClient(msg.state);
+      break;
+    case 'world_state':
+      syncWorldState(msg);
+      break;
+    case 'tower_shot':
+      towerShots.push({ ...msg, life: 14, maxLife: 14 });
+      break;
+    case 'game_over':
+      gameWinner = msg.winner;
+      showKillBanner({ name: msg.winner === myPlayer?.teamId ? 'YOUR TEAM' : 'ENEMY TEAM' }, { name: 'ANCIENT' });
       break;
     case 'player_state':
       if (remotePlayers[msg.playerId]) {

@@ -51,6 +51,7 @@ function calculatePlayerStats(player) {
     knockbackPower: ch?.baseStats?.knockbackPower || 1,
     knockbackResist: ch?.baseStats?.knockbackResist || 0,
     maxMana: ch?.baseStats?.maxMana || getMaxMana(ch),
+    attackSpeed: ch?.baseStats?.attackSpeed || ch?.attackSpeed || 1,
     manaRegen: ch?.baseStats?.manaRegen || getManaRegen(ch),
     cooldownReduction: 0,
   };
@@ -74,6 +75,7 @@ function calculatePlayerStats(player) {
   stats.maxHp = Math.max(MIN_CHARACTER_HP, Math.round(stats.maxHp));
   stats.maxMana = Math.max(1, Math.round(stats.maxMana));
   stats.speed = Math.max(1.5, stats.speed);
+  stats.attackSpeed = Math.max(0.35, stats.attackSpeed || 1);
   stats.jumpPower = Math.max(6, stats.jumpPower);
   stats.cooldownReduction = Math.max(0, Math.min(0.5, stats.cooldownReduction || 0));
   stats.knockbackResist = Math.max(0, Math.min(0.75, stats.knockbackResist || 0));

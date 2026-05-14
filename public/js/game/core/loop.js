@@ -18,6 +18,7 @@ function gameLoop(ts = 0) {
   resolvePlayerBodyCollisions();
   updateMatchItems();
   updateProjectiles();
+  updateTowerShots();
   updateCamera(canvas);
   render(canvas);
   updateHUD();
