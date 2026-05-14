@@ -41,7 +41,7 @@ function leaveGame() {
     respawnTimer = null;
   }
 
-  ['hud', 'skills-bar', 'chat-container', 'controls-hint', 'scoreboard', 'death-overlay'].forEach(id => {
+  ['hud', 'skills-bar', 'chat-container', 'controls-hint', 'scoreboard', 'death-overlay', 'game-summary'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('visible');
   });
@@ -73,6 +73,7 @@ function startGameClient(state) {
   showScreen('');
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   gameRunning = true;
+  hideGameSummary();
 
   currentStage = STAGES.find(s => s.id === state.stage) || STAGES[0];
 

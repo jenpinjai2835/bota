@@ -15,14 +15,15 @@ function render(canvas) {
   projectiles.forEach(p => drawProjectile(ctx, p, scaleX, scaleY));
   effects.forEach(e => drawEffect(ctx, e, scaleX, scaleY));
   const depthEntities = [
-    ...objectives.map(obj => ({ kind: 'objective', entity: obj, depth: obj.y + obj.h })),
-    ...creeps.map(creep => ({ kind: 'creep', entity: creep, depth: creep.y + creep.h })),
-    ...Object.values(remotePlayers).map(player => ({ kind: 'player', entity: player, depth: player.y + player.height })),
+    ...objectives.map(obj => ({ kind: 'objective', entity: obj, depth: getUnitFoot(obj).y })),
+    ...creeps.map(creep => ({ kind: 'creep', entity: creep, depth: getUnitFoot(creep).y })),
+    ...Object.values(remotePlayers).map(player => ({ kind: 'player', entity: player, depth: getUnitFoot(player).y })),
   ];
-  if (myPlayer) depthEntities.push({ kind: 'player', entity: myPlayer, depth: myPlayer.y + myPlayer.height, isMe: true });
+  if (myPlayer) depthEntities.push({ kind: 'player', entity: myPlayer, depth: getUnitFoot(myPlayer).y, isMe: true });
   depthEntities
     .sort((a, b) => a.depth - b.depth)
     .forEach(item => {
+      if (item.kind === 'creep' || item.kind === 'player') drawUnitFootprint(ctx, item.entity, scaleX, scaleY);
       if (item.kind === 'objective') drawObjective(ctx, item.entity, scaleX, scaleY);
       if (item.kind === 'creep') drawCreep(ctx, item.entity, scaleX, scaleY);
       if (item.kind === 'player') drawPlayer(ctx, item.entity, scaleX, scaleY, !!item.isMe);

@@ -1010,6 +1010,81 @@
   .score-row .spts { color: var(--gold); font-family: 'Cinzel', serif; }
   .score-row .sdead { color: var(--muted); font-size: 11px; }
 
+  #game-summary {
+    position: fixed;
+    inset: 0;
+    z-index: 420;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, rgba(0,0,0,0.42), rgba(0,0,0,0.82));
+    backdrop-filter: blur(3px);
+  }
+  #game-summary.visible { display: flex; }
+  .game-summary-panel {
+    width: min(560px, calc(100vw - 34px));
+    max-height: calc(100vh - 42px);
+    overflow: auto;
+    background: rgba(10,6,8,0.94);
+    border: 1px solid rgba(212,175,55,0.52);
+    border-radius: 8px;
+    padding: 26px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .game-summary-title {
+    font-family: 'Cinzel', serif;
+    text-align: center;
+    color: var(--gold);
+    font-size: 31px;
+    letter-spacing: 0.12em;
+  }
+  .game-summary-title.defeat { color: #FF6B6B; }
+  .game-summary-subtitle {
+    text-align: center;
+    color: var(--muted);
+    margin: 6px 0 18px;
+    font-size: 13px;
+  }
+  .game-summary-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    border-top: 1px solid rgba(212,175,55,0.13);
+    padding: 10px 0;
+    font-size: 13px;
+  }
+  .game-summary-name {
+    color: #F7E8B7;
+    font-weight: 700;
+  }
+  .game-summary-char {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .game-summary-kda {
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    white-space: nowrap;
+  }
+  .game-summary-button {
+    display: block;
+    margin: 18px auto 0;
+    min-width: 150px;
+    border: 1px solid rgba(212,175,55,0.8);
+    border-radius: 6px;
+    background: rgba(212,175,55,0.16);
+    color: #F7E8B7;
+    padding: 10px 18px;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+  }
+  .game-summary-button:hover {
+    background: rgba(212,175,55,0.28);
+  }
+
   #game-canvas { position: fixed; top: 0; left: 0; display: none; }
   #game-canvas.visible { display: block; }
 

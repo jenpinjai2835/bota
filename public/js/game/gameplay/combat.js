@@ -9,10 +9,7 @@ function doMeleeHit(attacker, skill) {
     if (!target || target.hp <= 0) return;
     if (!arePlayersHostile(attacker, target)) return;
     const dx = (target.x + target.width/2) - (attacker.x + attacker.width/2);
-    const dy = (target.y + target.height/2) - (attacker.y + attacker.height/2);
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    const inFront = (attacker.facing > 0 ? dx > 0 : dx < 0);
-    if (dist < range && inFront) {
+    if (isUnitInAttackRange(attacker, target, range, true)) {
       dealDamage(target, skill.damage, skill.id, Math.sign(dx) || attacker.facing || 1);
     }
   });
@@ -20,9 +17,7 @@ function doMeleeHit(attacker, skill) {
     getAttackableUnits(myPlayer).forEach(unit => {
       const center = getUnitCenter(unit);
       const dx = center.x - (attacker.x + attacker.width/2);
-      const dy = center.y - (attacker.y + attacker.height/2);
-      const inFront = (attacker.facing > 0 ? dx > 0 : dx < 0);
-      if (Math.sqrt(dx*dx + dy*dy) < range && inFront) {
+      if (isUnitInAttackRange(attacker, unit, range, true)) {
         damageWorldUnit(unit, skill.damage, skill.id, Math.sign(dx) || attacker.facing || 1);
       }
     });
@@ -55,9 +50,10 @@ function spawnAOE(owner, skill) {
   all.forEach(target => {
     if (!target || target.hp <= 0) return;
     if (!arePlayersHostile(owner, target)) return;
-    const dx = (target.x + target.width/2) - cx;
-    const dy = (target.y + target.height/2) - cy;
-    if (Math.sqrt(dx*dx + dy*dy) < skill.range) {
+    const foot = getUnitFoot(target);
+    const dx = foot.x - cx;
+    const dy = (foot.y - cy) * DEPTH_DISTANCE_SCALE;
+    if (Math.sqrt(dx*dx + dy*dy) < skill.range + getUnitFootRadiusX(target) * 0.4) {
       dealDamage(target, skill.damage, skill.id, Math.sign(dx) || owner.facing || 1);
     }
   });
@@ -65,8 +61,8 @@ function spawnAOE(owner, skill) {
     getAttackableUnits(myPlayer).forEach(unit => {
       const center = getUnitCenter(unit);
       const dx = center.x - cx;
-      const dy = center.y - cy;
-      if (Math.sqrt(dx*dx + dy*dy) < skill.range) {
+      const dy = (center.y - cy) * DEPTH_DISTANCE_SCALE;
+      if (Math.sqrt(dx*dx + dy*dy) < skill.range + getUnitFootRadiusX(unit) * 0.5) {
         damageWorldUnit(unit, skill.damage, skill.id, Math.sign(dx) || owner.facing || 1);
       }
     });
@@ -296,9 +292,10 @@ function updateProjectiles() {
       Object.values(remotePlayers).forEach(target => {
         if (!target || target.hp <= 0) return;
         if (!arePlayersHostile(myPlayer, target)) return;
-        const dx = (target.x + target.width/2) - p.x;
-        const dy = (target.y + target.height/2) - p.y;
-        if (Math.sqrt(dx*dx + dy*dy) < p.radius + 20) {
+        const foot = getUnitFoot(target);
+        const dx = foot.x - p.x;
+        const dy = (foot.y - p.y) * DEPTH_DISTANCE_SCALE;
+        if (Math.sqrt(dx*dx + dy*dy) < p.radius + getUnitFootRadiusX(target) * 0.72) {
           dealDamage(target, p.damage, p.skillId, Math.sign(dx) || Math.sign(p.vx) || 1);
           spawnEffect(p.x, p.y, p.skillId, p.color, 30);
           p.life = 0;
@@ -308,7 +305,7 @@ function updateProjectiles() {
         if (p.life <= 0) return;
         const center = getUnitCenter(unit);
         const dx = center.x - p.x;
-        const dy = center.y - p.y;
+        const dy = (center.y - p.y) * DEPTH_DISTANCE_SCALE;
         if (Math.sqrt(dx*dx + dy*dy) < p.radius + Math.max(18, (unit.w || 36) * 0.45)) {
           damageWorldUnit(unit, p.damage, p.skillId, Math.sign(dx) || Math.sign(p.vx) || 1);
           spawnEffect(p.x, p.y, p.skillId, p.color, 30);

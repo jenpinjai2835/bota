@@ -1,7 +1,8 @@
 // Lane depth, creeps, towers, and ancient objectives
-const MONSTER_TYPES = ['monster_1', 'monster_3', 'monster_6'];
+const MONSTER_TYPES = ['monster_6', 'monster_7', 'monster_8'];
 const MONSTER_ACTIONS = {
-  walk: { folder: 'idle', file: 'Idle', frames: 18, fps: 10 },
+  walk: { folder: 'walking', file: 'Walking', frames: 18, fps: 14 },
+  run: { folder: 'walking', file: 'Walking', frames: 18, fps: 18 },
   idle: { folder: 'idle', file: 'Idle', frames: 18, fps: 7 },
   attack: { folder: 'attack', file: 'Attack', frames: 18, fps: 16 },
   dead: { folder: 'dying', file: 'Dying', frames: 18, fps: 12 },
@@ -53,6 +54,30 @@ function getUnitCenter(unit) {
 
 function isHostileUnit(unit, player = myPlayer) {
   return unit && player && unit.teamId && player.teamId && unit.teamId !== player.teamId && unit.hp > 0;
+}
+
+function drawUnitFootprint(ctx, unit, sx, sy, options = {}) {
+  if (!unit || unit.hp <= 0) return;
+  const foot = getUnitFoot({
+    ...unit,
+    x: unit.renderX ?? unit.x,
+    y: unit.renderY ?? unit.y,
+  });
+  const scale = Math.min(sx, sy);
+  const rx = getUnitFootRadiusX(unit) * sx;
+  const ry = getUnitFootRadiusY(unit) * sy;
+  const hostile = options.hostile ?? (myPlayer && unit.teamId && unit.teamId !== myPlayer.teamId);
+  const isMe = unit.id === myPlayerId;
+  ctx.save();
+  ctx.fillStyle = hostile ? 'rgba(255,58,68,0.035)' : isMe ? 'rgba(76,232,128,0.055)' : 'rgba(61,139,255,0.04)';
+  ctx.strokeStyle = hostile ? 'rgba(255,58,68,0.36)' : isMe ? 'rgba(76,232,128,0.42)' : 'rgba(61,139,255,0.28)';
+  ctx.lineWidth = Math.max(1, 1 * scale);
+  ctx.setLineDash([Math.max(3, 4 * scale), Math.max(2, 3 * scale)]);
+  ctx.beginPath();
+  ctx.ellipse(foot.x * sx, foot.y * sy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }
 
 function getAttackableUnits(player = myPlayer) {
@@ -173,15 +198,6 @@ function drawCreep(ctx, creep, sx, sy) {
     ctx.fill();
   }
   ctx.restore();
-  if (hostile) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,58,68,0.88)';
-    ctx.lineWidth = Math.max(1, 1.4 * scale);
-    ctx.beginPath();
-    ctx.ellipse(x, y - h * 0.38, w * 0.42, h * 0.45, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
   drawUnitHealthBar(ctx, creep, x, y - h - 3 * sy, Math.max(32, 38 * scale), sx, sy);
 }
 

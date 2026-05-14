@@ -14,7 +14,7 @@ function setupWebSocket(server, rooms) {
   const XP_SHARE_RADIUS = 280;
   const CREEP_WAVE_MS = 8500;
   const CREEP_LIMIT_PER_TEAM = 12;
-  const CREEP_TYPES = ['monster_1', 'monster_3', 'monster_6'];
+  const CREEP_TYPES = ['monster_6', 'monster_7', 'monster_8'];
   const TEAM_IDS = ['sun', 'moon'];
   const TEAM_DIR = { sun: 1, moon: -1 };
   const CREEP_SPAWN = {
@@ -44,13 +44,30 @@ function setupWebSocket(server, rooms) {
     if (attackerId) sendTo(attackerId, { type: 'score_update', scores });
   }
 
+  function unitWidth(unit) {
+    return Number(unit?.width || unit?.w || 40);
+  }
+
+  function unitHeight(unit) {
+    return Number(unit?.height || unit?.h || 56);
+  }
+
+  function unitFoot(unit) {
+    return {
+      x: (Number(unit?.x) || 0) + unitWidth(unit) / 2,
+      y: (Number(unit?.y) || 0) + unitHeight(unit),
+    };
+  }
+
   function distanceBetween(a, b) {
-    const ax = Number(a?.x) || 0;
-    const ay = Number(a?.y) || 0;
-    const bx = Number(b?.x) || 0;
-    const by = Number(b?.y) || 0;
+    const af = unitFoot(a);
+    const bf = unitFoot(b);
+    const ax = af.x;
+    const ay = af.y;
+    const bx = bf.x;
+    const by = bf.y;
     const dx = ax - bx;
-    const dy = ay - by;
+    const dy = (ay - by) * 1.45;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
@@ -147,13 +164,15 @@ function setupWebSocket(server, rooms) {
       if (creep.hp <= 0) return;
       const target = findNearestEnemyUnit(room, creep);
       if (!target) return;
-      const dir = Math.sign((target.x || 0) - creep.x) || TEAM_DIR[creep.teamId];
+      const creepFoot = unitFoot(creep);
+      const targetFoot = unitFoot(target);
+      const dir = Math.sign(targetFoot.x - creepFoot.x) || TEAM_DIR[creep.teamId];
       creep.facing = dir;
       const dist = distanceBetween(creep, target);
       if (dist > creep.range) {
         creep.state = 'walk';
         creep.x += dir * creep.speed;
-        creep.y += Math.sign((target.y || creep.y) - creep.y) * Math.min(0.75, Math.abs((target.y || creep.y) - creep.y));
+        creep.y += Math.sign(targetFoot.y - creepFoot.y) * Math.min(1.25, Math.abs(targetFoot.y - creepFoot.y));
       } else if ((creep.attackAt || 0) <= now) {
         creep.state = 'attack';
         creep.attackAt = now + 900;
@@ -186,6 +205,8 @@ function setupWebSocket(server, rooms) {
       winner: room.winner || null,
     }));
     if (room.winner) {
+      room.status = 'finished';
+      sendScores(roomId);
       room.players.forEach(pid => sendTo(pid, { type: 'game_over', winner: room.winner }));
       stopWorldLoop(roomId);
     }

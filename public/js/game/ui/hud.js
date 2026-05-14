@@ -178,6 +178,49 @@ function renderCombatStatsRow(row, compact = false) {
   `;
 }
 
+function showGameSummary(winnerTeamId) {
+  const overlay = document.getElementById('game-summary');
+  if (!overlay) return;
+  const title = document.getElementById('game-summary-title');
+  const subtitle = document.getElementById('game-summary-subtitle');
+  const list = document.getElementById('game-summary-list');
+  const won = winnerTeamId && myPlayer?.teamId && winnerTeamId === myPlayer.teamId;
+  const winnerTeam = TEAM_DEFINITIONS.find(team => team.id === winnerTeamId);
+  const rows = getCombatStatRows().sort((a, b) => {
+    if (a.teamId !== b.teamId) return a.teamId === winnerTeamId ? -1 : 1;
+    return (b.kills - a.kills) || (a.deaths - b.deaths) || a.name.localeCompare(b.name);
+  });
+
+  if (title) {
+    title.textContent = won ? 'VICTORY' : 'DEFEAT';
+    title.classList.toggle('defeat', !won);
+  }
+  if (subtitle) {
+    subtitle.textContent = `${winnerTeam?.name || winnerTeamId || 'A team'} destroyed the Ancient`;
+  }
+  if (list) {
+    list.innerHTML = rows.map(row => `
+      <div class="game-summary-row">
+        <div>
+          <div class="game-summary-name">${escapeHtml(row.name)}${row.id === myPlayerId ? ' (YOU)' : ''}</div>
+          <div class="game-summary-char">${escapeHtml(getCharacterNameById(row.character))}</div>
+        </div>
+        <div class="game-summary-kda">${row.kills} / ${row.deaths} / ${row.assists}</div>
+      </div>
+    `).join('');
+  }
+  overlay.classList.add('visible');
+}
+
+function hideGameSummary() {
+  document.getElementById('game-summary')?.classList.remove('visible');
+}
+
+function returnToMainMenu() {
+  hideGameSummary();
+  leaveGame();
+}
+
 function updateMiniMap() {
   const canvas = document.getElementById('mini-map');
   if (!canvas || !gameRunning) return;

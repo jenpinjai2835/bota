@@ -176,27 +176,34 @@ function resolvePlayerBodyCollisions() {
     for (let j = i + 1; j < players.length; j++) {
       const a = players[i];
       const b = players[j];
-      const ar = getPlayerBodyRect(a);
-      const br = getPlayerBodyRect(b);
-      const overlapX = Math.min(ar.x + ar.w - br.x, br.x + br.w - ar.x);
-      const overlapY = Math.min(ar.y + ar.h - br.y, br.y + br.h - ar.y);
+      if (!a.onGround || !b.onGround) continue;
+      const af = getUnitFoot(a);
+      const bf = getUnitFoot(b);
+      const radiusX = getUnitFootRadiusX(a) + getUnitFootRadiusX(b);
+      const radiusY = getUnitFootRadiusY(a) + getUnitFootRadiusY(b);
+      const dx = bf.x - af.x;
+      const dy = bf.y - af.y;
+      const overlapX = radiusX - Math.abs(dx);
+      const overlapY = radiusY - Math.abs(dy);
       if (overlapX <= 0 || overlapY <= 0) continue;
 
-      const centerDeltaX = (ar.x + ar.w / 2) - (br.x + br.w / 2);
-      const centerDeltaY = (ar.y + ar.h / 2) - (br.y + br.h / 2);
-      const sideDir = centerDeltaX < 0 ? -1 : 1;
-      const separateVertically = overlapY < overlapX * 0.62 && Math.abs(centerDeltaY) > ar.h * 0.2;
+      const sideDir = dx > 0 ? -1 : 1;
+      const depthDir = dy > 0 ? -1 : 1;
+      const separateByDepth = overlapY < overlapX * 0.9;
 
-      if (separateVertically) {
-        const yDir = centerDeltaY < 0 ? -1 : 1;
+      if (separateByDepth) {
         const amount = overlapY + 0.5;
         if (a === myPlayer) {
-          pushBlockingPlayer(a, 0, yDir * amount);
+          pushBlockingPlayer(a, 0, depthDir * amount);
+          clampToBattlefieldDepth(a);
         } else if (b === myPlayer) {
-          pushBlockingPlayer(b, 0, -yDir * amount);
+          pushBlockingPlayer(b, 0, -depthDir * amount);
+          clampToBattlefieldDepth(b);
         } else {
-          pushBlockingPlayer(a, 0, yDir * amount * 0.5);
-          pushBlockingPlayer(b, 0, -yDir * amount * 0.5);
+          pushBlockingPlayer(a, 0, depthDir * amount * 0.5);
+          pushBlockingPlayer(b, 0, -depthDir * amount * 0.5);
+          clampToBattlefieldDepth(a);
+          clampToBattlefieldDepth(b);
         }
       } else {
         const amount = overlapX + 0.5;
@@ -213,6 +220,34 @@ function resolvePlayerBodyCollisions() {
       b.x = Math.max(0, Math.min(getStageWidth() - b.width, b.x));
     }
   }
+}
+
+function resolvePlayerWorldBodyCollisions() {
+  if (!isPlayerBodyBlocking(myPlayer) || !myPlayer.onGround) return;
+  const blockers = [
+    ...creeps.filter(unit => unit.hp > 0),
+    ...objectives.filter(unit => unit.hp > 0),
+  ];
+
+  blockers.forEach(unit => {
+    const pf = getUnitFoot(myPlayer);
+    const uf = getUnitFoot(unit);
+    const radiusX = getUnitFootRadiusX(myPlayer) + getUnitFootRadiusX(unit);
+    const radiusY = getUnitFootRadiusY(myPlayer) + getUnitFootRadiusY(unit);
+    const dx = uf.x - pf.x;
+    const dy = uf.y - pf.y;
+    const overlapX = radiusX - Math.abs(dx);
+    const overlapY = radiusY - Math.abs(dy);
+    if (overlapX <= 0 || overlapY <= 0) return;
+
+    if (overlapY < overlapX * 0.85) {
+      pushBlockingPlayer(myPlayer, 0, (dy > 0 ? -1 : 1) * (overlapY + 0.5));
+      clampToBattlefieldDepth(myPlayer);
+    } else {
+      pushBlockingPlayer(myPlayer, (dx > 0 ? -1 : 1) * (overlapX + 0.5), 0);
+      myPlayer.x = Math.max(0, Math.min(getStageWidth() - myPlayer.width, myPlayer.x));
+    }
+  });
 }
 
 function handleInput() {

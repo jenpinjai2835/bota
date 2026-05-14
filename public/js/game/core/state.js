@@ -44,6 +44,9 @@ const MIN_CHARACTER_HP = 500;
 const MELEE_Z_RANGE_MULTIPLIER = 1.5;
 const BATTLEFIELD_TOP_Y = 370;
 const BATTLEFIELD_BOTTOM_Y = 520;
+const UNIT_FOOT_RADIUS_X = 19;
+const UNIT_FOOT_RADIUS_Y = 13;
+const DEPTH_DISTANCE_SCALE = 1.45;
 const DEATH_BODY_FADE_START_MS = 3800;
 const DEATH_BODY_FADE_DURATION_MS = 1200;
 const DEATH_PART_LIFE = 300;
@@ -244,6 +247,47 @@ function getAttackSpeed(player) {
 function getBasicAttackCooldown(player, skill) {
   const base = skill?.cooldown || 850;
   return Math.max(180, Math.round(base / getAttackSpeed(player)));
+}
+
+function getUnitWidth(unit) {
+  return unit?.width || unit?.w || 40;
+}
+
+function getUnitHeight(unit) {
+  return unit?.height || unit?.h || 56;
+}
+
+function getUnitFoot(unit) {
+  return {
+    x: (unit?.x || 0) + getUnitWidth(unit) / 2,
+    y: (unit?.y || 0) + getUnitHeight(unit),
+  };
+}
+
+function getUnitFootRadiusX(unit) {
+  return unit?.footRadiusX || Math.max(14, getUnitWidth(unit) * 0.43);
+}
+
+function getUnitFootRadiusY(unit) {
+  return unit?.footRadiusY || Math.max(9, getUnitHeight(unit) * 0.18);
+}
+
+function getDepthDistance(a, b) {
+  const af = getUnitFoot(a);
+  const bf = getUnitFoot(b);
+  const dx = bf.x - af.x;
+  const dy = (bf.y - af.y) * DEPTH_DISTANCE_SCALE;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function isUnitInAttackRange(attacker, target, range, requireFront = true) {
+  const af = getUnitFoot(attacker);
+  const tf = getUnitFoot(target);
+  const dx = tf.x - af.x;
+  if (requireFront && (attacker.facing > 0 ? dx < -getUnitFootRadiusX(target) * 0.35 : dx > getUnitFootRadiusX(target) * 0.35)) return false;
+  const reach = range + getUnitFootRadiusX(target) * 0.65;
+  const depthReach = Math.max(getUnitFootRadiusY(attacker), getUnitFootRadiusY(target)) + Math.max(12, range * 0.28);
+  return Math.abs((tf.y - af.y) * DEPTH_DISTANCE_SCALE) <= depthReach && Math.abs(dx) <= reach;
 }
 
 function spawnDamageNumber(x, y, amount, color = '#FFE082') {
