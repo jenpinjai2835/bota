@@ -2455,6 +2455,12 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   ctx.fillStyle = hpPct > 0.6 ? '#39D36A' : hpPct > 0.3 ? '#FFB02E' : '#FF3D46';
   ctx.fill();
 
+  ctx.font = `700 ${Math.max(8, 9 * Math.min(sx, sy))}px Cinzel, serif`;
+  ctx.fillStyle = '#F6E8C4';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`${Math.ceil(p.hp)}/${p.maxHp}`, x + w / 2, by + bh + 2);
+
   if (isMe) {
     ctx.fillStyle = '#F5E182';
     ctx.font = `${8 * Math.min(sx, sy)}px Cinzel, serif`;
