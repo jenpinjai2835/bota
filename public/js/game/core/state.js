@@ -30,6 +30,7 @@ let lastKillAnnouncementKey = null;
 let lastKillAnnouncementAt = 0;
 let combatStatsExpanded = false;
 let combatStatsRenderSignature = '';
+let chatAutoHideTimer = null;
 const mutedChatPlayerIds = new Set();
 const RESPAWN_DELAY_MS = 10000;
 const CHARACTER_VISUAL_SCALE = 0.6;

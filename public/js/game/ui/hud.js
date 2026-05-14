@@ -21,8 +21,6 @@ function buildHUD() {
     <div class="hp-bar"><div class="hp-fill high" id="focus-hp" style="width:100%"></div><div class="hp-ticks" id="focus-hp-ticks"></div></div>
     <div class="hud-stat-line mana-line"><span>MP</span><span id="focus-mana-text"></span></div>
     <div class="mana-bar"><div class="mana-fill" id="focus-mana" style="width:100%"></div></div>
-    <div class="hud-stat-line exp-line"><span>EXP</span><span id="focus-exp-text"></span></div>
-    <div class="exp-bar"><div class="exp-fill" id="focus-exp" style="width:0%"></div></div>
   `;
   container.appendChild(div);
   updateCombatStatsPanel();
@@ -50,9 +48,6 @@ function updateHUD() {
   const ch = p.charData || CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
   const hpPct = Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100));
   const manaPct = Math.max(0, Math.min(100, ((p.mana || 0) / (p.maxMana || 1)) * 100));
-  const xp = Math.max(0, Math.floor(p.progression?.xp || 0));
-  const xpToNext = Math.max(1, Math.floor(p.progression?.xpToNext || getXpToNextLevel(p.progression?.level || 1)));
-  const xpPct = Math.max(0, Math.min(100, (xp / xpToNext) * 100));
 
   card.classList.toggle('is-me', p.id === myPlayerId);
   card.classList.toggle('is-enemy', p.id !== myPlayerId);
@@ -62,7 +57,6 @@ function updateHUD() {
   document.getElementById('focus-level').textContent = p.progression?.level || 1;
   document.getElementById('focus-hp-text').textContent = `${Math.max(0, Math.ceil(p.hp || 0))}/${p.maxHp || 0}`;
   document.getElementById('focus-mana-text').textContent = `${Math.max(0, Math.floor(p.mana || 0))}/${p.maxMana || getMaxMana(ch)}`;
-  document.getElementById('focus-exp-text').textContent = `${xp}/${xpToNext}`;
 
   const hpEl = document.getElementById('focus-hp');
   if (hpEl) {
@@ -72,8 +66,6 @@ function updateHUD() {
 
   const manaEl = document.getElementById('focus-mana');
   if (manaEl) manaEl.style.width = manaPct + '%';
-  const expEl = document.getElementById('focus-exp');
-  if (expEl) expEl.style.width = xpPct + '%';
 
   const ticksEl = document.getElementById('focus-hp-ticks');
   if (ticksEl && ticksEl.dataset.maxHp !== String(p.maxHp || 0)) {
@@ -283,6 +275,13 @@ function buildSkillsBar() {
   bar.innerHTML = '';
   if (!myPlayer) return;
   const ch = myPlayer.charData;
+  const expPanel = document.createElement('div');
+  expPanel.className = 'skill-exp-panel';
+  expPanel.innerHTML = `
+    <div class="skill-exp-meta"><span>EXP</span><span id="skill-exp-text">0/100</span></div>
+    <div class="skill-exp-bar"><div class="skill-exp-fill" id="skill-exp-fill" style="width:0%"></div></div>
+  `;
+  bar.appendChild(expPanel);
   ch.skills.forEach(sk => {
     const slot = document.createElement('div');
     slot.className = 'skill-slot';
@@ -294,6 +293,15 @@ function buildSkillsBar() {
 
 function updateSkillsBar() {
   if (!myPlayer) return;
+  ensurePlayerSystems(myPlayer);
+  const xp = Math.max(0, Math.floor(myPlayer.progression?.xp || 0));
+  const xpToNext = Math.max(1, Math.floor(myPlayer.progression?.xpToNext || getXpToNextLevel(myPlayer.progression?.level || 1)));
+  const xpPct = Math.max(0, Math.min(100, (xp / xpToNext) * 100));
+  const expTextEl = document.getElementById('skill-exp-text');
+  const expFillEl = document.getElementById('skill-exp-fill');
+  if (expTextEl) expTextEl.textContent = `${xp}/${xpToNext}`;
+  if (expFillEl) expFillEl.style.width = `${xpPct}%`;
+
   const now = Date.now();
   myPlayer.charData.skills.forEach(sk => {
     const slot = document.getElementById(`skill-${sk.id}`);
@@ -359,6 +367,7 @@ function addChat(from, text) {
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
   if (log.children.length > 30) log.removeChild(log.firstChild);
+  revealChatLog();
 }
 
 function sendChat() {
@@ -369,19 +378,39 @@ function sendChat() {
   }
   send({ type: 'chat', msg: inp.value.trim() });
   inp.value = '';
-  closeChatInput();
+  closeChatInput(true);
+  revealChatLog();
 }
 
 function openChatInput() {
   const container = document.getElementById('chat-container');
   const inp = document.getElementById('chat-input');
+  if (chatAutoHideTimer) {
+    clearTimeout(chatAutoHideTimer);
+    chatAutoHideTimer = null;
+  }
+  container.classList.remove('chat-peek');
   container.classList.add('visible', 'chat-open');
   inp.focus();
 }
 
-function closeChatInput() {
+function closeChatInput(keepLog = false) {
   const container = document.getElementById('chat-container');
   const inp = document.getElementById('chat-input');
   inp.blur();
   container.classList.remove('chat-open');
+  if (!keepLog) container.classList.remove('visible', 'chat-peek');
+}
+
+function revealChatLog(duration = 10000) {
+  const container = document.getElementById('chat-container');
+  if (!container || !gameRunning) return;
+  if (chatAutoHideTimer) clearTimeout(chatAutoHideTimer);
+  container.classList.add('visible', 'chat-peek');
+  chatAutoHideTimer = setTimeout(() => {
+    if (!container.classList.contains('chat-open')) {
+      container.classList.remove('visible', 'chat-peek');
+    }
+    chatAutoHideTimer = null;
+  }, duration);
 }

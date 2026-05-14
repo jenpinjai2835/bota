@@ -24,6 +24,10 @@ function leaveGame() {
   lastKillAnnouncementAt = 0;
   combatStatsExpanded = false;
   combatStatsRenderSignature = '';
+  if (chatAutoHideTimer) {
+    clearTimeout(chatAutoHideTimer);
+    chatAutoHideTimer = null;
+  }
   mutedChatPlayerIds.clear();
   localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
   Object.keys(keys).forEach(key => { delete keys[key]; });
@@ -37,7 +41,7 @@ function leaveGame() {
     const el = document.getElementById(id);
     if (el) el.classList.remove('visible');
   });
-  document.getElementById('chat-container')?.classList.remove('chat-open');
+  document.getElementById('chat-container')?.classList.remove('chat-open', 'chat-peek');
   document.getElementById('kill-banner')?.classList.remove('visible');
 
   const canvas = document.getElementById('game-canvas');

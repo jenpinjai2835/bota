@@ -389,7 +389,7 @@
 
   .hud-bottom-cluster {
     position: fixed;
-    left: 25vw;
+    left: 18px;
     bottom: 18px;
     display: flex;
     justify-content: flex-start;
@@ -398,7 +398,7 @@
     gap: 10px;
     flex-wrap: nowrap;
     pointer-events: none;
-    transform: translateX(-50%);
+    transform: none;
   }
 
   .hud-top {
@@ -417,15 +417,15 @@
       rgba(8,5,7,0.78);
     border: 1px solid rgba(255,72,72,0.72);
     border-radius: 6px;
-    padding: 9px 12px 10px;
+    padding: 8px 11px 9px;
     min-width: 154px;
     position: relative;
     box-shadow: 0 0 18px rgba(255,72,72,0.12), 0 10px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08);
     backdrop-filter: blur(8px);
   }
   .player-hud-card.is-focus {
-    width: 176px;
-    min-width: 176px;
+    width: 168px;
+    min-width: 168px;
   }
   .player-hud-card.is-enemy {
     border-color: rgba(255,72,72,0.9);
@@ -474,7 +474,6 @@
     letter-spacing: 0.04em;
   }
   .hud-stat-line.mana-line { margin-top: 5px; color: rgba(163,210,255,0.9); }
-  .hud-stat-line.exp-line { margin-top: 5px; color: rgba(245,225,130,0.84); }
   .hp-bar { height: 7px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 7px; overflow: hidden; position: relative; }
   .hp-fill { height: 100%; background: linear-gradient(90deg, #B8202C, var(--red-glow)); border-radius: 999px; transition: width 0.2s; box-shadow: 0 0 10px rgba(255,68,68,0.28); }
   .hp-fill.high { background: linear-gradient(90deg, #1F9E55, #57E37F); box-shadow: 0 0 10px rgba(87,227,127,0.25); }
@@ -483,8 +482,6 @@
   .hp-ticks span { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(0,0,0,0.88); transform: translateX(-1px); box-shadow: 0 0 0 1px rgba(255,255,255,0.18); }
   .mana-bar { height: 6px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 5px; overflow: hidden; }
   .mana-fill { height: 100%; background: linear-gradient(90deg, #2368D8, #6CCBFF); border-radius: 999px; transition: width 0.2s; box-shadow: 0 0 10px rgba(91,178,255,0.28); }
-  .exp-bar { height: 5px; background: rgba(0,0,0,0.48); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; margin-top: 5px; overflow: hidden; }
-  .exp-fill { height: 100%; background: linear-gradient(90deg, #8B6914, #F5E182); border-radius: 999px; transition: width 0.2s; box-shadow: 0 0 10px rgba(245,225,130,0.24); }
   .phud-score { font-size: 13px; color: var(--gold-light); text-align: right; font-family: 'Cinzel', serif; }
 
   #mini-map {
@@ -672,6 +669,7 @@
     bottom: 18px; left: 50%;
     transform: translateX(-50%);
     display: none;
+    align-items: stretch;
     gap: 10px;
     z-index: 50;
     pointer-events: none;
@@ -683,6 +681,49 @@
     backdrop-filter: blur(10px);
   }
   .skills-bar.visible { display: flex; }
+
+  .skill-exp-panel {
+    width: 104px;
+    min-height: 56px;
+    padding: 8px 9px;
+    border: 1px solid rgba(245,225,130,0.28);
+    border-radius: 7px;
+    background:
+      linear-gradient(180deg, rgba(26,18,19,0.9), rgba(7,5,6,0.92));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 18px rgba(0,0,0,0.22);
+  }
+  .skill-exp-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font: 800 9px/1 'Cinzel', serif;
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .skill-exp-meta span:last-child {
+    color: rgba(246,232,196,0.78);
+    font-size: 8px;
+  }
+  .skill-exp-bar {
+    height: 6px;
+    background: rgba(0,0,0,0.54);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .skill-exp-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #8B6914, #F5E182);
+    box-shadow: 0 0 10px rgba(245,225,130,0.24);
+    transition: width 0.2s;
+  }
 
   .skill-slot {
     width: 56px; height: 56px;
@@ -736,6 +777,31 @@
     filter: saturate(0.55) brightness(0.72);
   }
 
+  @media (max-width: 680px) {
+    .skills-bar {
+      gap: 6px;
+      padding: 6px;
+    }
+    .skill-exp-panel {
+      width: 82px;
+      padding: 7px;
+    }
+    .skill-exp-meta {
+      font-size: 8px;
+      gap: 5px;
+    }
+    .skill-exp-meta span:last-child {
+      font-size: 7px;
+    }
+    .skill-slot {
+      width: 50px;
+      height: 50px;
+    }
+    .skill-slot .sicon {
+      font-size: 20px;
+    }
+  }
+
   /* Death screen */
   #death-overlay {
     position: fixed; inset: 0;
@@ -759,14 +825,19 @@
   /* Chat */
   #chat-container {
     position: fixed;
-    bottom: 150px; left: 18px;
+    top: 180px; left: 18px;
     width: min(270px, calc(100vw - 36px));
-    z-index: 50;
+    z-index: 95;
     display: none;
     opacity: 0.72;
     transition: opacity 160ms ease, transform 160ms ease;
   }
-  #chat-container.visible.chat-open { display: block; }
+  #chat-container.visible.chat-open,
+  #chat-container.visible.chat-peek { display: block; }
+  #chat-container.chat-peek {
+    opacity: 1;
+    pointer-events: none;
+  }
   #chat-container:focus-within {
     opacity: 1;
     transform: translateY(-8px);
@@ -775,6 +846,11 @@
     height: 86px; overflow-y: auto;
     display: flex; flex-direction: column; gap: 4px;
     margin-bottom: 8px;
+  }
+  #chat-container.chat-peek #chat-log {
+    padding: 4px;
+    border-radius: 7px;
+    background: rgba(8,5,7,0.22);
   }
   .chat-msg {
     background: rgba(8,5,7,0.74);
@@ -789,6 +865,7 @@
     display: flex; gap: 6px;
     pointer-events: all;
   }
+  #chat-container.chat-peek:not(.chat-open) #chat-input-wrap { display: none; }
   #chat-input {
     flex: 1;
     background: rgba(8,5,7,0.88);
