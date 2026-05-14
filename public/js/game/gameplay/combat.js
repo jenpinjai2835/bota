@@ -166,7 +166,6 @@ function dealDamage(target, damage, skillId, hitDir = 1) {
     if (myPlayer.hp <= 0) onMyDeath(hitDir, finalDamage, skillId);
   } else {
     target.hp = Math.max(0, target.hp - finalDamage);
-    if (myPlayer) grantPlayerXp(myPlayer, target.hp <= 0 ? 110 : 10);
     if (target.hp <= 0) {
       startDeathMotion(target, hitDir, finalDamage, skillId);
     }
@@ -189,7 +188,6 @@ function handleHitEffect(msg) {
       onMyDeath(hitDir, msg.damage, msg.skillId);
     }
     if (msg.hp <= 0 && msg.targetId !== myPlayerId) {
-      if (!alreadyShown && msg.attackerId === myPlayerId) grantPlayerXp(myPlayer, 110);
       startDeathMotion(target, hitDir, msg.damage, msg.skillId);
       spawnEffect(target.x + target.width/2, target.y + target.height/2, 'death', '#FF0000', 60);
     }

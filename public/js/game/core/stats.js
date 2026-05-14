@@ -156,7 +156,6 @@ function applyMatchItemToPlayer(player, item) {
   if (!def) return;
   if (def.healPct) player.hp = Math.min(player.maxHp, player.hp + player.maxHp * def.healPct);
   if (def.manaPct) player.mana = Math.min(player.maxMana, (player.mana || 0) + player.maxMana * def.manaPct);
-  if (def.xp) grantPlayerXp(player, def.xp);
   if (def.stats) {
     player.itemModifiers.push({
       id: `${def.id}_${Date.now()}`,

@@ -8,6 +8,8 @@ function setupWebSocket(server, rooms) {
   const wss = new WebSocket.Server({ server });
   const clients = new Map();
   const ASSIST_WINDOW_MS = 8000;
+  const UNIT_DEATH_XP = 110;
+  const XP_SHARE_RADIUS = 280;
 
   function sendTo(playerId, message) {
     const ws = clients.get(playerId);
@@ -29,6 +31,38 @@ function setupWebSocket(server, rooms) {
     const scores = rooms.getScores(roomId);
     broadcast(roomId, { type: 'score_update', scores });
     sendTo(attackerId, { type: 'score_update', scores });
+  }
+
+  function distanceBetween(a, b) {
+    const ax = Number(a?.x) || 0;
+    const ay = Number(a?.y) || 0;
+    const bx = Number(b?.x) || 0;
+    const by = Number(b?.y) || 0;
+    const dx = ax - bx;
+    const dy = ay - by;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function awardUnitDeathXp(room, target, attacker) {
+    if (!room || !target || !attacker?.teamId) return;
+    const recipients = room.players
+      .map(pid => room.playerData[pid])
+      .filter(player =>
+        player &&
+        player.teamId === attacker.teamId &&
+        player.hp > 0 &&
+        distanceBetween(player, target) <= XP_SHARE_RADIUS
+      );
+    if (!recipients.length) return;
+
+    const amount = Math.max(1, Math.floor(UNIT_DEATH_XP / recipients.length));
+    recipients.forEach(player => sendTo(player.id, {
+      type: 'xp_award',
+      amount,
+      source: 'unit_death',
+      targetId: target.id,
+      sharedWith: recipients.length,
+    }));
   }
 
   function sendRoomList(playerId) {
@@ -183,6 +217,7 @@ function setupWebSocket(server, rooms) {
             attacker.kills = (attacker.kills || 0) + 1;
             attacker.score = (attacker.score || 0) + 100;
           }
+          awardUnitDeathXp(room, target, attacker);
           const now = Date.now();
           Object.entries(target.recentAttackers || {}).forEach(([assistId, hitAt]) => {
             if (assistId === playerId || now - hitAt > ASSIST_WINDOW_MS) return;

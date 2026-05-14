@@ -277,10 +277,7 @@ function buildSkillsBar() {
   const ch = myPlayer.charData;
   const expPanel = document.createElement('div');
   expPanel.className = 'skill-exp-panel';
-  expPanel.innerHTML = `
-    <div class="skill-exp-meta"><span>EXP</span><span id="skill-exp-text">0/100</span></div>
-    <div class="skill-exp-bar"><div class="skill-exp-fill" id="skill-exp-fill" style="width:0%"></div></div>
-  `;
+  expPanel.innerHTML = '<div class="skill-exp-fill" id="skill-exp-fill" style="width:0%"></div>';
   bar.appendChild(expPanel);
   ch.skills.forEach(sk => {
     const slot = document.createElement('div');
@@ -297,9 +294,7 @@ function updateSkillsBar() {
   const xp = Math.max(0, Math.floor(myPlayer.progression?.xp || 0));
   const xpToNext = Math.max(1, Math.floor(myPlayer.progression?.xpToNext || getXpToNextLevel(myPlayer.progression?.level || 1)));
   const xpPct = Math.max(0, Math.min(100, (xp / xpToNext) * 100));
-  const expTextEl = document.getElementById('skill-exp-text');
   const expFillEl = document.getElementById('skill-exp-fill');
-  if (expTextEl) expTextEl.textContent = `${xp}/${xpToNext}`;
   if (expFillEl) expFillEl.style.width = `${xpPct}%`;
 
   const now = Date.now();

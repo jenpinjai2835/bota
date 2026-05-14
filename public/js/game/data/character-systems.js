@@ -49,7 +49,6 @@ const MATCH_ITEM_DEFINITIONS = [
   { id: 'power_rune', label: 'Power', color: '#FFB13B', icon: 'P', kind: 'buff', duration: 9000, stats: { attackPower: 0.18, knockbackPower: 0.12 } },
   { id: 'guard_rune', label: 'Guard', color: '#D6DCE8', icon: 'G', kind: 'buff', duration: 9000, stats: { defense: 18, knockbackResist: 0.16 } },
   { id: 'haste_rune', label: 'Haste', color: '#E8D15C', icon: 'H', kind: 'buff', duration: 8000, stats: { speed: 1.4, cooldownReduction: 0.16 } },
-  { id: 'xp_tome', label: 'XP', color: '#C783FF', icon: 'XP', kind: 'instant', xp: 80 },
 ];
 
 const TEAM_DEFINITIONS = [

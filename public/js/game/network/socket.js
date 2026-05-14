@@ -117,6 +117,11 @@ function handleMessage(msg) {
       updateScoreboard();
       updateHUD();
       break;
+    case 'xp_award':
+      grantPlayerXp(myPlayer, msg.amount || 0);
+      updateHUD();
+      updateSkillsBar();
+      break;
     case 'skill_cast':
       handleRemoteSkill(msg);
       break;

@@ -673,7 +673,7 @@
     gap: 10px;
     z-index: 50;
     pointer-events: none;
-    padding: 8px;
+    padding: 8px 8px 15px;
     border: 1px solid rgba(245,225,130,0.18);
     border-radius: 8px;
     background: rgba(5,4,6,0.52);
@@ -683,38 +683,16 @@
   .skills-bar.visible { display: flex; }
 
   .skill-exp-panel {
-    width: 104px;
-    min-height: 56px;
-    padding: 8px 9px;
-    border: 1px solid rgba(245,225,130,0.28);
-    border-radius: 7px;
-    background:
-      linear-gradient(180deg, rgba(26,18,19,0.9), rgba(7,5,6,0.92));
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 6px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 18px rgba(0,0,0,0.22);
-  }
-  .skill-exp-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    font: 800 9px/1 'Cinzel', serif;
-    color: var(--gold-light);
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-  }
-  .skill-exp-meta span:last-child {
-    color: rgba(246,232,196,0.78);
-    font-size: 8px;
-  }
-  .skill-exp-bar {
-    height: 6px;
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 6px;
+    height: 5px;
     background: rgba(0,0,0,0.54);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 999px;
     overflow: hidden;
+    pointer-events: none;
   }
   .skill-exp-fill {
     height: 100%;
@@ -780,18 +758,12 @@
   @media (max-width: 680px) {
     .skills-bar {
       gap: 6px;
-      padding: 6px;
+      padding: 6px 6px 13px;
     }
     .skill-exp-panel {
-      width: 82px;
-      padding: 7px;
-    }
-    .skill-exp-meta {
-      font-size: 8px;
-      gap: 5px;
-    }
-    .skill-exp-meta span:last-child {
-      font-size: 7px;
+      left: 6px;
+      right: 6px;
+      bottom: 5px;
     }
     .skill-slot {
       width: 50px;

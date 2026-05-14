@@ -1,7 +1,7 @@
 const MAX_PLAYERS = 5;
 const MIN_CHARACTER_HP = 500;
 const TEAM_IDS = ['sun', 'moon'];
-const MATCH_ITEM_TYPES = ['healing_orb', 'mana_orb', 'power_rune', 'guard_rune', 'haste_rune', 'xp_tome'];
+const MATCH_ITEM_TYPES = ['healing_orb', 'mana_orb', 'power_rune', 'guard_rune', 'haste_rune'];
 const ITEM_SPAWN_POINTS = [
   { x: 205, y: 460 },
   { x: 420, y: 388 },
