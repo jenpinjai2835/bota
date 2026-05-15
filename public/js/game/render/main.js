@@ -16,6 +16,7 @@ function render(canvas) {
   stage.platforms.forEach(plat => drawPlatform(ctx, plat, stage, scaleX, scaleY));
   matchItems.forEach(item => drawMatchItem(ctx, item, scaleX, scaleY));
   projectiles.forEach(p => drawProjectile(ctx, p, scaleX, scaleY));
+  creepProjectiles.forEach(shot => drawCreepProjectile(ctx, shot, scaleX, scaleY));
   effects.forEach(e => drawEffect(ctx, e, scaleX, scaleY));
   const depthEntities = [
     ...objectives.map(obj => ({ kind: 'objective', entity: obj, depth: getUnitFoot(obj).y })),

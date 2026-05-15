@@ -1,5 +1,5 @@
 // Lane depth, creeps, towers, and ancient objectives
-const MONSTER_TYPES = ['monster_6', 'monster_7', 'monster_8'];
+const MONSTER_TYPES = ['monster_6', 'monster_7', 'monster_8', 'monster_9', 'monster_10'];
 const MONSTER_ACTIONS = {
   walk: { folder: 'walking', file: 'Walking', frames: 18, fps: 14 },
   run: { folder: 'walking', file: 'Walking', frames: 18, fps: 18 },
@@ -42,6 +42,7 @@ function syncWorldState(msg) {
     };
   });
   objectives = (msg.objectives || []).map(obj => ({ ...objectives.find(entry => entry.id === obj.id), ...obj }));
+  creepProjectiles = msg.creepProjectiles || [];
   gameWinner = msg.winner || gameWinner;
 }
 
@@ -235,6 +236,41 @@ function drawTowerShot(ctx, shot, sx, sy) {
   ctx.moveTo(shot.from.x * sx, shot.from.y * sy);
   ctx.lineTo(shot.to.x * sx, shot.to.y * sy);
   ctx.stroke();
+  ctx.restore();
+}
+
+function drawCreepProjectile(ctx, shot, sx, sy) {
+  if (!shot) return;
+  const scale = Math.min(sx, sy);
+  const x = shot.x * sx;
+  const y = shot.y * sy;
+  const color = shot.teamId === 'sun' ? '#FF9A3D' : '#69A8FF';
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const trail = ctx.createLinearGradient((shot.prevX ?? shot.x) * sx, (shot.prevY ?? shot.y) * sy, x, y);
+  trail.addColorStop(0, 'rgba(255,255,255,0)');
+  trail.addColorStop(1, withAlpha(color, 0.78));
+  ctx.strokeStyle = trail;
+  ctx.lineWidth = Math.max(3, 4 * scale);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo((shot.prevX ?? shot.x) * sx, (shot.prevY ?? shot.y) * sy);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+
+  const radius = Math.max(5, 7 * scale);
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, radius * 3.8);
+  glow.addColorStop(0, 'rgba(255,255,220,0.95)');
+  glow.addColorStop(0.28, withAlpha(color, 0.82));
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 3.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#FFF5BD';
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 0.62, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 

@@ -23,6 +23,7 @@ let bloodParticles = [];
 let deathParts = [];
 let matchItems = [];
 let creeps = [];
+let creepProjectiles = [];
 let objectives = [];
 let towerShots = [];
 let gameWinner = null;

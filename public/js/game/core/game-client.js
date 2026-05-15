@@ -17,6 +17,7 @@ function leaveGame() {
   deathParts = [];
   matchItems = [];
   creeps = [];
+  creepProjectiles = [];
   objectives = [];
   towerShots = [];
   gameWinner = null;
@@ -126,8 +127,9 @@ function startGameClient(state) {
   document.getElementById('skills-bar').classList.add('visible');
   document.getElementById('controls-hint').classList.add('visible');
 
-  projectiles = []; effects = []; damageNumbers = []; deathParts = []; bloodParticles = []; towerShots = [];
+  projectiles = []; effects = []; damageNumbers = []; deathParts = []; bloodParticles = []; towerShots = []; creepProjectiles = [];
   creeps = state.creeps || [];
+  creepProjectiles = state.creepProjectiles || [];
   objectives = state.objectives || [];
   gameWinner = state.winner || null;
   resetMatchItems(state.matchItems || []);

@@ -135,6 +135,7 @@ class RoomStore {
       },
       matchItems: [],
       creeps: [],
+      creepProjectiles: [],
       creepSeq: 0,
       objectives: [],
       winner: null,
@@ -163,6 +164,7 @@ class RoomStore {
       }),
       matchItems: room.matchItems || [],
       creeps: room.creeps || [],
+      creepProjectiles: room.creepProjectiles || [],
       objectives: room.objectives || [],
       winner: room.winner || null,
       teams: TEAM_IDS.map(id => ({
@@ -315,6 +317,7 @@ class RoomStore {
       player.recentAttackers = {};
     });
     room.creeps = [];
+    room.creepProjectiles = [];
     room.creepSeq = 0;
     room.nextCreepWaveAt = 0;
     room.objectives = createObjectives();
