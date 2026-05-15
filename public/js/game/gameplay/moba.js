@@ -7,6 +7,7 @@ const MONSTER_ACTIONS = {
   attack: { folder: 'attack', file: 'Attack', frames: 18, fps: 16 },
   dead: { folder: 'dying', file: 'Dying', frames: 18, fps: 12 },
 };
+const monsterFrameFallbackCache = {};
 
 function preloadMonsterAssets() {
   if (typeof Image === 'undefined') return;
@@ -206,7 +207,8 @@ function drawCreep(ctx, creep, sx, sy) {
   const frames = monsterImages[creep.type]?.[action] || [];
   const meta = MONSTER_ACTIONS[action] || MONSTER_ACTIONS.walk;
   const frame = Math.floor(Date.now() / (1000 / meta.fps)) % Math.max(1, frames.length);
-  const img = getRenderableMonsterFrame(creep.type, action, frame);
+  const img = getRenderableMonsterFrame(creep.type, action, frame) || creep.lastRenderableMonsterFrame || null;
+  if (img?.complete && img.naturalWidth) creep.lastRenderableMonsterFrame = img;
   const drawX = creep.renderX ?? creep.x;
   const drawY = creep.renderY ?? creep.y;
   const x = (drawX + (creep.w || 42) / 2) * sx;
@@ -225,6 +227,8 @@ function drawCreep(ctx, creep, sx, sy) {
   ctx.scale(facing > 0 ? 1 : -1, 1);
   if (img?.complete && img.naturalWidth) {
     ctx.drawImage(img, -w / 2, -h, w, h);
+  } else {
+    drawCreepSilhouette(ctx, creep, w, h, scale);
   }
   ctx.restore();
   drawUnitHealthBar(ctx, creep, x, y - h - 3 * sy, Math.max(32, 38 * scale), sx, sy);
@@ -237,12 +241,56 @@ function getRenderableMonsterFrame(type, action, frameIndex = 0) {
     monsterImages[type]?.idle,
   ].filter(Boolean);
   for (const frames of pools) {
-    const preferred = frames[frameIndex % Math.max(1, frames.length)];
-    if (preferred?.complete && preferred.naturalWidth) return preferred;
-    const loaded = frames.find(frame => frame?.complete && frame.naturalWidth);
-    if (loaded) return loaded;
+    const loaded = getLoadedMonsterFrame(frames, frameIndex);
+    if (loaded) return rememberMonsterFrame(type, action, loaded);
   }
-  return null;
+  return monsterFrameFallbackCache[`${type}:${action}`] ||
+    monsterFrameFallbackCache[`${type}:any`] ||
+    getAnyRenderableMonsterFrame(action, frameIndex);
+}
+
+function getLoadedMonsterFrame(frames, frameIndex = 0) {
+  const preferred = frames[frameIndex % Math.max(1, frames.length)];
+  if (preferred?.complete && preferred.naturalWidth) return preferred;
+  return frames.find(frame => frame?.complete && frame.naturalWidth) || null;
+}
+
+function rememberMonsterFrame(type, action, img) {
+  if (!img?.complete || !img.naturalWidth) return img;
+  monsterFrameFallbackCache[`${type}:${action}`] = img;
+  monsterFrameFallbackCache[`${type}:any`] = img;
+  monsterFrameFallbackCache[`any:${action}`] = img;
+  monsterFrameFallbackCache.any = img;
+  return img;
+}
+
+function getAnyRenderableMonsterFrame(action, frameIndex = 0) {
+  for (const type of MONSTER_TYPES) {
+    const actions = [action, 'walk', 'idle'];
+    for (const actionId of actions) {
+      const loaded = getLoadedMonsterFrame(monsterImages[type]?.[actionId] || [], frameIndex);
+      if (loaded) return rememberMonsterFrame(type, actionId, loaded);
+    }
+  }
+  return monsterFrameFallbackCache[`any:${action}`] || monsterFrameFallbackCache.any || null;
+}
+
+function drawCreepSilhouette(ctx, creep, w, h, scale) {
+  const color = creep.teamId === 'sun' ? 'rgba(96,44,34,0.78)' : 'rgba(42,58,86,0.78)';
+  const edge = creep.teamId === 'sun' ? 'rgba(228,71,71,0.42)' : 'rgba(61,139,255,0.42)';
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = Math.max(1, 1.1 * scale);
+  ctx.beginPath();
+  ctx.ellipse(0, -h * 0.42, w * 0.23, h * 0.34, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,232,150,0.72)';
+  ctx.beginPath();
+  ctx.arc(w * 0.08, -h * 0.53, Math.max(1.5, 2.4 * scale), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawUnitHealthBar(ctx, unit, centerX, topY, width, sx, sy) {
