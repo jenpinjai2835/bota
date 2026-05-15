@@ -20,9 +20,12 @@ const monsterVectorData = {};
 const monsterVectorLoadStarted = {};
 const monsterVectorBoundsCache = {};
 const MONSTER_ATTACK_STABLE_PARTS = {
+  monster_6: /.*/i,
+  monster_7: /.*/i,
   monster_8: /.*/i,
   monster_10: /arm|leg/i,
 };
+const MONSTER_BODY_LUNGE_ATTACK_TYPES = new Set(['monster_6', 'monster_7', 'monster_8']);
 const MONSTER_ATTACK_DRAW_MS = 620;
 
 function preloadMonsterAssets() {
@@ -645,7 +648,7 @@ function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action, groundOffset =
     const phase = getCreepAnimationPhase(creep);
     ctx.translate(0, Math.sin(phase * 2) * 1.8);
     ctx.rotate(Math.sin(phase) * 0.035);
-  } else if (action === 'attack' && type === 'monster_8') {
+  } else if (action === 'attack' && MONSTER_BODY_LUNGE_ATTACK_TYPES.has(type)) {
     const drive = Math.sin(getCreepAttackVisualProgress(creep) * Math.PI);
     ctx.translate(-drive * 5, -drive * 1.2);
     ctx.rotate(-drive * 0.035);
