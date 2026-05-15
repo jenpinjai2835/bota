@@ -35,6 +35,10 @@ function setupWebSocket(server, rooms) {
     sun: { x: 360, y: 378 },
     moon: { x: 2118, y: 378 },
   };
+  const OBJECTIVE_ATTACK_ORDER = {
+    sun: ['moon_tower_front', 'moon_tower_mid', 'moon_tower_base', 'moon_ancient'],
+    moon: ['sun_tower_front', 'sun_tower_mid', 'sun_tower_base', 'sun_ancient'],
+  };
 
   function sendTo(playerId, message) {
     const ws = clients.get(playerId);
@@ -161,6 +165,25 @@ function setupWebSocket(server, rooms) {
     return (room.objectives || []).filter(obj => obj.hp > 0 && (!teamId || obj.teamId === teamId));
   }
 
+  function getNextAttackableObjective(room, attackerTeamId) {
+    const order = OBJECTIVE_ATTACK_ORDER[attackerTeamId] || [];
+    return order
+      .map(id => (room.objectives || []).find(obj => obj.id === id && obj.hp > 0))
+      .find(Boolean) || null;
+  }
+
+  function canDamageObjective(room, attackerTeamId, objective) {
+    if (!room || !attackerTeamId || !objective || objective.teamId === attackerTeamId) return false;
+    return getNextAttackableObjective(room, attackerTeamId)?.id === objective.id;
+  }
+
+  function getDefendingHeroesNearObjective(room, creep, objective) {
+    if (!objective) return [];
+    return getLivingEnemyHeroes(room, creep, 520)
+      .filter(hero => hero.teamId === objective.teamId && distanceBetween(hero, objective) <= 320)
+      .sort((a, b) => distanceBetween(creep, a) - distanceBetween(creep, b));
+  }
+
   function clampCreepY(y, h = 42) {
     return Math.max(BATTLEFIELD_TOP_Y - h, Math.min(BATTLEFIELD_BOTTOM_Y - h, y));
   }
@@ -268,6 +291,16 @@ function setupWebSocket(server, rooms) {
     const aggroHero = getCreepAggroHero(room, creep);
     if (aggroHero) return aggroHero;
 
+    if (!enemyCreeps.length) {
+      const nextObjective = getNextAttackableObjective(room, creep.teamId);
+      const defender = getDefendingHeroesNearObjective(room, creep, nextObjective)[0];
+      if (defender) {
+        rememberCreepHeroAggro(room, creep.teamId, defender.id);
+        return defender;
+      }
+      if (nextObjective) return nextObjective;
+    }
+
     const enemyHeroes = getLivingEnemyHeroes(room, creep, CREEP_HERO_AGGRO_RANGE);
     if (enemyHeroes.length) {
       const hero = enemyHeroes
@@ -277,10 +310,7 @@ function setupWebSocket(server, rooms) {
       return hero;
     }
     if (nearestCreep) return nearestCreep.unit;
-    const enemyObjectives = getLivingObjectives(room).filter(obj => obj.teamId !== creep.teamId);
-    return enemyObjectives
-      .map(unit => ({ unit, distance: distanceBetween(creep, unit) }))
-      .sort((a, b) => a.distance - b.distance)[0]?.unit || null;
+    return getNextAttackableObjective(room, creep.teamId);
   }
 
   function queueCreepAttack(room, creep, target, now) {
@@ -317,7 +347,7 @@ function setupWebSocket(server, rooms) {
     } else if (room.playerData?.[target.id]) {
       damagePlayer(room, roomId, target, attack.damage, creep.id, 'creep_melee', getDamageDirection(target, creep, creep.facing || 1));
     } else {
-      damageObjective(room, target, attack.damage);
+      damageObjective(room, target, attack.damage, creep.teamId);
     }
   }
 
@@ -352,8 +382,8 @@ function setupWebSocket(server, rooms) {
     return true;
   }
 
-  function damageObjective(room, objective, amount) {
-    if (!objective || objective.hp <= 0) return;
+  function damageObjective(room, objective, amount, attackerTeamId = null) {
+    if (!objective || objective.hp <= 0 || !canDamageObjective(room, attackerTeamId, objective)) return;
     objective.hp = Math.max(0, objective.hp - amount);
     if (objective.type === 'ancient' && objective.hp <= 0 && !room.winner) {
       room.winner = objective.teamId === 'sun' ? 'moon' : 'sun';
@@ -444,7 +474,7 @@ function setupWebSocket(server, rooms) {
           const source = getUnitById(room, shot.sourceId);
           damagePlayer(room, roomId, target, shot.damage, source?.id || shot.sourceId, 'creep_fireball', Math.sign(targetFoot.x - (shot.prevX ?? shot.x)) || TEAM_DIR[shot.teamId] || 1);
         } else {
-          damageObjective(room, target, shot.damage);
+          damageObjective(room, target, shot.damage, shot.teamId);
         }
         return false;
       }
@@ -1187,7 +1217,7 @@ function setupWebSocket(server, rooms) {
         }
         const objective = (room.objectives || []).find(entry => entry.id === unitId);
         if (objective && objective.teamId !== attacker.teamId) {
-          damageObjective(room, objective, damage);
+          damageObjective(room, objective, damage, attacker.teamId);
         }
         break;
       }
