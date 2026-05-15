@@ -69,6 +69,9 @@ function handleMessage(msg) {
     case 'tower_shot':
       towerShots.push({ ...msg, life: 14, maxLife: 14 });
       break;
+    case 'unit_death':
+      handleWorldUnitDeath(msg);
+      break;
     case 'game_over':
       gameWinner = msg.winner;
       gameRunning = false;

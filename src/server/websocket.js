@@ -77,6 +77,14 @@ function setupWebSocket(server, rooms) {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  function getDamageDirection(target, attacker = null, fallback = 1) {
+    if (!target) return fallback || 1;
+    if (!attacker) return fallback || target.lastHitDir || target.facing || 1;
+    const targetFoot = unitFoot(target);
+    const attackerFoot = unitFoot(attacker);
+    return Math.sign(targetFoot.x - attackerFoot.x) || fallback || target.facing || 1;
+  }
+
   function awardUnitDeathXp(room, target, attacker, xpAmount = UNIT_DEATH_XP) {
     if (!room || !target || !attacker?.teamId) return;
     const recipients = room.players
@@ -159,12 +167,24 @@ function setupWebSocket(server, rooms) {
       .sort((a, b) => a.distance - b.distance)[0]?.unit || null;
   }
 
-  function damageCreep(room, creep, amount, attacker = null) {
+  function damageCreep(room, creep, amount, attacker = null, hitDir = null, roomId = null) {
     if (!creep || creep.hp <= 0) return false;
+    const resolvedHitDir = hitDir || getDamageDirection(creep, attacker, creep.facing || TEAM_DIR[creep.teamId] || 1);
+    creep.lastHitDir = resolvedHitDir;
+    creep.lastDamage = amount;
     creep.hp = Math.max(0, creep.hp - amount);
     if (creep.hp > 0) return false;
     creep.state = 'dead';
     if (attacker) awardUnitDeathXp(room, creep, attacker, CREEP_DEATH_XP);
+    if (roomId) {
+      room.players.forEach(pid => sendTo(pid, {
+        type: 'unit_death',
+        unit: creep,
+        hitDir: resolvedHitDir,
+        damage: amount,
+        attackerId: attacker?.id || null,
+      }));
+    }
     return true;
   }
 
@@ -195,7 +215,7 @@ function setupWebSocket(server, rooms) {
     });
   }
 
-  function updateCreepProjectiles(room) {
+  function updateCreepProjectiles(room, roomId) {
     room.creepProjectiles = (room.creepProjectiles || []).filter(shot => {
       const target = getUnitById(room, shot.targetId);
       if (!target || target.hp <= 0 || target.teamId === shot.teamId) return false;
@@ -209,8 +229,13 @@ function setupWebSocket(server, rooms) {
       shot.prevY = shot.y;
       shot.life -= 1;
       if (dist <= (shot.speed || 16) + 8) {
-        if (target.id?.startsWith?.('cr_')) damageCreep(room, target, shot.damage, getUnitById(room, shot.sourceId));
-        else damageObjective(room, target, shot.damage);
+        if (target.id?.startsWith?.('cr_')) {
+          const source = getUnitById(room, shot.sourceId);
+          const hitDir = Math.sign(targetFoot.x - (shot.prevX ?? shot.x)) || getDamageDirection(target, source, TEAM_DIR[shot.teamId] || 1);
+          damageCreep(room, target, shot.damage, source, hitDir, roomId);
+        } else {
+          damageObjective(room, target, shot.damage);
+        }
         return false;
       }
       if (shot.life <= 0) return false;
@@ -261,7 +286,7 @@ function setupWebSocket(server, rooms) {
       room.nextCreepWaveAt = now + CREEP_WAVE_MS;
     }
 
-    updateCreepProjectiles(room);
+    updateCreepProjectiles(room, roomId);
 
     (room.creeps || []).forEach(creep => {
       if (creep.hp <= 0) return;
@@ -284,7 +309,7 @@ function setupWebSocket(server, rooms) {
         if (creep.role === 'ranged') {
           spawnCreepProjectile(room, creep, target);
         } else if (target.id?.startsWith?.('cr_')) {
-          damageCreep(room, target, creep.damage, creep);
+          damageCreep(room, target, creep.damage, creep, null, roomId);
         } else {
           damageObjective(room, target, creep.damage);
         }
@@ -299,7 +324,7 @@ function setupWebSocket(server, rooms) {
         .sort((a, b) => distanceBetween(obj, a) - distanceBetween(obj, b))[0];
       if (!target) return;
       obj.attackAt = now + 1100;
-      damageCreep(room, target, obj.damage || 30, obj);
+      damageCreep(room, target, obj.damage || 30, obj, null, roomId);
       room.players.forEach(pid => sendTo(pid, {
         type: 'tower_shot',
         from: { x: obj.x + obj.w / 2, y: obj.y + obj.h * 0.35 },
@@ -624,7 +649,7 @@ function setupWebSocket(server, rooms) {
         const unitId = String(msg.unitId || '');
         const creep = (room.creeps || []).find(entry => entry.id === unitId);
         if (creep && creep.teamId !== attacker.teamId) {
-          damageCreep(room, creep, damage, attacker);
+          damageCreep(room, creep, damage, attacker, msg.hitDir || null, roomId);
           break;
         }
         const objective = (room.objectives || []).find(entry => entry.id === unitId);

@@ -40,6 +40,7 @@ let combatStatsRenderSignature = '';
 let chatAutoHideTimer = null;
 let assetLoadingStartedForRoomId = null;
 const mutedChatPlayerIds = new Set();
+const recentCreepDeathBursts = new Map();
 const RESPAWN_DELAY_MS = 10000;
 const CHARACTER_VISUAL_SCALE = 0.6;
 const MIN_CHARACTER_HP = 500;

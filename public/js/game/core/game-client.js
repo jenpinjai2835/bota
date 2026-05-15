@@ -35,6 +35,7 @@ function leaveGame() {
     chatAutoHideTimer = null;
   }
   mutedChatPlayerIds.clear();
+  recentCreepDeathBursts.clear();
   localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
   Object.keys(keys).forEach(key => { delete keys[key]; });
 
@@ -129,6 +130,7 @@ function startGameClient(state) {
   document.getElementById('controls-hint').classList.add('visible');
 
   projectiles = []; effects = []; damageNumbers = []; deathParts = []; bloodParticles = []; towerShots = []; creepProjectiles = [];
+  recentCreepDeathBursts.clear();
   creeps = state.creeps || [];
   creepProjectiles = state.creepProjectiles || [];
   objectives = state.objectives || [];

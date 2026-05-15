@@ -28,8 +28,8 @@ function syncWorldState(msg) {
   const incoming = msg.creeps || [];
   const incomingIds = new Set(incoming.map(creep => creep.id));
   creeps
-    .filter(creep => creep.hp > 0 && !incomingIds.has(creep.id))
-    .forEach(creep => spawnCreepDeathBurst(creep, creep.facing || (creep.teamId === 'sun' ? 1 : -1), 34));
+    .filter(creep => creep.hp > 0 && !incomingIds.has(creep.id) && !hasRecentCreepDeathBurst(creep.id))
+    .forEach(creep => spawnCreepDeathBurst(creep, creep.lastHitDir || creep.facing || (creep.teamId === 'sun' ? 1 : -1), creep.lastDamage || 34));
   creeps = incoming.map(creep => {
     const existing = creeps.find(entry => entry.id === creep.id);
     return {
@@ -44,6 +44,41 @@ function syncWorldState(msg) {
   objectives = (msg.objectives || []).map(obj => ({ ...objectives.find(entry => entry.id === obj.id), ...obj }));
   creepProjectiles = msg.creepProjectiles || [];
   gameWinner = msg.winner || gameWinner;
+}
+
+function rememberCreepDeathBurst(creepId) {
+  if (!creepId) return;
+  const now = Date.now();
+  recentCreepDeathBursts.set(creepId, now);
+  recentCreepDeathBursts.forEach((at, id) => {
+    if (now - at > 3500) recentCreepDeathBursts.delete(id);
+  });
+}
+
+function hasRecentCreepDeathBurst(creepId) {
+  if (!creepId) return false;
+  const at = recentCreepDeathBursts.get(creepId);
+  if (!at) return false;
+  if (Date.now() - at > 3500) {
+    recentCreepDeathBursts.delete(creepId);
+    return false;
+  }
+  return true;
+}
+
+function handleWorldUnitDeath(msg) {
+  if (!msg?.unit || msg.unit.type === 'ancient' || msg.unit.type === 'tower') return;
+  const existing = creeps.find(creep => creep.id === msg.unit.id);
+  const creep = {
+    ...existing,
+    ...msg.unit,
+    renderX: existing?.renderX ?? msg.unit.x,
+    renderY: existing?.renderY ?? msg.unit.y,
+  };
+  if (hasRecentCreepDeathBurst(creep.id)) return;
+  const hitDir = msg.hitDir || creep.lastHitDir || creep.facing || (creep.teamId === 'sun' ? 1 : -1);
+  rememberCreepDeathBurst(creep.id);
+  spawnCreepDeathBurst(creep, hitDir, msg.damage || creep.lastDamage || 34);
 }
 
 function getUnitCenter(unit) {
