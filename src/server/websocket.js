@@ -15,9 +15,9 @@ function setupWebSocket(server, rooms) {
   const CREEP_WAVE_MS = 30000;
   const CREEP_LIMIT_PER_TEAM = 16;
   const CREEP_LANE_OFFSETS = [-42, 0, 42, 0];
-  const CREEP_FORMATION_X = { melee: [72, 42, 12], ranged: [-72] };
-  const CREEP_HERO_AGGRO_MS = 5200;
+  const CREEP_FORMATION_X = { melee: [72, 42, 12], ranged: [-24] };
   const CREEP_HERO_AGGRO_RANGE = 360;
+  const CREEP_HERO_DISENGAGE_RANGE = 540;
   const CREEP_ENEMY_CREEP_DETECT_RANGE = { melee: 118, ranged: 155 };
   const CREEP_ATTACK_ANIMATION_MS = 600;
   const CREEP_ATTACK_WINDUP_RATIO = { melee: 0.46, ranged: 0.58 };
@@ -189,32 +189,46 @@ function setupWebSocket(server, rooms) {
   function rememberCreepHeroAggro(room, allyTeamId, targetId) {
     if (!room || !allyTeamId || !targetId) return;
     room.creepAggro = room.creepAggro || {};
-    room.creepAggro[allyTeamId] = { targetId, until: Date.now() + CREEP_HERO_AGGRO_MS };
+    room.creepAggro[allyTeamId] = { targetId, startedAt: Date.now() };
   }
 
   function getCreepAggroHero(room, creep) {
     const aggro = room.creepAggro?.[creep.teamId];
-    if (!aggro || aggro.until <= Date.now()) return null;
+    if (!aggro) return null;
     const hero = room.playerData?.[aggro.targetId];
-    if (!hero || hero.hp <= 0 || hero.teamId === creep.teamId) return null;
-    if (distanceBetween(creep, hero) > CREEP_HERO_AGGRO_RANGE) return null;
+    if (!hero || hero.hp <= 0 || hero.teamId === creep.teamId) {
+      delete room.creepAggro[creep.teamId];
+      return null;
+    }
+    if (distanceBetween(creep, hero) > CREEP_HERO_DISENGAGE_RANGE) {
+      const anyChaserInRange = (room.creeps || []).some(ally =>
+        ally.hp > 0 &&
+        ally.teamId === creep.teamId &&
+        distanceBetween(ally, hero) <= CREEP_HERO_DISENGAGE_RANGE
+      );
+      if (!anyChaserInRange) delete room.creepAggro[creep.teamId];
+      return null;
+    }
     return hero;
   }
 
   function findNearestEnemyUnit(room, creep) {
+    const aggroHero = getCreepAggroHero(room, creep);
+    if (aggroHero) return aggroHero;
+
     const enemyCreeps = (room.creeps || []).filter(other => other.hp > 0 && other.teamId !== creep.teamId);
     const nearestCreep = enemyCreeps
       .map(unit => ({ unit, distance: distanceBetween(creep, unit) }))
       .sort((a, b) => a.distance - b.distance)[0] || null;
     const creepDetectRange = creep.enemyCreepDetectRange || CREEP_ENEMY_CREEP_DETECT_RANGE[creep.role] || 118;
     if (nearestCreep && nearestCreep.distance <= creepDetectRange) return nearestCreep.unit;
-    const aggroHero = getCreepAggroHero(room, creep);
-    if (aggroHero) return aggroHero;
     const enemyHeroes = getLivingEnemyHeroes(room, creep, CREEP_HERO_AGGRO_RANGE);
     if (enemyHeroes.length) {
-      return enemyHeroes
+      const hero = enemyHeroes
         .map(unit => ({ unit, distance: distanceBetween(creep, unit) }))
         .sort((a, b) => a.distance - b.distance)[0]?.unit || null;
+      if (hero) rememberCreepHeroAggro(room, creep.teamId, hero.id);
+      return hero;
     }
     if (nearestCreep) return nearestCreep.unit;
     const enemyObjectives = getLivingObjectives(room).filter(obj => obj.teamId !== creep.teamId);
@@ -741,6 +755,9 @@ function setupWebSocket(server, rooms) {
         const { x, y, hp, vx, vy, onGround, facing, state: pstate, action } = msg;
         Object.assign(player, { x, y, vx, vy, onGround, facing, state: pstate });
         if (hp !== undefined) player.hp = hp;
+        if (player.hp <= 0 && player.teamId && room.creepAggro?.[player.teamId]?.targetId === player.id) {
+          delete room.creepAggro[player.teamId];
+        }
 
         broadcast(roomId, {
           type: 'player_state',
@@ -787,6 +804,7 @@ function setupWebSocket(server, rooms) {
           x: msg.x,
           y: msg.y,
           facing: msg.facing,
+          windup: msg.windup,
         }, playerId);
         break;
       }
