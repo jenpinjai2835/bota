@@ -19,6 +19,9 @@ const monsterVectorImages = {};
 const monsterVectorData = {};
 const monsterVectorLoadStarted = {};
 const monsterVectorBoundsCache = {};
+const MONSTER_ATTACK_STABLE_PARTS = {
+  monster_10: /arm|leg/i,
+};
 
 function preloadMonsterAssets() {
   if (typeof Image === 'undefined') return;
@@ -587,11 +590,12 @@ function stabilizeMonsterAttackObjects(type, objects) {
   const data = monsterVectorData[type];
   const idle = data?.animations?.Idle;
   if (!idle) return objects;
+  const stablePattern = MONSTER_ATTACK_STABLE_PARTS[type] || /leg/i;
   const stableObjects = getMonsterVectorObjects(type, idle, 0);
   const stableByPart = new Map(stableObjects.map(item => [item.fileInfo.name, item]));
   return objects.map(item => {
     const partName = `${item.timelineName} ${item.fileInfo.name}`;
-    if (!/leg/i.test(partName)) return item;
+    if (!stablePattern.test(partName)) return item;
     const stable = stableByPart.get(item.fileInfo.name);
     return stable ? { ...item, transform: stable.transform } : item;
   });
