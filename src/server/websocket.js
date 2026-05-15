@@ -71,6 +71,14 @@ function setupWebSocket(server, rooms) {
     };
   }
 
+  function unitFootRadiusX(unit) {
+    return Number(unit?.footRadiusX) || Math.max(14, unitWidth(unit) * 0.43);
+  }
+
+  function unitFootRadiusY(unit) {
+    return Number(unit?.footRadiusY) || Math.max(9, unitHeight(unit) * 0.18);
+  }
+
   function distanceBetween(a, b) {
     const af = unitFoot(a);
     const bf = unitFoot(b);
@@ -81,6 +89,21 @@ function setupWebSocket(server, rooms) {
     const dx = ax - bx;
     const dy = (ay - by) * 1.45;
     return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function isCreepTargetInRange(creep, target) {
+    if (!creep || !target) return false;
+    if (creep.role === 'ranged') {
+      return distanceBetween(creep, target) <= (creep.range || 210);
+    }
+    const creepFoot = unitFoot(creep);
+    const targetFoot = unitFoot(target);
+    const dx = Math.abs(targetFoot.x - creepFoot.x);
+    const depth = Math.abs((targetFoot.y - creepFoot.y) * 1.45);
+    const range = creep.range || 38;
+    const reachX = range + unitFootRadiusX(target) * 0.75 + unitFootRadiusX(creep) * 0.35;
+    const reachZ = unitFootRadiusY(creep) + unitFootRadiusY(target) + Math.max(18, range * 0.9);
+    return dx <= reachX && depth <= reachZ;
   }
 
   function getDamageDirection(target, attacker = null, fallback = 1) {
@@ -260,8 +283,10 @@ function setupWebSocket(server, rooms) {
     const creep = getUnitById(room, attack.creepId);
     const target = getUnitById(room, attack.targetId);
     if (!creep || !target || creep.hp <= 0 || target.hp <= 0 || target.teamId === creep.teamId) return;
-    const rangeBuffer = creep.role === 'ranged' ? 36 : 18;
-    if (distanceBetween(creep, target) > (creep.range || 40) + rangeBuffer) return;
+    const targetStillInRange = creep.role === 'ranged'
+      ? distanceBetween(creep, target) <= (creep.range || 210) + 36
+      : isCreepTargetInRange(creep, target);
+    if (!targetStillInRange) return;
 
     if (creep.role === 'ranged') {
       spawnCreepProjectile(room, creep, target);
@@ -481,6 +506,44 @@ function setupWebSocket(server, rooms) {
     creep.state = 'idle';
   }
 
+  function isChaseTarget(room, target) {
+    return Boolean(target?.id?.startsWith?.('cr_') || room.playerData?.[target?.id]);
+  }
+
+  function moveCreepTowardTarget(room, creep, target, dir) {
+    if (!isChaseTarget(room, target)) {
+      moveCreepTowardLane(room, creep, dir);
+      return;
+    }
+
+    const speed = creep.speed || 1.8;
+    const creepFoot = unitFoot(creep);
+    const targetFoot = unitFoot(target);
+    const dx = targetFoot.x - creepFoot.x;
+    const desiredTopY = clampCreepY(targetFoot.y - unitHeight(creep), unitHeight(creep));
+    const depthDelta = desiredTopY - creep.y;
+    const holdX = creep.role === 'ranged' ? Math.max(42, (creep.range || 210) * 0.58) : Math.max(10, (creep.range || 38) * 0.45);
+    const stepX = Math.abs(dx) > holdX ? Math.sign(dx) * speed : 0;
+    const stepY = Math.sign(depthDelta) * Math.min(Math.abs(depthDelta), Math.max(1.5, speed * 0.95));
+    const candidates = [
+      [creep.x + stepX, clampCreepY(creep.y + stepY, creep.h)],
+      [creep.x, clampCreepY(creep.y + stepY, creep.h)],
+      [creep.x + stepX, creep.y],
+      [creep.x + (dir || TEAM_DIR[creep.teamId] || 1) * speed * 0.45, clampCreepY(creep.y + Math.sign(depthDelta || 1) * speed * 1.35, creep.h)],
+      [creep.x + (dir || TEAM_DIR[creep.teamId] || 1) * speed * 0.45, clampCreepY(creep.y - Math.sign(depthDelta || 1) * speed * 1.35, creep.h)],
+    ];
+
+    for (const [nextX, nextY] of candidates) {
+      if (nextX === creep.x && nextY === creep.y) continue;
+      if (!isCreepMoveBlocked(room, creep, nextX, nextY)) {
+        creep.x = nextX;
+        creep.y = nextY;
+        return;
+      }
+    }
+    creep.state = 'idle';
+  }
+
   function tickWorld(roomId) {
     const room = rooms.get(roomId);
     if (!room || room.status !== 'playing') return stopWorldLoop(roomId);
@@ -502,12 +565,12 @@ function setupWebSocket(server, rooms) {
       if (!target) return;
       const creepFoot = unitFoot(creep);
       const targetFoot = unitFoot(target);
-      const dir = Math.sign(targetFoot.x - creepFoot.x) || TEAM_DIR[creep.teamId];
+      const targetDx = targetFoot.x - creepFoot.x;
+      const dir = Math.abs(targetDx) > 6 ? Math.sign(targetDx) : creep.facing || TEAM_DIR[creep.teamId];
       creep.facing = dir;
-      const dist = distanceBetween(creep, target);
-      if (dist > creep.range) {
+      if (!isCreepTargetInRange(creep, target)) {
         creep.state = 'walk';
-        moveCreepTowardLane(room, creep, dir);
+        moveCreepTowardTarget(room, creep, target, dir);
       } else if ((creep.attackAt || 0) <= now) {
         creep.state = 'attack';
         creep.attackAt = now + (creep.attackCooldown || 900);

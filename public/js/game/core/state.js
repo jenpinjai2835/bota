@@ -349,7 +349,7 @@ function isUnitInAttackRange(attacker, target, range, requireFront = true) {
   const dx = tf.x - af.x;
   if (requireFront && (attacker.facing > 0 ? dx < -getUnitFootRadiusX(target) * 0.35 : dx > getUnitFootRadiusX(target) * 0.35)) return false;
   const reach = range + getUnitFootRadiusX(target) * 0.65;
-  const depthReach = Math.max(getUnitFootRadiusY(attacker), getUnitFootRadiusY(target)) + Math.max(12, range * 0.28);
+  const depthReach = getUnitFootRadiusY(attacker) + getUnitFootRadiusY(target) + Math.max(18, range * 0.9);
   return Math.abs((tf.y - af.y) * DEPTH_DISTANCE_SCALE) <= depthReach && Math.abs(dx) <= reach;
 }
 
