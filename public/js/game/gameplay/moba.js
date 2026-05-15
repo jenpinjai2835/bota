@@ -222,11 +222,26 @@ function updateTowerShots() {
     shot.renderY = (shot.renderY ?? shot.y) + ((shot.targetY ?? shot.y) - (shot.renderY ?? shot.y)) * 0.62;
   });
   towerShots = towerShots.filter(shot => {
+    const targetPoint = getTowerShotTargetPoint(shot);
+    if (targetPoint) shot.to = targetPoint;
     shot.life--;
     if (shot.life > 0) return true;
     spawnTowerShotImpact(shot);
     return false;
   });
+}
+
+function getTowerShotTargetPoint(shot) {
+  if (!shot?.targetId) return null;
+  let target = null;
+  if (myPlayer?.id === shot.targetId) target = myPlayer;
+  if (!target && remotePlayers[shot.targetId]) target = remotePlayers[shot.targetId];
+  if (!target) target = creeps.find(unit => unit.id === shot.targetId) || objectives.find(unit => unit.id === shot.targetId);
+  if (!target || target.hp <= 0) return null;
+  return {
+    x: (target.renderX ?? target.x) + getUnitWidth(target) / 2,
+    y: (target.renderY ?? target.y) + getUnitHeight(target) * 0.45,
+  };
 }
 
 function spawnTowerShotImpact(shot) {

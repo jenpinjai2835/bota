@@ -543,12 +543,6 @@ function setupWebSocket(server, rooms) {
 
   function queueTowerShot(room, roomId, tower, target, targetType, now) {
     room.pendingTowerShots = room.pendingTowerShots || [];
-    const impact = {
-      x: target.x + unitWidth(target) / 2,
-      y: target.y + unitHeight(target) * 0.45,
-      radiusX: unitFootRadiusX(target) + (targetType === 'hero' ? 12 : 8),
-      radiusY: unitFootRadiusY(target) + (targetType === 'hero' ? 18 : 10),
-    };
     const shot = {
       id: `ts_${tower.id}_${now}_${Math.random().toString(36).slice(2, 5)}`,
       towerId: tower.id,
@@ -556,36 +550,25 @@ function setupWebSocket(server, rooms) {
       targetType,
       teamId: tower.teamId,
       damage: tower.damage || 30,
-      impact,
       hitAt: now + TOWER_SHOT_TRAVEL_MS,
     };
     room.pendingTowerShots.push(shot);
     room.players.forEach(pid => sendTo(pid, {
       type: 'tower_shot',
       id: shot.id,
+      targetId: shot.targetId,
+      targetType: shot.targetType,
       from: { x: tower.x + unitWidth(tower) / 2, y: tower.y + unitHeight(tower) * 0.18 },
-      to: { x: impact.x, y: impact.y },
+      to: { x: target.x + unitWidth(target) / 2, y: target.y + unitHeight(target) * 0.45 },
       teamId: tower.teamId,
       travelMs: TOWER_SHOT_TRAVEL_MS,
     }));
-  }
-
-  function didTowerShotHitTarget(target, shot) {
-    if (!target || !shot?.impact) return false;
-    const current = {
-      x: target.x + unitWidth(target) / 2,
-      y: target.y + unitHeight(target) * 0.45,
-    };
-    const dx = Math.abs(current.x - shot.impact.x);
-    const dy = Math.abs((current.y - shot.impact.y) * 1.45);
-    return dx <= (shot.impact.radiusX || 24) && dy <= (shot.impact.radiusY || 24);
   }
 
   function resolveTowerShot(room, roomId, shot) {
     const tower = getUnitById(room, shot.towerId);
     const target = getUnitById(room, shot.targetId);
     if (!tower || tower.hp <= 0 || !target || target.hp <= 0 || target.teamId === shot.teamId) return;
-    if (!didTowerShotHitTarget(target, shot)) return;
     if (shot.targetType === 'hero') {
       damagePlayer(room, roomId, target, shot.damage, tower.id, 'tower_shot', getDamageDirection(target, tower, TEAM_DIR[tower.teamId] || 1));
     } else {
