@@ -18,6 +18,9 @@ function setupWebSocket(server, rooms) {
   const CREEP_FORMATION_X = { melee: [72, 42, 12], ranged: [-72] };
   const CREEP_HERO_AGGRO_MS = 5200;
   const CREEP_HERO_AGGRO_RANGE = 360;
+  const CREEP_ENEMY_CREEP_DETECT_RANGE = { melee: 118, ranged: 155 };
+  const CREEP_ATTACK_ANIMATION_MS = 600;
+  const CREEP_ATTACK_WINDUP_RATIO = { melee: 0.46, ranged: 0.58 };
   const CREEP_TEAM_TYPES = {
     sun: { melee: ['monster_6', 'monster_7'], ranged: ['monster_9'] },
     moon: { melee: ['monster_8'], ranged: ['monster_10'] },
@@ -142,6 +145,7 @@ function setupWebSocket(server, rooms) {
     const y = clampCreepY(spawn.y + laneOffset, h);
     const attackSpeed = isRanged ? 0.68 : 1.08;
     const projectileSpeed = isRanged ? 13.5 : 0;
+    const attackWindup = Math.round(CREEP_ATTACK_ANIMATION_MS * (isRanged ? CREEP_ATTACK_WINDUP_RATIO.ranged : CREEP_ATTACK_WINDUP_RATIO.melee));
     room.creeps.push({
       id: `cr_${teamId}_${Date.now()}_${room.creepSeq}`,
       type,
@@ -160,8 +164,12 @@ function setupWebSocket(server, rooms) {
       range: isRanged ? 210 : 38,
       attackSpeed,
       attackCooldown: Math.round(1000 / attackSpeed),
+      attackWindup,
+      enemyCreepDetectRange: CREEP_ENEMY_CREEP_DETECT_RANGE[role] || CREEP_ENEMY_CREEP_DETECT_RANGE.melee,
       projectileSpeed,
       attackAt: 0,
+      attackStartedAt: 0,
+      attackDamageAt: 0,
       state: 'walk',
       facing: TEAM_DIR[teamId],
     });
@@ -198,7 +206,8 @@ function setupWebSocket(server, rooms) {
     const nearestCreep = enemyCreeps
       .map(unit => ({ unit, distance: distanceBetween(creep, unit) }))
       .sort((a, b) => a.distance - b.distance)[0] || null;
-    if (nearestCreep && nearestCreep.distance <= Math.max(260, creep.range + 90)) return nearestCreep.unit;
+    const creepDetectRange = creep.enemyCreepDetectRange || CREEP_ENEMY_CREEP_DETECT_RANGE[creep.role] || 118;
+    if (nearestCreep && nearestCreep.distance <= creepDetectRange) return nearestCreep.unit;
     const aggroHero = getCreepAggroHero(room, creep);
     if (aggroHero) return aggroHero;
     const enemyHeroes = getLivingEnemyHeroes(room, creep, CREEP_HERO_AGGRO_RANGE);
@@ -212,6 +221,52 @@ function setupWebSocket(server, rooms) {
     return enemyObjectives
       .map(unit => ({ unit, distance: distanceBetween(creep, unit) }))
       .sort((a, b) => a.distance - b.distance)[0]?.unit || null;
+  }
+
+  function queueCreepAttack(room, creep, target, now) {
+    if (!room || !creep || !target) return null;
+    room.pendingCreepAttacks = room.pendingCreepAttacks || [];
+    const attack = {
+      id: `ca_${creep.id}_${now}`,
+      creepId: creep.id,
+      targetId: target.id,
+      damage: creep.damage,
+      role: creep.role,
+      hitAt: now + Math.max(80, creep.attackWindup || 240),
+    };
+    room.pendingCreepAttacks.push(attack);
+    creep.pendingAttackId = attack.id;
+    creep.attackStartedAt = now;
+    creep.attackDamageAt = attack.hitAt;
+    return attack;
+  }
+
+  function resolveCreepAttack(room, roomId, attack) {
+    const creep = getUnitById(room, attack.creepId);
+    const target = getUnitById(room, attack.targetId);
+    if (!creep || !target || creep.hp <= 0 || target.hp <= 0 || target.teamId === creep.teamId) return;
+    const rangeBuffer = creep.role === 'ranged' ? 36 : 18;
+    if (distanceBetween(creep, target) > (creep.range || 40) + rangeBuffer) return;
+
+    if (creep.role === 'ranged') {
+      spawnCreepProjectile(room, creep, target);
+    } else if (target.id?.startsWith?.('cr_')) {
+      damageCreep(room, target, attack.damage, creep, null, roomId);
+    } else if (room.playerData?.[target.id]) {
+      damagePlayer(room, roomId, target, attack.damage, creep.id, 'creep_melee', getDamageDirection(target, creep, creep.facing || 1));
+    } else {
+      damageObjective(room, target, attack.damage);
+    }
+  }
+
+  function updateCreepAttacks(room, roomId, now) {
+    room.pendingCreepAttacks = (room.pendingCreepAttacks || []).filter(attack => {
+      if (attack.hitAt > now) return true;
+      resolveCreepAttack(room, roomId, attack);
+      const creep = getUnitById(room, attack.creepId);
+      if (creep?.pendingAttackId === attack.id) creep.pendingAttackId = null;
+      return false;
+    });
   }
 
   function damageCreep(room, creep, amount, attacker = null, hitDir = null, roomId = null) {
@@ -423,6 +478,7 @@ function setupWebSocket(server, rooms) {
       room.nextCreepWaveAt = now + CREEP_WAVE_MS;
     }
 
+    updateCreepAttacks(room, roomId, now);
     updateCreepProjectiles(room, roomId);
 
     (room.creeps || []).forEach(creep => {
@@ -440,13 +496,7 @@ function setupWebSocket(server, rooms) {
       } else if ((creep.attackAt || 0) <= now) {
         creep.state = 'attack';
         creep.attackAt = now + (creep.attackCooldown || 900);
-        if (creep.role === 'ranged') {
-          spawnCreepProjectile(room, creep, target);
-        } else if (target.id?.startsWith?.('cr_')) {
-          damageCreep(room, target, creep.damage, creep, null, roomId);
-        } else {
-          damageObjective(room, target, creep.damage);
-        }
+        queueCreepAttack(room, creep, target, now);
       } else {
         creep.state = 'idle';
       }

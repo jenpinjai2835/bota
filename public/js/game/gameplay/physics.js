@@ -316,18 +316,15 @@ function trySkill(skillIndex) {
     myPlayer.vy = -4;
   }
 
-  // Spawn projectile or AOE
-  if (skill.type === 'projectile') {
-    spawnProjectile(myPlayer, skill);
-  } else if (skill.type === 'aoe') {
-    spawnAOE(myPlayer, skill);
-  } else {
-    // melee
-    doMeleeHit(myPlayer, skill);
-  }
-
-  send({ type: 'skill_cast', skillId: skill.id, x: myPlayer.x, y: myPlayer.y, facing: myPlayer.facing });
-  spawnEffect(myPlayer.x + myPlayer.width/2, myPlayer.y + myPlayer.height/2, skill.id, skill.color);
+  const windup = getSkillAttackWindup(skill, myPlayer);
+  send({ type: 'skill_cast', skillId: skill.id, x: myPlayer.x, y: myPlayer.y, facing: myPlayer.facing, windup });
+  spawnEffect(myPlayer.x + myPlayer.width/2, myPlayer.y + myPlayer.height/2, `${skill.id}-windup`, skill.color, 26);
+  setTimeout(() => {
+    executeSkillImpact(myPlayer, skill);
+    if (myPlayer && isAlive) {
+      spawnEffect(myPlayer.x + myPlayer.width/2, myPlayer.y + myPlayer.height/2, skill.id, skill.color);
+    }
+  }, windup);
 }
 
 function getMyState() {

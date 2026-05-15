@@ -20,8 +20,10 @@ const monsterVectorData = {};
 const monsterVectorLoadStarted = {};
 const monsterVectorBoundsCache = {};
 const MONSTER_ATTACK_STABLE_PARTS = {
+  monster_8: /.*/i,
   monster_10: /arm|leg/i,
 };
+const MONSTER_ATTACK_DRAW_MS = 620;
 
 function preloadMonsterAssets() {
   if (typeof Image === 'undefined') return;
@@ -300,19 +302,31 @@ function drawCreep(ctx, creep, sx, sy) {
 }
 
 function getCreepVisualAction(creep) {
-  const cooldown = Math.max(180, creep.attackCooldown || 900);
+  const attackDuration = getCreepAttackVisualDuration(creep);
   const attackStartedAt = creep.attackVisualStartedAt || 0;
-  if (attackStartedAt && Date.now() - attackStartedAt < cooldown) return 'attack';
+  if (attackStartedAt && Date.now() - attackStartedAt < attackDuration) return 'attack';
   if (creep.state === 'idle') return 'idle';
   return creep.state === 'attack' ? 'attack' : 'walk';
 }
 
+function getCreepAttackVisualDuration(creep) {
+  const windup = Math.max(80, creep.attackWindup || 240);
+  const cooldown = Math.max(180, creep.attackCooldown || 900);
+  return Math.min(cooldown, Math.max(MONSTER_ATTACK_DRAW_MS, windup + 170));
+}
+
+function getCreepAttackVisualProgress(creep) {
+  const attackDuration = getCreepAttackVisualDuration(creep);
+  const startedAt = creep.attackVisualStartedAt || Math.max(0, (creep.attackAt || 0) - attackDuration);
+  return Math.min(0.999, Math.max(0, Date.now() - startedAt) / attackDuration);
+}
+
 function getMonsterFrameIndex(creep, action, frameCount, meta) {
   if (action === 'attack') {
-    const cooldown = Math.max(180, creep.attackCooldown || 900);
-    const startedAt = creep.attackVisualStartedAt || Math.max(0, (creep.attackAt || 0) - cooldown);
+    const attackDuration = getCreepAttackVisualDuration(creep);
+    const startedAt = creep.attackVisualStartedAt || Math.max(0, (creep.attackAt || 0) - attackDuration);
     const elapsed = Math.max(0, Date.now() - startedAt);
-    const progress = Math.min(0.999, elapsed / cooldown);
+    const progress = Math.min(0.999, elapsed / attackDuration);
     return Math.floor(progress * frameCount) % frameCount;
   }
   return Math.floor(Date.now() / (1000 / (meta?.fps || 12))) % frameCount;
@@ -419,10 +433,10 @@ function getMonsterVectorAnimationName(creep, action) {
 function getMonsterVectorAnimationTime(animation, creep, action) {
   if (!animation?.length) return 0;
   if (action === 'attack') {
-    const cooldown = Math.max(180, creep.attackCooldown || 900);
-    const startedAt = creep.attackVisualStartedAt || Math.max(0, (creep.attackAt || 0) - cooldown);
+    const attackDuration = getCreepAttackVisualDuration(creep);
+    const startedAt = creep.attackVisualStartedAt || Math.max(0, (creep.attackAt || 0) - attackDuration);
     const elapsed = Math.max(0, Date.now() - startedAt);
-    const progress = Math.min(0.999, elapsed / cooldown);
+    const progress = Math.min(0.999, elapsed / attackDuration);
     return progress * animation.length;
   }
   if (action === 'walk') {
@@ -623,6 +637,10 @@ function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action, groundOffset =
     const phase = getCreepAnimationPhase(creep);
     ctx.translate(0, Math.sin(phase * 2) * 1.8);
     ctx.rotate(Math.sin(phase) * 0.035);
+  } else if (action === 'attack' && type === 'monster_8') {
+    const drive = Math.sin(getCreepAttackVisualProgress(creep) * Math.PI);
+    ctx.translate(-drive * 5, -drive * 1.2);
+    ctx.rotate(-drive * 0.035);
   }
   ctx.translate(offsetX, offsetY);
   ctx.scale(scale, scale);

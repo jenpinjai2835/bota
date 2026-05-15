@@ -69,10 +69,10 @@ function applyCharacterIdentityDefaults() {
   const dragonfist = CHARACTERS.find(ch => ch.id === 'dragonfist');
   if (dragonfist) {
     const balance = {
-      punch: { name: 'Dragon Strike', damage: 20, cooldown: 760, manaCost: 0, basicAttack: true },
-      flame: { damage: 28, cooldown: 3200, manaCost: 32 },
-      rush: { damage: 36, cooldown: 5200, manaCost: 42 },
-      roar: { damage: 24, cooldown: 7800, manaCost: 58 },
+      punch: { name: 'Dragon Strike', damage: 20, cooldown: 760, manaCost: 0, basicAttack: true, attackWindup: 170 },
+      flame: { damage: 28, cooldown: 3200, manaCost: 32, attackWindup: 320 },
+      rush: { damage: 36, cooldown: 5200, manaCost: 42, attackWindup: 210 },
+      roar: { damage: 24, cooldown: 7800, manaCost: 58, attackWindup: 500 },
     };
     dragonfist.skills.forEach(skill => Object.assign(skill, balance[skill.id] || {}));
   }

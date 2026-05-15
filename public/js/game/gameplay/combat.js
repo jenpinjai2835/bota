@@ -69,6 +69,26 @@ function spawnAOE(owner, skill) {
   }
 }
 
+function getSkillAttackWindup(skill, player = null) {
+  if (!skill) return 0;
+  if (Number.isFinite(skill.attackWindup)) return Math.max(0, Math.round(skill.attackWindup));
+  const duration = getSkillActionDuration(skill.id, player);
+  const ratio = skill.type === 'projectile' ? 0.42 : skill.type === 'aoe' ? 0.55 : skill.type === 'dash' ? 0.32 : 0.46;
+  return Math.max(80, Math.round(duration * ratio));
+}
+
+function executeSkillImpact(owner, skill) {
+  if (!owner || !skill || owner.hp <= 0) return;
+  if (owner === myPlayer && !isAlive) return;
+  if (skill.type === 'projectile') {
+    spawnProjectile(owner, skill);
+  } else if (skill.type === 'aoe') {
+    spawnAOE(owner, skill);
+  } else {
+    doMeleeHit(owner, skill);
+  }
+}
+
 function spawnEffect(x, y, id, color, radius = 40, options = {}) {
   const maxLife = id === 'level-up' ? 72 : 30;
   effects.push({ x, y, color: color || '#fff', radius, maxRadius: radius, life: maxLife, maxLife, id, ...options });
@@ -227,18 +247,22 @@ function handleRemoteSkill(msg) {
   const skill = ch?.skills?.find(s => s.id === msg.skillId);
   if (!skill) return;
   setPlayerAction(p, msg.skillId);
-  spawnEffect(msg.x + 18, msg.y + 27, msg.skillId, skill.color, 50);
+  const windup = Number.isFinite(msg.windup) ? msg.windup : getSkillAttackWindup(skill, p);
+  spawnEffect(msg.x + 18, msg.y + 27, `${msg.skillId}-windup`, skill.color, 32);
 
   if (skill.type === 'projectile') {
-    projectiles.push({
-      x: msg.x + 18, y: msg.y + 27,
-      vx: msg.facing * 8, vy: 0,
-      damage: skill.damage, skillId: skill.id,
-      color: skill.color, radius: 8,
-      owner: msg.playerId, life: 60,
-    });
+    setTimeout(() => {
+      projectiles.push({
+        x: msg.x + 18, y: msg.y + 27,
+        vx: msg.facing * 8, vy: 0,
+        damage: skill.damage, skillId: skill.id,
+        color: skill.color, radius: 8,
+        owner: msg.playerId, life: 60,
+      });
+    }, windup);
   } else if (skill.type === 'aoe' || skill.type === 'melee' || skill.type === 'dash') {
     // damage handled server-side
+    setTimeout(() => spawnEffect(msg.x + 18, msg.y + 27, msg.skillId, skill.color, 42), windup);
   }
 }
 
