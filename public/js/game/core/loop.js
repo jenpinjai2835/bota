@@ -12,6 +12,7 @@ function gameLoop(ts = 0) {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
+  rememberMyPlayerBodyPosition();
   handleInput();
   if (myPlayer) updatePlayer(myPlayer, dt);
   Object.values(remotePlayers).forEach(p => updatePlayer(p, dt));

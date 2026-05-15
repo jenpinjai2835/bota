@@ -8,6 +8,7 @@ const CAM = { x: 0, y: 0 };
 const VIEW_W = 840;
 const WORLD_W = 2520;
 const WORLD_H = 600;
+let previousMyPlayerBodyPosition = null;
 
 function getPlatforms() { return currentStage?.platforms || []; }
 function getStageWidth() { return WORLD_W; }
@@ -78,6 +79,16 @@ function updatePlayer(p, dt) {
       onMyDeath();
     }
   }
+}
+
+function rememberMyPlayerBodyPosition() {
+  if (!myPlayer) return;
+  previousMyPlayerBodyPosition = {
+    x: myPlayer.x,
+    y: myPlayer.y,
+    vx: myPlayer.vx || 0,
+    vy: myPlayer.vy || 0,
+  };
 }
 
 function updateDeadPlayer(p, dt) {
@@ -233,13 +244,14 @@ function resolvePlayerWorldBodyCollisions() {
     const overlapY = radiusY - Math.abs(dy);
     if (overlapX <= 0 || overlapY <= 0) return;
 
-    if (overlapY < overlapX * 0.85) {
-      pushBlockingPlayer(myPlayer, 0, (dy > 0 ? -1 : 1) * (overlapY + 0.5));
-      clampToBattlefieldDepth(myPlayer);
-    } else {
-      pushBlockingPlayer(myPlayer, (dx > 0 ? -1 : 1) * (overlapX + 0.5), 0);
-      myPlayer.x = Math.max(0, Math.min(getStageWidth() - myPlayer.width, myPlayer.x));
+    if (previousMyPlayerBodyPosition) {
+      myPlayer.x = previousMyPlayerBodyPosition.x;
+      myPlayer.y = previousMyPlayerBodyPosition.y;
     }
+    myPlayer.vx = 0;
+    if (overlapY < overlapX * 0.85) myPlayer.vy = Math.min(0, myPlayer.vy || 0);
+    clampToBattlefieldDepth(myPlayer);
+    myPlayer.x = Math.max(0, Math.min(getStageWidth() - myPlayer.width, myPlayer.x));
   });
 }
 
