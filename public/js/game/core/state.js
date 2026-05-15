@@ -61,6 +61,11 @@ const DEATH_BODY_FADE_START_MS = 3800;
 const DEATH_BODY_FADE_DURATION_MS = 1200;
 const DEATH_PART_LIFE = 300;
 const spriteImages = {};
+const objectiveImages = {};
+const OBJECTIVE_TEXTURE_URLS = {
+  sunTower: '/assets/objectives/tower-sun-blue.png',
+  moonTower: '/assets/objectives/tower-moon-purple.png',
+};
 const monsterImages = {};
 const warriorVectorOverlayImages = {};
 const WARRIOR_VECTOR_OVERLAY_BASE = '/assets/sprites/warrior-vector-parts/right-side/';
@@ -138,6 +143,12 @@ function preloadSpriteAssets() {
     img.src = `${WARRIOR_VECTOR_OVERLAY_BASE}${file}`;
     warriorVectorOverlayImages[file] = img;
   });
+  Object.entries(OBJECTIVE_TEXTURE_URLS).forEach(([key, src]) => {
+    if (objectiveImages[key]) return;
+    const img = new Image();
+    img.src = src;
+    objectiveImages[key] = img;
+  });
   if (!warriorVectorAnimationsLoadStarted && typeof fetch === 'function') {
     warriorVectorAnimationsLoadStarted = true;
     fetch(`${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`)
@@ -173,6 +184,7 @@ function collectInitialClientAssetUrls() {
     'clothes/Hat.png',
   ].forEach(file => urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}${file}`));
   urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`);
+  Object.values(OBJECTIVE_TEXTURE_URLS).forEach(src => urls.add(src));
   return Array.from(urls);
 }
 
@@ -186,6 +198,7 @@ function collectMatchAssetUrls() {
   });
   WARRIOR_VECTOR_OVERLAY_FILES.forEach(file => urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}${file}`));
   urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`);
+  Object.values(OBJECTIVE_TEXTURE_URLS).forEach(src => urls.add(src));
 
   const monsterTypes = typeof MONSTER_TYPES !== 'undefined' ? MONSTER_TYPES : [];
   const monsterActions = typeof MONSTER_ACTIONS !== 'undefined' ? MONSTER_ACTIONS : {};

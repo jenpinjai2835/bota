@@ -268,8 +268,26 @@ function drawObjective(ctx, obj, sx, sy) {
   const y = obj.y * sy;
   const w = obj.w * sx;
   const h = obj.h * sy;
-  const teamColor = obj.teamId === 'sun' ? '#E44747' : '#3D8BFF';
+  const isSun = obj.teamId === 'sun';
+  const teamColor = isSun ? '#23B8FF' : '#9D55FF';
+  const towerTexture = obj.type === 'tower'
+    ? objectiveImages[isSun ? 'sunTower' : 'moonTower']
+    : null;
   ctx.save();
+  if (towerTexture?.complete && towerTexture.naturalWidth) {
+    const cx = x + w / 2;
+    const footY = y + h;
+    const scale = Math.min(sx, sy);
+    const drawH = Math.max(h * 1.72, 168 * scale);
+    const drawW = drawH * (towerTexture.naturalWidth / towerTexture.naturalHeight);
+    ctx.shadowColor = teamColor;
+    ctx.shadowBlur = 18 * scale;
+    ctx.drawImage(towerTexture, cx - drawW / 2, footY - drawH + 7 * sy, drawW, drawH);
+    ctx.shadowBlur = 0;
+    drawUnitHealthBar(ctx, obj, cx, footY - drawH + 2 * sy, Math.max(58, drawW * 0.42), sx, sy);
+    ctx.restore();
+    return;
+  }
   ctx.shadowColor = teamColor;
   ctx.shadowBlur = obj.type === 'ancient' ? 24 : 14;
   const body = ctx.createLinearGradient(x, y, x, y + h);
