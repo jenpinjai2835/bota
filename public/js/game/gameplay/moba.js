@@ -211,8 +211,15 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
   const frames = monsterImages[creep.type]?.idle || monsterImages[creep.type]?.walk || [];
   const img = frames.find(frame => frame?.complete && frame.naturalWidth);
   if (!img) return;
-  const cx = (creep.renderX ?? creep.x) + (creep.w || 42) / 2;
-  const cy = (creep.renderY ?? creep.y) + (creep.h || 42) * 0.52;
+  const renderCreep = {
+    ...creep,
+    x: creep.renderX ?? creep.x,
+    y: creep.renderY ?? creep.y,
+  };
+  const foot = getUnitFoot(renderCreep);
+  const groundY = foot.y;
+  const cx = foot.x;
+  const cy = groundY - (creep.h || 42) * 0.48;
   const force = 2.1 + Math.min(5, Math.max(0, damage) * 0.035);
   for (let i = 0; i < 8; i++) {
     const spread = (i / 7 - 0.5) * 2;
@@ -225,13 +232,14 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
       vy: -3.4 - Math.random() * 4.4,
       w: size,
       h: size,
+      groundY,
       angle: (Math.random() - 0.5) * 1.6,
       spin: (Math.random() - 0.5 + dir * 0.3) * 0.18,
       life: Math.round(DEATH_PART_LIFE * 0.72),
       maxLife: Math.round(DEATH_PART_LIFE * 0.72),
     });
   }
-  spawnBloodBurst(cx, cy, dir, 16);
+  spawnBloodBurst(cx, cy, dir, 16, groundY);
 }
 
 function drawObjective(ctx, obj, sx, sy) {

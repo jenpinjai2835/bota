@@ -102,7 +102,7 @@ function syncEffectFollowTarget(effect) {
   effect.y = target.y + target.height * (effect.followYOffsetRatio ?? 0.35);
 }
 
-function spawnBloodBurst(x, y, dir = 1, amount = 14) {
+function spawnBloodBurst(x, y, dir = 1, amount = 14, groundY = null) {
   for (let i = 0; i < amount; i++) {
     const speed = 1.5 + Math.random() * 4.2;
     bloodParticles.push({
@@ -111,6 +111,7 @@ function spawnBloodBurst(x, y, dir = 1, amount = 14) {
       vx: dir * speed + (Math.random() - 0.5) * 1.2,
       vy: -1.9 - Math.random() * 3.2,
       size: 2.2 + Math.random() * 4.4,
+      groundY,
       life: 34 + Math.floor(Math.random() * 18),
       maxLife: 52,
     });
@@ -133,8 +134,10 @@ function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
     'clothes/Right_Shoes.png',
     'clothes/Sword.png',
   ];
-  const cx = target.x + target.width / 2;
-  const cy = target.y + target.height * 0.42;
+  const foot = getUnitFoot(target);
+  const groundY = foot.y;
+  const cx = foot.x;
+  const cy = groundY - target.height * 0.58;
   const force = 2.6 + Math.min(8, Math.max(0, damage) * 0.018);
   files.forEach((file, i) => {
     const img = warriorVectorOverlayImages[file];
@@ -149,6 +152,7 @@ function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
       vy: -4.8 - Math.random() * (5 + Math.min(4, damage * 0.01)),
       w: size,
       h: size * (img.naturalHeight / img.naturalWidth),
+      groundY,
       angle: (Math.random() - 0.5) * 1.4,
       spin: (Math.random() - 0.5 + dir * 0.35) * (0.12 + Math.min(0.26, damage * 0.002)),
       life: DEATH_PART_LIFE,
@@ -199,7 +203,8 @@ function startDeathMotion(target, dir = 1, damage = 0, skillId = null) {
   if (!target.bodyShattered) {
     target.bodyShattered = true;
     spawnDeathPartsBurst(target, dir, damage);
-    spawnBloodBurst(target.x + target.width / 2, target.y + target.height * 0.42, dir, 30);
+    const foot = getUnitFoot(target);
+    spawnBloodBurst(foot.x, foot.y - target.height * 0.58, dir, 30, foot.y);
   }
 }
 
@@ -279,7 +284,8 @@ function onMyDeath(hitDir = 1, damage = 0, skillId = null) {
   isAlive = false;
   if (myPlayer) {
     startDeathMotion(myPlayer, hitDir, damage, skillId);
-    spawnBloodBurst(myPlayer.x + myPlayer.width / 2, myPlayer.y + myPlayer.height * 0.42, hitDir, 20);
+    const foot = getUnitFoot(myPlayer);
+    spawnBloodBurst(foot.x, foot.y - myPlayer.height * 0.58, hitDir, 20, foot.y);
   }
   const overlay = document.getElementById('death-overlay');
   overlay.classList.add('visible');
@@ -365,6 +371,11 @@ function updateProjectiles() {
     b.x += b.vx;
     b.y += b.vy;
     b.vy += 0.22;
+    if (Number.isFinite(b.groundY) && b.y + b.size >= b.groundY) {
+      b.y = b.groundY - b.size;
+      b.vy = -Math.abs(b.vy) * 0.18;
+      b.vx *= 0.72;
+    }
     b.vx *= 0.94;
     b.life--;
     return b.life > 0;
@@ -376,20 +387,30 @@ function updateProjectiles() {
     part.angle += part.spin;
 
     let bounced = false;
-    getPlatforms().forEach(plat => {
-      if (
-        part.x > plat.x &&
-        part.x < plat.x + plat.w &&
-        part.y + part.h * 0.5 > plat.y &&
-        part.y - part.h * 0.5 < plat.y + plat.h
-      ) {
-        part.y = plat.y - part.h * 0.5;
-        part.vy = -Math.abs(part.vy) * 0.42;
-        part.vx *= 0.72;
-        part.spin *= -0.62;
+    if (Number.isFinite(part.groundY)) {
+      if (part.y + part.h * 0.5 >= part.groundY) {
+        part.y = part.groundY - part.h * 0.5;
+        part.vy = Math.abs(part.vy) > 1.2 ? -Math.abs(part.vy) * 0.34 : 0;
+        part.vx *= 0.74;
+        part.spin *= -0.56;
         bounced = true;
       }
-    });
+    } else {
+      getPlatforms().forEach(plat => {
+        if (
+          part.x > plat.x &&
+          part.x < plat.x + plat.w &&
+          part.y + part.h * 0.5 > plat.y &&
+          part.y - part.h * 0.5 < plat.y + plat.h
+        ) {
+          part.y = plat.y - part.h * 0.5;
+          part.vy = -Math.abs(part.vy) * 0.42;
+          part.vx *= 0.72;
+          part.spin *= -0.62;
+          bounced = true;
+        }
+      });
+    }
     if (!bounced && (part.x < 0 || part.x > getStageWidth())) {
       part.x = Math.max(0, Math.min(getStageWidth(), part.x));
       part.vx *= -0.5;
