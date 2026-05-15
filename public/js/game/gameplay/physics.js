@@ -226,6 +226,50 @@ function resolvePlayerBodyCollisions() {
   }
 }
 
+function isPlayerWorldBlockedAt(x, y, blockers) {
+  const candidate = { ...myPlayer, x, y };
+  return blockers.some(unit => {
+    const pf = getUnitFoot(candidate);
+    const uf = getUnitFoot(unit);
+    const radiusX = getUnitFootRadiusX(candidate) + getUnitFootRadiusX(unit);
+    const radiusY = getUnitFootRadiusY(candidate) + getUnitFootRadiusY(unit);
+    return Math.abs(uf.x - pf.x) < radiusX && Math.abs(uf.y - pf.y) < radiusY;
+  });
+}
+
+function trySlideMyPlayerAroundWorldBlocker(unit, blockers, overlapX, overlapY) {
+  if (!previousMyPlayerBodyPosition) return false;
+  const previous = previousMyPlayerBodyPosition;
+  const desired = { x: myPlayer.x, y: myPlayer.y };
+  const pf = getUnitFoot(myPlayer);
+  const uf = getUnitFoot(unit);
+  const awayX = Math.sign(pf.x - uf.x) || Math.sign(previous.x - desired.x) || -myPlayer.facing || -1;
+  const awayY = Math.sign(pf.y - uf.y) || (keys['ArrowUp'] || keys['w'] || keys['W'] ? -1 : 1);
+  const tangentNudge = Math.min(4.5, Math.max(1.2, Math.min(overlapX, overlapY) + 0.8));
+  const axisCandidates = overlapY < overlapX * 0.85
+    ? [
+      [desired.x + awayX * tangentNudge, previous.y],
+      [desired.x, previous.y],
+      [previous.x, desired.y + awayY * tangentNudge],
+    ]
+    : [
+      [previous.x, desired.y + awayY * tangentNudge],
+      [previous.x, desired.y],
+      [desired.x + awayX * tangentNudge, previous.y],
+    ];
+
+  for (const [x, y] of axisCandidates) {
+    const clampedX = Math.max(0, Math.min(getStageWidth() - myPlayer.width, x));
+    const clampedY = Math.max(getBattlefieldTopY() - myPlayer.height, Math.min(getBattlefieldBottomY() - myPlayer.height, y));
+    if (!isPlayerWorldBlockedAt(clampedX, clampedY, blockers)) {
+      myPlayer.x = clampedX;
+      myPlayer.y = clampedY;
+      return true;
+    }
+  }
+  return false;
+}
+
 function resolvePlayerWorldBodyCollisions() {
   if (!isPlayerBodyBlocking(myPlayer) || !myPlayer.onGround) return;
   const blockers = [
@@ -244,9 +288,12 @@ function resolvePlayerWorldBodyCollisions() {
     const overlapY = radiusY - Math.abs(dy);
     if (overlapX <= 0 || overlapY <= 0) return;
 
+    const slid = trySlideMyPlayerAroundWorldBlocker(unit, blockers, overlapX, overlapY);
     if (previousMyPlayerBodyPosition) {
-      myPlayer.x = previousMyPlayerBodyPosition.x;
-      myPlayer.y = previousMyPlayerBodyPosition.y;
+      if (!slid) {
+        myPlayer.x = previousMyPlayerBodyPosition.x;
+        myPlayer.y = previousMyPlayerBodyPosition.y;
+      }
     }
     myPlayer.vx = 0;
     if (overlapY < overlapX * 0.85) myPlayer.vy = Math.min(0, myPlayer.vy || 0);
