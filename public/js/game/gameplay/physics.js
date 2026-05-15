@@ -201,11 +201,6 @@ function resolvePlayerBodyCollisions() {
         } else if (b === myPlayer) {
           pushBlockingPlayer(b, 0, -depthDir * amount);
           clampToBattlefieldDepth(b);
-        } else {
-          pushBlockingPlayer(a, 0, depthDir * amount * 0.5);
-          pushBlockingPlayer(b, 0, -depthDir * amount * 0.5);
-          clampToBattlefieldDepth(a);
-          clampToBattlefieldDepth(b);
         }
       } else {
         const amount = overlapX + 0.5;
@@ -213,13 +208,9 @@ function resolvePlayerBodyCollisions() {
           pushBlockingPlayer(a, sideDir * amount, 0);
         } else if (b === myPlayer) {
           pushBlockingPlayer(b, -sideDir * amount, 0);
-        } else {
-          pushBlockingPlayer(a, sideDir * amount * 0.5, 0);
-          pushBlockingPlayer(b, -sideDir * amount * 0.5, 0);
         }
       }
-      a.x = Math.max(0, Math.min(getStageWidth() - a.width, a.x));
-      b.x = Math.max(0, Math.min(getStageWidth() - b.width, b.x));
+      myPlayer.x = Math.max(0, Math.min(getStageWidth() - myPlayer.width, myPlayer.x));
     }
   }
 }

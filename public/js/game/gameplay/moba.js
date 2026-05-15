@@ -81,7 +81,17 @@ function syncWorldState(msg) {
     };
   });
   objectives = (msg.objectives || []).map(obj => ({ ...objectives.find(entry => entry.id === obj.id), ...obj }));
-  creepProjectiles = msg.creepProjectiles || [];
+  creepProjectiles = (msg.creepProjectiles || []).map(shot => {
+    const existing = creepProjectiles.find(entry => entry.id === shot.id);
+    return {
+      ...existing,
+      ...shot,
+      renderX: existing?.renderX ?? shot.prevX ?? shot.x,
+      renderY: existing?.renderY ?? shot.prevY ?? shot.y,
+      targetX: shot.x,
+      targetY: shot.y,
+    };
+  });
   gameWinner = msg.winner || gameWinner;
 }
 
@@ -181,6 +191,10 @@ function updateTowerShots() {
   creeps.forEach(creep => {
     creep.renderX = (creep.renderX ?? creep.x) + ((creep.targetX ?? creep.x) - (creep.renderX ?? creep.x)) * step;
     creep.renderY = (creep.renderY ?? creep.y) + ((creep.targetY ?? creep.y) - (creep.renderY ?? creep.y)) * step;
+  });
+  creepProjectiles.forEach(shot => {
+    shot.renderX = (shot.renderX ?? shot.x) + ((shot.targetX ?? shot.x) - (shot.renderX ?? shot.x)) * 0.62;
+    shot.renderY = (shot.renderY ?? shot.y) + ((shot.targetY ?? shot.y) - (shot.renderY ?? shot.y)) * 0.62;
   });
   towerShots = towerShots.filter(shot => {
     shot.life--;
@@ -500,7 +514,7 @@ function getMonsterVectorObjects(type, animation, time) {
       const imageInfo = getMonsterVectorImageInfo(type, data, local.folder, local.file);
       if (!imageInfo) return null;
       const parent = ref.parent !== null && ref.parent !== undefined ? boneTransforms[String(ref.parent)] || identity : identity;
-      return { ...imageInfo, transform: composeMonsterVectorTransform(parent, local), zIndex: ref.zIndex || 0 };
+      return { ...imageInfo, timelineName: timeline?.name || '', transform: composeMonsterVectorTransform(parent, local), zIndex: ref.zIndex || 0 };
     })
     .filter(Boolean)
     .sort((a, b) => a.zIndex - b.zIndex);
@@ -569,6 +583,20 @@ function drawMonsterVectorObject(ctx, item) {
   ctx.restore();
 }
 
+function stabilizeMonsterAttackObjects(type, objects) {
+  const data = monsterVectorData[type];
+  const idle = data?.animations?.Idle;
+  if (!idle) return objects;
+  const stableObjects = getMonsterVectorObjects(type, idle, 0);
+  const stableByPart = new Map(stableObjects.map(item => [item.fileInfo.name, item]));
+  return objects.map(item => {
+    const partName = `${item.timelineName} ${item.fileInfo.name}`;
+    if (!/leg/i.test(partName)) return item;
+    const stable = stableByPart.get(item.fileInfo.name);
+    return stable ? { ...item, transform: stable.transform } : item;
+  });
+}
+
 function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action, groundOffset = 0) {
   const type = creep.type;
   const data = monsterVectorData[type];
@@ -577,7 +605,8 @@ function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action, groundOffset =
   const animation = data.animations[animationName] || data.animations.Walking || data.animations.Idle;
   if (!animation) return false;
   const time = getMonsterVectorAnimationTime(animation, creep, action);
-  const objects = getMonsterVectorObjects(type, animation, time);
+  let objects = getMonsterVectorObjects(type, animation, time);
+  if (action === 'attack') objects = stabilizeMonsterAttackObjects(type, objects);
   if (!objects.length) return false;
   const bounds = getMonsterVectorObjectsBounds(objects);
   const referenceBounds = getMonsterVectorReferenceBounds(type) || bounds;
@@ -692,19 +721,23 @@ function drawTowerShot(ctx, shot, sx, sy) {
 function drawCreepProjectile(ctx, shot, sx, sy) {
   if (!shot) return;
   const scale = Math.min(sx, sy);
-  const x = shot.x * sx;
-  const y = shot.y * sy;
+  const x = (shot.renderX ?? shot.x) * sx;
+  const y = (shot.renderY ?? shot.y) * sy;
+  const prevX = (shot.prevRenderX ?? shot.prevX ?? shot.renderX ?? shot.x) * sx;
+  const prevY = (shot.prevRenderY ?? shot.prevY ?? shot.renderY ?? shot.y) * sy;
+  shot.prevRenderX = shot.renderX ?? shot.x;
+  shot.prevRenderY = shot.renderY ?? shot.y;
   const color = shot.teamId === 'sun' ? '#FF9A3D' : '#69A8FF';
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const trail = ctx.createLinearGradient((shot.prevX ?? shot.x) * sx, (shot.prevY ?? shot.y) * sy, x, y);
+  const trail = ctx.createLinearGradient(prevX, prevY, x, y);
   trail.addColorStop(0, 'rgba(255,255,255,0)');
   trail.addColorStop(1, withAlpha(color, 0.78));
   ctx.strokeStyle = trail;
   ctx.lineWidth = Math.max(3, 4 * scale);
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo((shot.prevX ?? shot.x) * sx, (shot.prevY ?? shot.y) * sy);
+  ctx.moveTo(prevX, prevY);
   ctx.lineTo(x, y);
   ctx.stroke();
 
