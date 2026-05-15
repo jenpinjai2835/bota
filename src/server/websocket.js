@@ -213,6 +213,10 @@ function setupWebSocket(server, rooms) {
     const attackSpeed = isRanged ? 0.68 : 1.08;
     const projectileSpeed = isRanged ? 13.5 : 0;
     const attackWindup = Math.round(CREEP_ATTACK_ANIMATION_MS * (isRanged ? CREEP_ATTACK_WINDUP_RATIO.ranged : CREEP_ATTACK_WINDUP_RATIO.melee));
+    const thinkSeed = (room.creepSeq * 1103515245 + (teamId === 'sun' ? 97 : 193) + laneIndex * 389) >>> 0;
+    const slotPhase = thinkSeed % 7;
+    const individualSide = slotPhase < 3 ? -1 : 1;
+    const depthBias = (slotPhase - 3) * 7;
     room.creeps.push({
       id: `cr_${teamId}_${Date.now()}_${room.creepSeq}`,
       type,
@@ -241,6 +245,11 @@ function setupWebSocket(server, rooms) {
       attackDamageAt: 0,
       state: 'walk',
       facing: TEAM_DIR[teamId],
+      thinkSeed,
+      individualSide,
+      depthBias,
+      slotPhase,
+      avoidSide: individualSide,
     });
   }
 
@@ -611,6 +620,16 @@ function setupWebSocket(server, rooms) {
       .sort((a, b) => a.score - b.score)[0]?.unit || null;
   }
 
+  function getCreepAvoidSign(creep) {
+    return creep.avoidSide || creep.individualSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1;
+  }
+
+  function rotateList(list, offset = 0) {
+    if (!list.length) return list;
+    const start = ((offset % list.length) + list.length) % list.length;
+    return [...list.slice(start), ...list.slice(0, start)];
+  }
+
   function addObstacleAvoidanceCandidates(room, creep, candidates, goalX, goalY, target = null) {
     const blocker = getForwardBlockingUnit(room, creep, goalX, goalY, target);
     if (!blocker) return;
@@ -622,14 +641,14 @@ function setupWebSocket(server, rooms) {
     const topY = clampCreepY(bf.y - clearanceY - unitHeight(creep), unitHeight(creep));
     const bottomY = clampCreepY(bf.y + clearanceY - unitHeight(creep), unitHeight(creep));
     const preferredSide = Math.abs((goalY || cf.y) - (topY + unitHeight(creep))) < Math.abs((goalY || cf.y) - (bottomY + unitHeight(creep))) ? -1 : 1;
-    const side = creep.avoidSide || preferredSide || 1;
+    const side = creep.avoidSide || (Math.abs((goalY || cf.y) - bf.y) < 18 ? getCreepAvoidSign(creep) : preferredSide) || 1;
     creep.avoidSide = side;
     const primaryY = side < 0 ? topY : bottomY;
     const secondaryY = side < 0 ? bottomY : topY;
     const lateralBoost = creep.stuckTicks > 2 ? 3.6 : 2.2;
 
     [primaryY, secondaryY].forEach((nextY, index) => {
-      [0.2, 0.65, 1, 1.45, 2.1, -0.35].forEach(xMult => {
+      rotateList([0.2, 0.65, 1, 1.45, 2.1, -0.35], creep.slotPhase || 0).forEach(xMult => {
         candidates.push([
           creep.x + dir * speed * xMult,
           creep.y + Math.sign(nextY - creep.y) * Math.min(Math.abs(nextY - creep.y), Math.max(1.2, speed * CREEP_DEPTH_SPEED_MULTIPLIER * (lateralBoost - index * 0.7))),
@@ -647,7 +666,7 @@ function setupWebSocket(server, rooms) {
     const requiredY = unitBlockRadiusY(creep) + unitBlockRadiusY(blocker) + 4;
     const requiredX = unitBlockRadiusX(creep) + unitBlockRadiusX(blocker) + 4;
     const awayX = Math.sign(cf.x - bf.x) || -(Math.sign(goalX - cf.x) || creep.facing || TEAM_DIR[creep.teamId] || 1);
-    const awayY = Math.sign(cf.y - bf.y) || (creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1);
+    const awayY = Math.sign(cf.y - bf.y) || getCreepAvoidSign(creep);
     creep.stuckTicks = Math.max(creep.stuckTicks || 0, 3);
     creep.avoidSide = awayY;
     const pushX = Math.max(2.4, speed * 1.8);
@@ -697,19 +716,20 @@ function setupWebSocket(server, rooms) {
       if (node.first && nodeScore < Math.max(28, stepX) && !isCreepMoveBlocked(room, creep, node.x, node.y, target)) return node.first;
       if (node.first && !getForwardBlockingUnit(room, { ...creep, x: node.x, y: node.y }, goalX, goalY, target)) return node.first;
 
-      const directions = [
+      const directions = rotateList([
         [Math.sign(goalTopX - node.x) || 1, 0],
         [0, Math.sign(goalTopY - node.y) || 1],
         [0, -(Math.sign(goalTopY - node.y) || 1)],
         [-(Math.sign(goalTopX - node.x) || 1), 0],
         [Math.sign(goalTopX - node.x) || 1, Math.sign(goalTopY - node.y) || 1],
         [Math.sign(goalTopX - node.x) || 1, -(Math.sign(goalTopY - node.y) || 1)],
-      ].sort((a, b) => {
+      ], creep.slotPhase || 0).sort((a, b) => {
         const ax = node.x + a[0] * stepX;
         const ay = node.y + a[1] * stepY;
         const bx = node.x + b[0] * stepX;
         const by = node.y + b[1] * stepY;
-        return Math.hypot(ax - goalTopX, (ay - goalTopY) * 1.45) - Math.hypot(bx - goalTopX, (by - goalTopY) * 1.45);
+        const personalY = goalTopY + (creep.depthBias || 0);
+        return Math.hypot(ax - goalTopX, (ay - personalY) * 1.45) - Math.hypot(bx - goalTopX, (by - personalY) * 1.45);
       });
 
       directions.forEach(([dx, dy]) => {
@@ -773,8 +793,11 @@ function setupWebSocket(server, rooms) {
     const bottomFootY = bf.y + clearanceY;
     const clampedTopY = clampCreepY(topFootY - unitHeight(creep), unitHeight(creep)) + unitHeight(creep);
     const clampedBottomY = clampCreepY(bottomFootY - unitHeight(creep), unitHeight(creep)) + unitHeight(creep);
-    const targetPrefersTop = Math.abs(tf.y - clampedTopY) <= Math.abs(tf.y - clampedBottomY);
-    const side = creep.flankSide || (targetPrefersTop ? -1 : 1);
+    const topDelta = Math.abs(tf.y - clampedTopY);
+    const bottomDelta = Math.abs(tf.y - clampedBottomY);
+    const targetPrefersTop = topDelta <= bottomDelta;
+    const personalSide = getCreepAvoidSign(creep);
+    const side = creep.flankSide || (Math.abs(topDelta - bottomDelta) < 54 ? personalSide : (targetPrefersTop ? -1 : 1));
     const flankFootY = side < 0 ? clampedTopY : clampedBottomY;
     creep.flankSide = side;
 
@@ -809,22 +832,35 @@ function setupWebSocket(server, rooms) {
     const sorted = unique
       .filter(([nextX, nextY]) => (nextX !== creep.x || nextY !== creep.y) && !isCreepMoveBlocked(room, creep, nextX, nextY, target))
       .sort((a, b) => {
-        const da = Math.hypot((a[0] + unitWidth(creep) / 2) - goalX, (a[1] + unitHeight(creep)) - goalY);
-        const db = Math.hypot((b[0] + unitWidth(creep) / 2) - goalX, (b[1] + unitHeight(creep)) - goalY);
+        const personalGoalY = goalY + (creep.depthBias || 0);
+        const da = Math.hypot((a[0] + unitWidth(creep) / 2) - goalX, (a[1] + unitHeight(creep)) - personalGoalY);
+        const db = Math.hypot((b[0] + unitWidth(creep) / 2) - goalX, (b[1] + unitHeight(creep)) - personalGoalY);
         return da - db;
       });
 
     if (!sorted.length) {
       creep.stuckTicks = (creep.stuckTicks || 0) + 1;
-      if (creep.stuckTicks > 4) creep.avoidSide = -(creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1));
+      if (creep.stuckTicks > 4) creep.avoidSide = -getCreepAvoidSign(creep);
       return false;
     }
 
+    const beforeFoot = unitFoot(creep);
+    const beforeDistance = Math.hypot(beforeFoot.x - goalX, (beforeFoot.y - goalY) * 1.45);
     const [x, y] = sorted[0];
     creep.x = x;
     creep.y = y;
-    creep.stuckTicks = 0;
-    if (!getForwardBlockingUnit(room, creep, goalX, goalY, target)) creep.avoidSide = 0;
+    const afterFoot = unitFoot(creep);
+    const afterDistance = Math.hypot(afterFoot.x - goalX, (afterFoot.y - goalY) * 1.45);
+    const stillBlocked = getForwardBlockingUnit(room, creep, goalX, goalY, target);
+    if (beforeDistance - afterDistance < 0.35 && stillBlocked) {
+      creep.stuckTicks = (creep.stuckTicks || 0) + 1;
+      if (creep.stuckTicks > 3 && creep.stuckTicks % 3 === 0) {
+        creep.avoidSide = -(creep.avoidSide || creep.individualSide || 1);
+      }
+    } else {
+      creep.stuckTicks = Math.max(0, (creep.stuckTicks || 0) - 1);
+    }
+    if (!stillBlocked) creep.avoidSide = creep.individualSide || 0;
     if (!getObjectiveBetweenCreepAndTarget(room, creep, target)) creep.flankSide = 0;
     return true;
   }
@@ -833,8 +869,8 @@ function setupWebSocket(server, rooms) {
     const speed = creep.speed || 1.8;
     const desiredY = typeof creep.laneY === 'number' ? creep.laneY : creep.y;
     const laneStep = Math.sign(desiredY - creep.y) * Math.min(1.8 * CREEP_DEPTH_SPEED_MULTIPLIER, Math.abs(desiredY - creep.y));
-    const avoidSign = creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1;
-    const sideSteps = [0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2];
+    const avoidSign = getCreepAvoidSign(creep);
+    const sideSteps = rotateList([0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2], creep.slotPhase || 0);
     const xSteps = [1, 0.75, 0.45, -0.25];
     const candidates = [];
     xSteps.forEach(xMult => {
@@ -857,8 +893,8 @@ function setupWebSocket(server, rooms) {
     const tf = unitFoot(target);
     const range = creep.range || 38;
     const gapX = Math.max(18, range * 0.5 + unitFootRadiusX(target) * 0.55);
-    const depthOffsets = [0, -24, 24, -44, 44, -64, 64];
-    const sideOptions = [approachDir, -approachDir];
+    const depthOffsets = rotateList([0, -24, 24, -44, 44, -64, 64], creep.slotPhase || 0);
+    const sideOptions = creep.individualSide === approachDir ? [approachDir, -approachDir] : [-approachDir, approachDir];
     const blockers = [
       ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.id !== creep.id && unit.teamId === creep.teamId),
       ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.teamId === creep.teamId),
@@ -881,12 +917,13 @@ function setupWebSocket(server, rooms) {
         }).length;
         const inRange = isCreepTargetInRange(candidate, target);
         const currentDistance = Math.hypot(footX - unitFoot(creep).x, (footY - unitFoot(creep).y) * 1.45);
+        const personalOffsetCost = Math.abs(offset - (creep.depthBias || 0)) * 1.4;
         slots.push({
           x: footX,
           y: footY,
           blockedBy,
           inRange,
-          score: blockedBy * 1000 + (inRange ? 0 : 160) + sideIndex * 48 + offsetIndex * 18 + currentDistance * 0.05,
+          score: blockedBy * 1000 + (inRange ? 0 : 160) + sideIndex * 42 + offsetIndex * 14 + personalOffsetCost + currentDistance * 0.05,
         });
       });
     });
@@ -913,9 +950,9 @@ function setupWebSocket(server, rooms) {
     const stepX = Math.sign(goalDx) * Math.min(Math.abs(goalDx), speed);
     const navDepthDelta = navigationGoal.y - creepFoot.y;
     const stepY = Math.sign(navDepthDelta) * Math.min(Math.abs(navDepthDelta), Math.max(0.85, speed * CREEP_DEPTH_SPEED_MULTIPLIER));
-    const avoidSign = creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1;
-    const sideSteps = [0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2, avoidSign * 3, -avoidSign * 3];
-    const xSteps = [1, 0, 0.6, -0.35, 1.25];
+    const avoidSign = getCreepAvoidSign(creep);
+    const sideSteps = rotateList([0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2, avoidSign * 3, -avoidSign * 3], creep.slotPhase || 0);
+    const xSteps = rotateList([1, 0, 0.6, -0.35, 1.25], creep.slotPhase || 0);
     const candidates = [];
     xSteps.forEach(xMult => {
       sideSteps.forEach(side => {
