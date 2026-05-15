@@ -484,10 +484,11 @@ function setupWebSocket(server, rooms) {
   }
 
   function getCreepMoveBlockers(room, creep, target = null) {
+    const canOverlapTarget = target && !target.type;
     return [
-      ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.id !== creep.id && unit.id !== target?.id),
-      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.id !== target?.id),
-      ...(room.objectives || []).filter(unit => unit.hp > 0 && unit.id !== target?.id),
+      ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.id !== creep.id && (!canOverlapTarget || unit.id !== target?.id)),
+      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && (!canOverlapTarget || unit.id !== target?.id)),
+      ...(room.objectives || []).filter(unit => unit.hp > 0),
     ];
   }
 
@@ -551,9 +552,40 @@ function setupWebSocket(server, rooms) {
     });
   }
 
+  function addUnstuckCandidates(room, creep, candidates, goalX, goalY, target = null) {
+    const blocker = getCreepBlockingUnit(room, creep, creep.x, creep.y, target);
+    if (!blocker) return;
+    const speed = creep.speed || 1.8;
+    const cf = unitFoot(creep);
+    const bf = unitFoot(blocker);
+    const requiredY = unitBlockRadiusY(creep) + unitBlockRadiusY(blocker) + 4;
+    const requiredX = unitBlockRadiusX(creep) + unitBlockRadiusX(blocker) + 4;
+    const awayX = Math.sign(cf.x - bf.x) || -(Math.sign(goalX - cf.x) || creep.facing || TEAM_DIR[creep.teamId] || 1);
+    const awayY = Math.sign(cf.y - bf.y) || (creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1);
+    creep.stuckTicks = Math.max(creep.stuckTicks || 0, 3);
+    creep.avoidSide = awayY;
+    const pushX = Math.max(2.4, speed * 1.8);
+    const pushY = Math.max(2.6, speed * CREEP_DEPTH_SPEED_MULTIPLIER * 3.4);
+    const escapeTopY = bf.y + awayY * requiredY - unitHeight(creep);
+    const escapeSideX = bf.x + awayX * requiredX - unitWidth(creep) / 2;
+    const escapeYs = [
+      escapeTopY,
+      creep.y + awayY * pushY,
+      creep.y + awayY * pushY * 1.7,
+      creep.y - awayY * pushY * 1.2,
+    ];
+    escapeYs.forEach(nextY => {
+      candidates.push([escapeSideX, nextY]);
+      candidates.push([creep.x + awayX * pushX, nextY]);
+      candidates.push([creep.x + awayX * pushX * 1.8, nextY]);
+      candidates.push([creep.x, nextY]);
+    });
+  }
+
   function tryMoveCreep(room, creep, candidates, goalX, goalY, target = null) {
     const unique = [];
     const seen = new Set();
+    addUnstuckCandidates(room, creep, candidates, goalX, goalY, target);
     addObstacleAvoidanceCandidates(room, creep, candidates, goalX, goalY, target);
     candidates.forEach(([nextX, nextY]) => {
       const x = Math.round(nextX * 10) / 10;
