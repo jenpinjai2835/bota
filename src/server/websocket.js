@@ -28,6 +28,7 @@ function setupWebSocket(server, rooms) {
   };
   const TEAM_IDS = ['sun', 'moon'];
   const TEAM_DIR = { sun: 1, moon: -1 };
+  const WORLD_W = 2520;
   const BATTLEFIELD_TOP_Y = 300;
   const BATTLEFIELD_BOTTOM_Y = 540;
   const CREEP_SPAWN = {
@@ -582,6 +583,77 @@ function setupWebSocket(server, rooms) {
     });
   }
 
+  function findCreepPathWaypoint(room, creep, goalX, goalY, target = null) {
+    const startX = creep.x;
+    const startY = creep.y;
+    const goalTopX = goalX - unitWidth(creep) / 2;
+    const goalTopY = goalY - unitHeight(creep);
+    const searchMarginX = Math.max(160, Math.abs(goalTopX - startX) + 90);
+    const minX = Math.max(0, Math.min(startX, goalTopX) - searchMarginX);
+    const maxX = Math.min(WORLD_W - unitWidth(creep), Math.max(startX, goalTopX) + searchMarginX);
+    const minY = BATTLEFIELD_TOP_Y - unitHeight(creep);
+    const maxY = BATTLEFIELD_BOTTOM_Y - unitHeight(creep);
+    const stepX = Math.max(24, unitBlockRadiusX(creep) * 2 + 4);
+    const stepY = Math.max(18, unitBlockRadiusY(creep) * 2 + 6);
+    const start = { x: Math.round(startX / stepX) * stepX, y: Math.round(startY / stepY) * stepY, first: null };
+    const queue = [start];
+    const seen = new Set([`${start.x}:${start.y}`]);
+    const maxVisits = 90;
+    let best = null;
+    let visits = 0;
+
+    while (queue.length && visits < maxVisits) {
+      const node = queue.shift();
+      visits += 1;
+      const nodeFootX = node.x + unitWidth(creep) / 2;
+      const nodeFootY = node.y + unitHeight(creep);
+      const nodeScore = Math.hypot(nodeFootX - goalX, (nodeFootY - goalY) * 1.45);
+      if (!best || nodeScore < best.score) best = { ...node, score: nodeScore };
+      if (node.first && nodeScore < Math.max(28, stepX) && !isCreepMoveBlocked(room, creep, node.x, node.y, target)) return node.first;
+      if (node.first && !getForwardBlockingUnit(room, { ...creep, x: node.x, y: node.y }, goalX, goalY, target)) return node.first;
+
+      const directions = [
+        [Math.sign(goalTopX - node.x) || 1, 0],
+        [0, Math.sign(goalTopY - node.y) || 1],
+        [0, -(Math.sign(goalTopY - node.y) || 1)],
+        [-(Math.sign(goalTopX - node.x) || 1), 0],
+        [Math.sign(goalTopX - node.x) || 1, Math.sign(goalTopY - node.y) || 1],
+        [Math.sign(goalTopX - node.x) || 1, -(Math.sign(goalTopY - node.y) || 1)],
+      ].sort((a, b) => {
+        const ax = node.x + a[0] * stepX;
+        const ay = node.y + a[1] * stepY;
+        const bx = node.x + b[0] * stepX;
+        const by = node.y + b[1] * stepY;
+        return Math.hypot(ax - goalTopX, (ay - goalTopY) * 1.45) - Math.hypot(bx - goalTopX, (by - goalTopY) * 1.45);
+      });
+
+      directions.forEach(([dx, dy]) => {
+        const x = Math.round(Math.max(minX, Math.min(maxX, node.x + dx * stepX)) * 10) / 10;
+        const y = Math.round(Math.max(minY, Math.min(maxY, node.y + dy * stepY)) * 10) / 10;
+        const key = `${x}:${y}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        if (isCreepMoveBlocked(room, creep, x, y, target)) return;
+        queue.push({ x, y, first: node.first || { x, y } });
+      });
+    }
+    return best?.first || null;
+  }
+
+  function addPathSearchCandidates(room, creep, candidates, goalX, goalY, target = null) {
+    if (!getForwardBlockingUnit(room, creep, goalX, goalY, target) && (creep.stuckTicks || 0) < 2) return;
+    const waypoint = findCreepPathWaypoint(room, creep, goalX, goalY, target);
+    if (!waypoint) return;
+    const speed = creep.speed || 1.8;
+    const dx = waypoint.x - creep.x;
+    const dy = waypoint.y - creep.y;
+    const stepY = Math.sign(dy) * Math.min(Math.abs(dy), Math.max(1.2, speed * CREEP_DEPTH_SPEED_MULTIPLIER * 2.8));
+    const stepX = Math.sign(dx) * Math.min(Math.abs(dx), Math.max(1.2, speed * 1.15));
+    candidates.push([creep.x + stepX, creep.y + stepY]);
+    candidates.push([creep.x + stepX, creep.y]);
+    candidates.push([creep.x, creep.y + stepY]);
+  }
+
   function getObjectiveBetweenCreepAndTarget(room, creep, target) {
     if (!target || target.type === 'tower' || target.type === 'ancient') return null;
     const cf = unitFoot(creep);
@@ -638,6 +710,7 @@ function setupWebSocket(server, rooms) {
     const unique = [];
     const seen = new Set();
     addUnstuckCandidates(room, creep, candidates, goalX, goalY, target);
+    addPathSearchCandidates(room, creep, candidates, goalX, goalY, target);
     addObstacleAvoidanceCandidates(room, creep, candidates, goalX, goalY, target);
     candidates.forEach(([nextX, nextY]) => {
       const x = Math.round(nextX * 10) / 10;
