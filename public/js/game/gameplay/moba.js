@@ -206,7 +206,7 @@ function drawCreep(ctx, creep, sx, sy) {
   const frames = monsterImages[creep.type]?.[action] || [];
   const meta = MONSTER_ACTIONS[action] || MONSTER_ACTIONS.walk;
   const frame = Math.floor(Date.now() / (1000 / meta.fps)) % Math.max(1, frames.length);
-  const img = frames[frame];
+  const img = getRenderableMonsterFrame(creep.type, action, frame);
   const drawX = creep.renderX ?? creep.x;
   const drawY = creep.renderY ?? creep.y;
   const x = (drawX + (creep.w || 42) / 2) * sx;
@@ -225,19 +225,24 @@ function drawCreep(ctx, creep, sx, sy) {
   ctx.scale(facing > 0 ? 1 : -1, 1);
   if (img?.complete && img.naturalWidth) {
     ctx.drawImage(img, -w / 2, -h, w, h);
-  } else {
-    ctx.strokeStyle = creep.teamId === 'sun' ? 'rgba(228,71,71,0.55)' : 'rgba(61,139,255,0.55)';
-    ctx.lineWidth = Math.max(1, 1.2 * scale);
-    ctx.beginPath();
-    ctx.moveTo(0, -h * 0.82);
-    ctx.lineTo(w * 0.24, -h * 0.36);
-    ctx.lineTo(0, -h * 0.16);
-    ctx.lineTo(-w * 0.24, -h * 0.36);
-    ctx.closePath();
-    ctx.stroke();
   }
   ctx.restore();
   drawUnitHealthBar(ctx, creep, x, y - h - 3 * sy, Math.max(32, 38 * scale), sx, sy);
+}
+
+function getRenderableMonsterFrame(type, action, frameIndex = 0) {
+  const pools = [
+    monsterImages[type]?.[action],
+    monsterImages[type]?.walk,
+    monsterImages[type]?.idle,
+  ].filter(Boolean);
+  for (const frames of pools) {
+    const preferred = frames[frameIndex % Math.max(1, frames.length)];
+    if (preferred?.complete && preferred.naturalWidth) return preferred;
+    const loaded = frames.find(frame => frame?.complete && frame.naturalWidth);
+    if (loaded) return loaded;
+  }
+  return null;
 }
 
 function drawUnitHealthBar(ctx, unit, centerX, topY, width, sx, sy) {
