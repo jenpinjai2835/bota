@@ -283,8 +283,8 @@ function parseMonsterVectorScml(text) {
         name: file.getAttribute('name') || '',
         width: Number(file.getAttribute('width')) || 0,
         height: Number(file.getAttribute('height')) || 0,
-        pivotX: Number(file.getAttribute('pivot_x') ?? 0.5),
-        pivotY: Number(file.getAttribute('pivot_y') ?? 0.5),
+        pivotX: Number(file.getAttribute('pivot_x') ?? 0),
+        pivotY: Number(file.getAttribute('pivot_y') ?? 1),
       };
     });
   });
@@ -459,13 +459,13 @@ function getMonsterVectorObjects(type, animation, time) {
 
 function getMonsterVectorObjectCorners(item) {
   const { img, fileInfo, transform } = item;
-  const pivotX = fileInfo.pivotX ?? 0.5;
-  const pivotY = fileInfo.pivotY ?? 0.5;
+  const pivotX = fileInfo.pivotX ?? 0;
+  const pivotY = fileInfo.pivotY ?? 1;
   const points = [
-    [-pivotX * img.naturalWidth, -pivotY * img.naturalHeight],
-    [(1 - pivotX) * img.naturalWidth, -pivotY * img.naturalHeight],
-    [(1 - pivotX) * img.naturalWidth, (1 - pivotY) * img.naturalHeight],
-    [-pivotX * img.naturalWidth, (1 - pivotY) * img.naturalHeight],
+    [-pivotX * img.naturalWidth, -(1 - pivotY) * img.naturalHeight],
+    [(1 - pivotX) * img.naturalWidth, -(1 - pivotY) * img.naturalHeight],
+    [(1 - pivotX) * img.naturalWidth, pivotY * img.naturalHeight],
+    [-pivotX * img.naturalWidth, pivotY * img.naturalHeight],
   ];
   const rad = -(transform.angle || 0) * Math.PI / 180;
   const cos = Math.cos(rad);
@@ -514,8 +514,8 @@ function drawMonsterVectorObject(ctx, item) {
   ctx.scale(transform.scaleX ?? 1, transform.scaleY ?? 1);
   ctx.drawImage(
     img,
-    -(fileInfo.pivotX ?? 0.5) * img.naturalWidth,
-    -(fileInfo.pivotY ?? 0.5) * img.naturalHeight
+    -(fileInfo.pivotX ?? 0) * img.naturalWidth,
+    -(1 - (fileInfo.pivotY ?? 1)) * img.naturalHeight
   );
   ctx.restore();
 }
