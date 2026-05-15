@@ -4,9 +4,12 @@
 // ============================================================
 function connectWebSocket(onConnect) {
   if (ws && ws.readyState === WebSocket.OPEN) { onConnect && onConnect(); return; }
+  if (ws && ws.readyState === WebSocket.CONNECTING) return;
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${location.host}`;
   ws = new WebSocket(wsUrl);
+  const socket = ws;
+  setTimeout(() => installReconnectSocketHandlers(socket), 0);
 
   ws.onopen = () => { onConnect && onConnect(); };
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
@@ -20,15 +23,100 @@ function send(obj) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
 }
 
+function installReconnectSocketHandlers(socket) {
+  if (!socket || socket !== ws) return;
+  socket.onerror = () => {
+    if (!reconnecting) showError('Cannot connect to server. Please try again.');
+  };
+  socket.onclose = () => {
+    if (socket === ws) ws = null;
+    if (shouldReconnectSession()) {
+      startReconnectFlow();
+    } else if (gameRunning) {
+      addChat('System', 'Connection lost...');
+    }
+  };
+}
+
+function getReconnectRoomId() {
+  return myRoomId || roomState?.id || localStorage.getItem('bota_last_room_id') || '';
+}
+
+function shouldReconnectSession() {
+  const roomId = getReconnectRoomId();
+  return Boolean(roomId && mySessionToken && (gameRunning || roomState?.status === 'playing' || roomState?.status === 'loading'));
+}
+
+function showReconnectPopup(text = 'Trying to restore server connection...') {
+  const overlay = document.getElementById('reconnect-overlay');
+  const status = document.getElementById('reconnect-status');
+  if (status) status.textContent = text;
+  overlay?.classList.add('visible');
+}
+
+function hideReconnectPopup() {
+  document.getElementById('reconnect-overlay')?.classList.remove('visible');
+}
+
+function stopReconnectFlow() {
+  reconnecting = false;
+  reconnectAttempt = 0;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  hideReconnectPopup();
+}
+
+function startReconnectFlow() {
+  if (!reconnecting) {
+    reconnecting = true;
+    reconnectAttempt = 0;
+    if (gameRunning) addChat('System', 'Connection lost. Reconnecting...');
+  }
+  showReconnectPopup();
+  scheduleReconnectAttempt(600);
+}
+
+function scheduleReconnectAttempt(delay = 1200) {
+  if (!reconnecting) return;
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    attemptReconnectSession();
+  }, delay);
+}
+
+function attemptReconnectSession() {
+  if (!reconnecting) return;
+  const roomId = getReconnectRoomId();
+  if (!roomId || !mySessionToken) {
+    stopReconnectFlow();
+    return;
+  }
+  reconnectAttempt += 1;
+  showReconnectPopup(`Trying to restore server connection... attempt ${reconnectAttempt}`);
+  connectWebSocket(() => {
+    send({ type: 'rejoin_session', roomId, sessionToken: mySessionToken });
+  });
+  scheduleReconnectAttempt(Math.min(5000, 1000 + reconnectAttempt * 650));
+}
+
 function handleMessage(msg) {
   switch (msg.type) {
     case 'connected':
       myPlayerId = msg.playerId;
+      if (reconnecting) showReconnectPopup('Connected. Syncing match state...');
       break;
     case 'rejoin_failed':
       localStorage.removeItem('bota_last_room_id');
+      if (reconnecting) {
+        stopReconnectFlow();
+        showError('Reconnect failed. Please return to the lobby.');
+      }
       break;
     case 'room_created':
+      stopReconnectFlow();
       myRoomId = msg.roomId;
       localStorage.setItem('bota_last_room_id', myRoomId);
       isHost = true;
@@ -36,6 +124,7 @@ function handleMessage(msg) {
       showLobbyRoom(msg.state);
       break;
     case 'room_joined':
+      stopReconnectFlow();
       myRoomId = msg.roomId;
       localStorage.setItem('bota_last_room_id', myRoomId);
       isHost = false;
@@ -59,6 +148,7 @@ function handleMessage(msg) {
       updateAssetLoadingUI(msg.state);
       break;
     case 'game_start':
+      stopReconnectFlow();
       roomState = msg.state;
       if (msg.state?.id) localStorage.setItem('bota_last_room_id', msg.state.id);
       startGameClient(msg.state);

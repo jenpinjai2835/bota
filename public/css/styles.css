@@ -929,6 +929,53 @@
   }
   #death-overlay .respawn-text { font-size: 14px; color: var(--muted); letter-spacing: 0.2em; }
 
+  #reconnect-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 430;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.34);
+    backdrop-filter: blur(2px);
+    pointer-events: auto;
+  }
+  #reconnect-overlay.visible { display: flex; }
+  .reconnect-panel {
+    width: min(340px, calc(100vw - 48px));
+    padding: 22px 24px;
+    border-radius: 7px;
+    border: 1px solid rgba(245,225,130,0.46);
+    background: rgba(8,5,7,0.92);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.46), inset 0 1px 0 rgba(255,255,255,0.08);
+    text-align: center;
+  }
+  .reconnect-spinner {
+    width: 34px;
+    height: 34px;
+    margin: 0 auto 12px;
+    border: 3px solid rgba(245,225,130,0.2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: reconnectSpin 900ms linear infinite;
+  }
+  .reconnect-title {
+    font-family: 'Cinzel', serif;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    color: var(--gold);
+  }
+  .reconnect-text {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  @keyframes reconnectSpin {
+    to { transform: rotate(360deg); }
+  }
+
   /* Chat */
   #chat-container {
     position: fixed;

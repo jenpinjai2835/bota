@@ -3,6 +3,7 @@
 //  GAME INIT
 // ============================================================
 function leaveGame() {
+  if (typeof stopReconnectFlow === 'function') stopReconnectFlow();
   gameRunning = false;
   isAlive = true;
   isHost = false;
@@ -45,7 +46,7 @@ function leaveGame() {
     respawnTimer = null;
   }
 
-  ['hud', 'skills-bar', 'chat-container', 'controls-hint', 'scoreboard', 'death-overlay', 'game-summary', 'screen-loading'].forEach(id => {
+  ['hud', 'skills-bar', 'chat-container', 'controls-hint', 'scoreboard', 'death-overlay', 'game-summary', 'screen-loading', 'reconnect-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('visible');
   });
