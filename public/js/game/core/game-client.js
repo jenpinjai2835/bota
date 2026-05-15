@@ -37,7 +37,8 @@ function leaveGame() {
   mutedChatPlayerIds.clear();
   recentCreepDeathBursts.clear();
   localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
-  Object.keys(keys).forEach(key => { delete keys[key]; });
+  if (typeof clearInputState === 'function') clearInputState();
+  else Object.keys(keys).forEach(key => { delete keys[key]; });
 
   if (respawnTimer) {
     clearInterval(respawnTimer);
@@ -73,6 +74,7 @@ function leaveGame() {
 }
 
 function startGameClient(state) {
+  if (typeof clearInputState === 'function') clearInputState();
   showScreen('');
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   gameRunning = true;

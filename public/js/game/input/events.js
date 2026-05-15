@@ -2,11 +2,27 @@
 // ============================================================
 //  INPUT HANDLING
 // ============================================================
+const GAMEPLAY_KEYS = new Set([
+  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+  'a', 'A', 'd', 'D', 'w', 'W', 's', 'S',
+  ' ',
+]);
+
+function clearInputState() {
+  Object.keys(keys).forEach(key => { delete keys[key]; });
+  touchStartX = null;
+  touchStartY = null;
+  if (myPlayer) {
+    myPlayer.vx = 0;
+    if (myPlayer.onGround) myPlayer.vy = 0;
+  }
+}
+
 document.addEventListener('keydown', (e) => {
   const chatInp = document.getElementById('chat-input');
   const isTypingChat = gameRunning && document.activeElement === chatInp;
 
-  if (!isTypingChat) {
+  if (gameRunning && !isTypingChat && GAMEPLAY_KEYS.has(e.key)) {
     keys[e.key] = true;
   }
 
@@ -38,7 +54,14 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+document.addEventListener('keyup', (e) => {
+  if (GAMEPLAY_KEYS.has(e.key)) delete keys[e.key];
+});
+
+window.addEventListener('blur', clearInputState);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) clearInputState();
+});
 
 document.getElementById('game-canvas').addEventListener('pointerdown', (e) => {
   if (!gameRunning) return;

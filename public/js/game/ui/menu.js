@@ -25,6 +25,7 @@ buildCharGrid();
 //  SCREEN MANAGEMENT
 // ============================================================
 function showScreen(id) {
+  if (typeof clearInputState === 'function') clearInputState();
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   const el = document.getElementById(id);
   if (el) el.classList.remove('hidden');
