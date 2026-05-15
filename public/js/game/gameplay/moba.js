@@ -1,5 +1,12 @@
 // Lane depth, creeps, towers, and ancient objectives
 const MONSTER_TYPES = ['monster_6', 'monster_7', 'monster_8', 'monster_9', 'monster_10'];
+const MONSTER_VECTOR_PARTS = {
+  monster_6: ['Head.png', 'Left Leg.png', 'Right Leg.png'],
+  monster_7: ['Head.png', 'Left Arm.png', 'Left Hand.png', 'Left Leg.png', 'Right Arm.png', 'Right Hand.png', 'Right Leg.png'],
+  monster_8: ['Body.png', 'Head.png', 'Left Arm.png', 'Left Leg.png', 'Right Arm.png', 'Right Leg.png', 'Tail.png'],
+  monster_9: ['Body.png', 'Head.png', 'Leg1.png', 'Leg2.png', 'Leg3.png', 'Leg4.png', 'Leg5.png'],
+  monster_10: ['Body.png', 'Head.png', 'Left Arm.png', 'Left Leg.png', 'Right Arm.png', 'Right Leg.png'],
+};
 const MONSTER_ACTIONS = {
   walk: { folder: 'walking', file: 'Walking', frames: 18, fps: 14 },
   run: { folder: 'walking', file: 'Walking', frames: 18, fps: 18 },
@@ -8,6 +15,10 @@ const MONSTER_ACTIONS = {
   dead: { folder: 'dying', file: 'Dying', frames: 18, fps: 12 },
 };
 const monsterFrameFallbackCache = {};
+const monsterVectorImages = {};
+const monsterVectorData = {};
+const monsterVectorLoadStarted = {};
+const monsterVectorBoundsCache = {};
 
 function preloadMonsterAssets() {
   if (typeof Image === 'undefined') return;
@@ -22,6 +33,29 @@ function preloadMonsterAssets() {
         monsterImages[type][action][i] = img;
       }
     });
+  });
+  preloadMonsterVectorAssets();
+}
+
+function preloadMonsterVectorAssets() {
+  MONSTER_TYPES.forEach(type => {
+    monsterVectorImages[type] = monsterVectorImages[type] || {};
+    (MONSTER_VECTOR_PARTS[type] || []).forEach(file => {
+      if (monsterVectorImages[type][file]) return;
+      const img = new Image();
+      img.src = `/assets/monsters/${type}/vector/${encodeURIComponent(file)}`;
+      monsterVectorImages[type][file] = img;
+    });
+    if (monsterVectorLoadStarted[type] || typeof fetch !== 'function') return;
+    monsterVectorLoadStarted[type] = true;
+    fetch(`/assets/monsters/${type}/vector/Animations.scml`)
+      .then(response => response.ok ? response.text() : null)
+      .then(text => {
+        if (text) monsterVectorData[type] = parseMonsterVectorScml(text);
+      })
+      .catch(() => {
+        monsterVectorData[type] = null;
+      });
   });
 }
 
@@ -225,13 +259,289 @@ function drawCreep(ctx, creep, sx, sy) {
   }
   ctx.translate(x, y);
   ctx.scale(facing > 0 ? 1 : -1, 1);
-  if (img?.complete && img.naturalWidth) {
+  if (drawMonsterVectorCreep(ctx, creep, w, h, action)) {
+    // Vector parts are the primary creep renderer. PNG frames remain as fallback.
+  } else if (img?.complete && img.naturalWidth) {
     ctx.drawImage(img, -w / 2, -h, w, h);
   } else {
     drawCreepSilhouette(ctx, creep, w, h, scale);
   }
   ctx.restore();
   drawUnitHealthBar(ctx, creep, x, y - h - 3 * sy, Math.max(32, 38 * scale), sx, sy);
+}
+
+function parseMonsterVectorScml(text) {
+  if (typeof DOMParser === 'undefined') return null;
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  const files = {};
+  Array.from(doc.getElementsByTagName('folder')).forEach(folder => {
+    const folderId = String(folder.getAttribute('id') || '0');
+    files[folderId] = files[folderId] || {};
+    childrenByTag(folder, 'file').forEach(file => {
+      const id = String(file.getAttribute('id') || '0');
+      files[folderId][id] = {
+        name: file.getAttribute('name') || '',
+        width: Number(file.getAttribute('width')) || 0,
+        height: Number(file.getAttribute('height')) || 0,
+        pivotX: Number(file.getAttribute('pivot_x') ?? 0.5),
+        pivotY: Number(file.getAttribute('pivot_y') ?? 0.5),
+      };
+    });
+  });
+
+  const animations = {};
+  Array.from(doc.getElementsByTagName('animation')).forEach(animationEl => {
+    const name = animationEl.getAttribute('name') || 'Idle';
+    const length = Number(animationEl.getAttribute('length')) || 600;
+    const mainlineEl = childrenByTag(animationEl, 'mainline')[0];
+    const mainline = mainlineEl ? childrenByTag(mainlineEl, 'key').map(keyEl => ({
+      id: keyEl.getAttribute('id'),
+      time: Number(keyEl.getAttribute('time')) || 0,
+      boneRefs: childrenByTag(keyEl, 'bone_ref').map(readMonsterVectorRef),
+      objectRefs: childrenByTag(keyEl, 'object_ref').map(readMonsterVectorRef),
+    })) : [];
+    const timelines = {};
+    childrenByTag(animationEl, 'timeline').forEach(timelineEl => {
+      const id = String(timelineEl.getAttribute('id') || '0');
+      const objectType = timelineEl.getAttribute('object_type') || 'sprite';
+      timelines[id] = {
+        id,
+        name: timelineEl.getAttribute('name') || '',
+        objectType,
+        keys: childrenByTag(timelineEl, 'key').map(keyEl => {
+          const node = childrenByTag(keyEl, objectType === 'bone' ? 'bone' : 'object')[0];
+          return readMonsterVectorKey(keyEl, node, objectType);
+        }).filter(Boolean),
+      };
+    });
+    animations[name] = { name, length, mainline, timelines };
+  });
+  return { files, animations };
+}
+
+function childrenByTag(el, tagName) {
+  return Array.from(el?.children || []).filter(child => child.tagName === tagName);
+}
+
+function readMonsterVectorRef(refEl) {
+  return {
+    id: String(refEl.getAttribute('id') || '0'),
+    parent: refEl.hasAttribute('parent') ? String(refEl.getAttribute('parent')) : null,
+    timeline: String(refEl.getAttribute('timeline') || '0'),
+    key: String(refEl.getAttribute('key') || '0'),
+    zIndex: Number(refEl.getAttribute('z_index')) || 0,
+  };
+}
+
+function readMonsterVectorKey(keyEl, node, objectType) {
+  if (!node) return null;
+  return {
+    time: Number(keyEl.getAttribute('time')) || 0,
+    spin: keyEl.hasAttribute('spin') ? Number(keyEl.getAttribute('spin')) : 1,
+    type: objectType,
+    folder: node.getAttribute('folder') || '0',
+    file: node.getAttribute('file') || '0',
+    x: Number(node.getAttribute('x')) || 0,
+    y: Number(node.getAttribute('y')) || 0,
+    angle: Number(node.getAttribute('angle')) || 0,
+    scaleX: Number(node.getAttribute('scale_x') ?? 1),
+    scaleY: Number(node.getAttribute('scale_y') ?? 1),
+  };
+}
+
+function getMonsterVectorAnimationName(creep, action) {
+  if (creep.hp <= 0) return 'Dying';
+  if (action === 'attack') return 'Attack';
+  if (creep.state === 'walk' || creep.state === 'run') return 'Walking';
+  return 'Idle';
+}
+
+function getMonsterVectorAnimationTime(animation, creep, action) {
+  if (!animation?.length) return 0;
+  if (action === 'attack') {
+    const startedAt = creep.attackVisualStartedAt || 0;
+    return startedAt ? (Date.now() - startedAt) % animation.length : Date.now() % animation.length;
+  }
+  return Date.now() % animation.length;
+}
+
+function getMonsterVectorMainlineKey(animation, time) {
+  let selected = animation?.mainline?.[0] || null;
+  (animation?.mainline || []).forEach(key => {
+    if ((key.time || 0) <= time) selected = key;
+  });
+  return selected;
+}
+
+function getMonsterVectorTimelineKey(timeline, time, length) {
+  const keys = timeline?.keys || [];
+  if (!keys.length) return null;
+  if (keys.length === 1) return keys[0];
+  let current = keys[0];
+  let next = keys[1];
+  for (let i = 0; i < keys.length; i++) {
+    const candidate = keys[i];
+    const candidateNext = keys[(i + 1) % keys.length];
+    const nextTime = candidateNext.time <= candidate.time ? candidateNext.time + length : candidateNext.time;
+    if (time >= candidate.time && time < nextTime) {
+      current = candidate;
+      next = candidateNext;
+      break;
+    }
+  }
+  const span = (next.time <= current.time ? next.time + length : next.time) - current.time;
+  const localTime = time < current.time ? time + length : time;
+  const t = span > 0 ? Math.max(0, Math.min(1, (localTime - current.time) / span)) : 0;
+  const spin = current.spin ?? 1;
+  let angleDelta = (next.angle || 0) - (current.angle || 0);
+  if (spin === 0) angleDelta = 0;
+  else if (spin > 0 && angleDelta < 0) angleDelta += 360;
+  else if (spin < 0 && angleDelta > 0) angleDelta -= 360;
+  return {
+    ...current,
+    x: current.x + ((next.x || 0) - (current.x || 0)) * t,
+    y: current.y + ((next.y || 0) - (current.y || 0)) * t,
+    angle: (current.angle || 0) + angleDelta * t,
+    scaleX: (current.scaleX ?? 1) + ((next.scaleX ?? 1) - (current.scaleX ?? 1)) * t,
+    scaleY: (current.scaleY ?? 1) + ((next.scaleY ?? 1) - (current.scaleY ?? 1)) * t,
+  };
+}
+
+function composeMonsterVectorTransform(parent, local) {
+  const rad = (parent.angle || 0) * Math.PI / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const x = (local.x || 0) * (parent.scaleX ?? 1);
+  const y = (local.y || 0) * (parent.scaleY ?? 1);
+  return {
+    x: (parent.x || 0) + x * cos - y * sin,
+    y: (parent.y || 0) + x * sin + y * cos,
+    angle: (parent.angle || 0) + (local.angle || 0),
+    scaleX: (parent.scaleX ?? 1) * (local.scaleX ?? 1),
+    scaleY: (parent.scaleY ?? 1) * (local.scaleY ?? 1),
+  };
+}
+
+function getMonsterVectorImageInfo(type, data, folder, file) {
+  const fileInfo = data?.files?.[String(folder)]?.[String(file)];
+  if (!fileInfo?.name) return null;
+  const img = monsterVectorImages[type]?.[fileInfo.name];
+  if (!img?.complete || !img.naturalWidth) return null;
+  return { img, fileInfo };
+}
+
+function getMonsterVectorObjects(type, animation, time) {
+  const data = monsterVectorData[type];
+  const mainline = getMonsterVectorMainlineKey(animation, time);
+  if (!data?.files || !mainline) return [];
+  const identity = { x: 0, y: 0, angle: 0, scaleX: 1, scaleY: 1 };
+  const boneTransforms = {};
+  (mainline.boneRefs || []).forEach(ref => {
+    const timeline = animation.timelines?.[String(ref.timeline)];
+    const local = getMonsterVectorTimelineKey(timeline, time, animation.length);
+    if (!local) return;
+    const parent = ref.parent !== null && ref.parent !== undefined ? boneTransforms[String(ref.parent)] || identity : identity;
+    boneTransforms[String(ref.id)] = composeMonsterVectorTransform(parent, local);
+  });
+  return (mainline.objectRefs || [])
+    .map(ref => {
+      const timeline = animation.timelines?.[String(ref.timeline)];
+      const local = getMonsterVectorTimelineKey(timeline, time, animation.length);
+      if (!local) return null;
+      const imageInfo = getMonsterVectorImageInfo(type, data, local.folder, local.file);
+      if (!imageInfo) return null;
+      const parent = ref.parent !== null && ref.parent !== undefined ? boneTransforms[String(ref.parent)] || identity : identity;
+      return { ...imageInfo, transform: composeMonsterVectorTransform(parent, local), zIndex: ref.zIndex || 0 };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.zIndex - b.zIndex);
+}
+
+function getMonsterVectorObjectCorners(item) {
+  const { img, fileInfo, transform } = item;
+  const pivotX = fileInfo.pivotX ?? 0.5;
+  const pivotY = fileInfo.pivotY ?? 0.5;
+  const points = [
+    [-pivotX * img.naturalWidth, -pivotY * img.naturalHeight],
+    [(1 - pivotX) * img.naturalWidth, -pivotY * img.naturalHeight],
+    [(1 - pivotX) * img.naturalWidth, (1 - pivotY) * img.naturalHeight],
+    [-pivotX * img.naturalWidth, (1 - pivotY) * img.naturalHeight],
+  ];
+  const rad = -(transform.angle || 0) * Math.PI / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return points.map(([x, y]) => {
+    const sx = x * (transform.scaleX ?? 1);
+    const sy = y * (transform.scaleY ?? 1);
+    return {
+      x: transform.x + sx * cos - sy * sin,
+      y: -transform.y + sx * sin + sy * cos,
+    };
+  });
+}
+
+function getMonsterVectorObjectsBounds(objects) {
+  const bounds = objects.reduce((acc, item) => {
+    getMonsterVectorObjectCorners(item).forEach(point => {
+      acc.minX = Math.min(acc.minX, point.x);
+      acc.minY = Math.min(acc.minY, point.y);
+      acc.maxX = Math.max(acc.maxX, point.x);
+      acc.maxY = Math.max(acc.maxY, point.y);
+    });
+    return acc;
+  }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+  const width = bounds.maxX - bounds.minX;
+  const height = bounds.maxY - bounds.minY;
+  if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) return null;
+  return { ...bounds, width, height };
+}
+
+function getMonsterVectorReferenceBounds(type) {
+  if (monsterVectorBoundsCache[type]) return monsterVectorBoundsCache[type];
+  const data = monsterVectorData[type];
+  const animation = data?.animations?.Idle || Object.values(data?.animations || {})[0];
+  if (!animation) return null;
+  const objects = getMonsterVectorObjects(type, animation, 0);
+  monsterVectorBoundsCache[type] = getMonsterVectorObjectsBounds(objects);
+  return monsterVectorBoundsCache[type];
+}
+
+function drawMonsterVectorObject(ctx, item) {
+  const { img, fileInfo, transform } = item;
+  ctx.save();
+  ctx.translate(transform.x, -transform.y);
+  ctx.rotate(-(transform.angle || 0) * Math.PI / 180);
+  ctx.scale(transform.scaleX ?? 1, transform.scaleY ?? 1);
+  ctx.drawImage(
+    img,
+    -(fileInfo.pivotX ?? 0.5) * img.naturalWidth,
+    -(fileInfo.pivotY ?? 0.5) * img.naturalHeight
+  );
+  ctx.restore();
+}
+
+function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action) {
+  const type = creep.type;
+  const data = monsterVectorData[type];
+  if (!data?.animations) return false;
+  const animationName = getMonsterVectorAnimationName(creep, action);
+  const animation = data.animations[animationName] || data.animations.Walking || data.animations.Idle;
+  if (!animation) return false;
+  const time = getMonsterVectorAnimationTime(animation, creep, action);
+  const objects = getMonsterVectorObjects(type, animation, time);
+  if (!objects.length) return false;
+  const bounds = getMonsterVectorObjectsBounds(objects);
+  const referenceBounds = getMonsterVectorReferenceBounds(type) || bounds;
+  if (!bounds || !referenceBounds) return false;
+  const scale = Math.min(drawW / referenceBounds.width, drawH / referenceBounds.height) * 0.98;
+  const offsetX = -((bounds.minX + bounds.maxX) * 0.5 * scale);
+  const offsetY = -bounds.maxY * scale;
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  objects.forEach(item => drawMonsterVectorObject(ctx, item));
+  ctx.restore();
+  return true;
 }
 
 function getRenderableMonsterFrame(type, action, frameIndex = 0) {

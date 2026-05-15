@@ -163,12 +163,19 @@ function collectMatchAssetUrls() {
 
   const monsterTypes = typeof MONSTER_TYPES !== 'undefined' ? MONSTER_TYPES : [];
   const monsterActions = typeof MONSTER_ACTIONS !== 'undefined' ? MONSTER_ACTIONS : {};
+  const monsterVectorParts = typeof MONSTER_VECTOR_PARTS !== 'undefined' ? MONSTER_VECTOR_PARTS : {};
   monsterTypes.forEach(type => {
     Object.values(monsterActions).forEach(meta => {
       for (let i = 0; i < meta.frames; i++) {
         urls.add(`/assets/monsters/${type}/${meta.folder}/0_Monster_${meta.file}_${String(i).padStart(3, '0')}.png`);
       }
     });
+    if (monsterVectorParts[type]?.length) {
+      urls.add(`/assets/monsters/${type}/vector/Animations.scml`);
+      monsterVectorParts[type].forEach(file => {
+        urls.add(`/assets/monsters/${type}/vector/${encodeURIComponent(file)}`);
+      });
+    }
   });
   return Array.from(urls);
 }
@@ -184,6 +191,19 @@ function loadImageAsset(url) {
 }
 
 function loadAssetUrl(url) {
+  if (url.endsWith('.scml')) {
+    return fetch(url)
+      .then(async response => {
+        if (!response.ok) return false;
+        const text = await response.text();
+        const match = url.match(/\/assets\/monsters\/([^/]+)\/vector\/Animations\.scml$/);
+        if (match && typeof parseMonsterVectorScml === 'function' && typeof monsterVectorData !== 'undefined') {
+          monsterVectorData[match[1]] = parseMonsterVectorScml(text);
+        }
+        return true;
+      })
+      .catch(() => false);
+  }
   if (url.endsWith('.json')) {
     return fetch(url).then(response => response.ok).catch(() => false);
   }
