@@ -22,6 +22,7 @@ function setupWebSocket(server, rooms) {
   const CREEP_ENEMY_CREEP_DETECT_RANGE = { melee: 118, ranged: 155 };
   const CREEP_ATTACK_ANIMATION_MS = 600;
   const CREEP_ATTACK_WINDUP_RATIO = { melee: 0.46, ranged: 0.58 };
+  const TOWER_SHOT_TRAVEL_MS = 560;
   const CREEP_DEPTH_SPEED_MULTIPLIER = 0.56;
   const CREEP_TEAM_TYPES = {
     sun: { melee: ['monster_6', 'monster_7'], ranged: ['monster_9'] },
@@ -540,6 +541,47 @@ function setupWebSocket(server, rooms) {
     });
   }
 
+  function queueTowerShot(room, roomId, tower, target, targetType, now) {
+    room.pendingTowerShots = room.pendingTowerShots || [];
+    const shot = {
+      id: `ts_${tower.id}_${now}_${Math.random().toString(36).slice(2, 5)}`,
+      towerId: tower.id,
+      targetId: target.id,
+      targetType,
+      teamId: tower.teamId,
+      damage: tower.damage || 30,
+      hitAt: now + TOWER_SHOT_TRAVEL_MS,
+    };
+    room.pendingTowerShots.push(shot);
+    room.players.forEach(pid => sendTo(pid, {
+      type: 'tower_shot',
+      id: shot.id,
+      from: { x: tower.x + unitWidth(tower) / 2, y: tower.y + unitHeight(tower) * 0.18 },
+      to: { x: target.x + unitWidth(target) / 2, y: target.y + unitHeight(target) * 0.45 },
+      teamId: tower.teamId,
+      travelMs: TOWER_SHOT_TRAVEL_MS,
+    }));
+  }
+
+  function resolveTowerShot(room, roomId, shot) {
+    const tower = getUnitById(room, shot.towerId);
+    const target = getUnitById(room, shot.targetId);
+    if (!tower || tower.hp <= 0 || !target || target.hp <= 0 || target.teamId === shot.teamId) return;
+    if (shot.targetType === 'hero') {
+      damagePlayer(room, roomId, target, shot.damage, tower.id, 'tower_shot', getDamageDirection(target, tower, TEAM_DIR[tower.teamId] || 1));
+    } else {
+      damageCreep(room, target, shot.damage, tower, null, roomId);
+    }
+  }
+
+  function updateTowerShotImpacts(room, roomId, now) {
+    room.pendingTowerShots = (room.pendingTowerShots || []).filter(shot => {
+      if (shot.hitAt > now) return true;
+      resolveTowerShot(room, roomId, shot);
+      return false;
+    });
+  }
+
   function getTowerTarget(room, tower, now = Date.now()) {
     const aggroHero = getTowerAggroHero(room, tower, now);
     if (aggroHero) return { unit: aggroHero, type: 'hero', priority: 'hero_aggro', distance: distanceBetween(tower, aggroHero) };
@@ -988,6 +1030,7 @@ function setupWebSocket(server, rooms) {
 
     updateCreepAttacks(room, roomId, now);
     updateCreepProjectiles(room, roomId);
+    updateTowerShotImpacts(room, roomId, now);
 
     (room.creeps || []).forEach(creep => {
       if (creep.hp <= 0) return;
@@ -1016,17 +1059,7 @@ function setupWebSocket(server, rooms) {
       if (!targetInfo) return;
       const { unit: target, type } = targetInfo;
       obj.attackAt = now + 1100;
-      if (type === 'hero') {
-        damagePlayer(room, roomId, target, obj.damage || 30, obj.id, 'tower_shot', getDamageDirection(target, obj, TEAM_DIR[obj.teamId] || 1));
-      } else {
-        damageCreep(room, target, obj.damage || 30, obj, null, roomId);
-      }
-      room.players.forEach(pid => sendTo(pid, {
-        type: 'tower_shot',
-        from: { x: obj.x + unitWidth(obj) / 2, y: obj.y + unitHeight(obj) * 0.18 },
-        to: { x: target.x + unitWidth(target) / 2, y: target.y + unitHeight(target) * 0.45 },
-        teamId: obj.teamId,
-      }));
+      queueTowerShot(room, roomId, obj, target, type, now);
     });
 
     room.creeps = (room.creeps || []).filter(creep => creep.hp > 0);

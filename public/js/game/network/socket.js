@@ -160,7 +160,7 @@ function handleMessage(msg) {
       syncWorldState(msg);
       break;
     case 'tower_shot':
-      towerShots.push({ ...msg, life: 34, maxLife: 34, startedAt: Date.now() });
+      towerShots.push({ ...msg, life: Math.max(1, Math.round((msg.travelMs || 560) / 16)), maxLife: Math.max(1, Math.round((msg.travelMs || 560) / 16)), startedAt: Date.now() });
       break;
     case 'unit_death':
       handleWorldUnitDeath(msg);

@@ -223,8 +223,33 @@ function updateTowerShots() {
   });
   towerShots = towerShots.filter(shot => {
     shot.life--;
-    return shot.life > 0;
+    if (shot.life > 0) return true;
+    spawnTowerShotImpact(shot);
+    return false;
   });
+}
+
+function spawnTowerShotImpact(shot) {
+  if (!shot?.to) return;
+  const color = shot.teamId === 'sun' ? '#33C7FF' : '#B46AFF';
+  spawnEffect(shot.to.x, shot.to.y, 'tower-impact', color, 58);
+  const dir = Math.sign((shot.to.x || 0) - (shot.from?.x || shot.to.x || 0)) || 1;
+  for (let i = 0; i < 18; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.9 + Math.random() * 3.4;
+    const size = 2.4 + Math.random() * 4.6;
+    bloodParticles.push({
+      x: shot.to.x + Math.cos(angle) * 7,
+      y: shot.to.y + Math.sin(angle) * 7,
+      vx: Math.cos(angle) * speed + dir * 0.6,
+      vy: Math.sin(angle) * speed - 1.4,
+      size,
+      color,
+      groundY: shot.to.y + 26,
+      life: 24 + Math.floor(Math.random() * 18),
+      maxLife: 42,
+    });
+  }
 }
 
 function getObjectiveTexture(obj) {
@@ -387,27 +412,6 @@ function drawTowerLivingEffects(ctx, img, obj, drawX, drawY, drawW, drawH, teamC
   ctx.fill();
   ctx.restore();
 
-  const bannerRects = [
-    { sx: 0.27, sy: 0.29, sw: 0.16, sh: 0.25, dx: 0.27, dy: 0.29, dw: 0.16, dh: 0.25, phase: 0 },
-    { sx: 0.61, sy: 0.29, sw: 0.16, sh: 0.25, dx: 0.61, dy: 0.29, dw: 0.16, dh: 0.25, phase: 1.7 },
-  ];
-  ctx.save();
-  ctx.globalAlpha = 0.82;
-  bannerRects.forEach(rect => {
-    const wave = Math.sin(t * 4.4 + rect.phase) * 2.6 * scale;
-    ctx.drawImage(
-      img,
-      rect.sx * img.naturalWidth,
-      rect.sy * img.naturalHeight,
-      rect.sw * img.naturalWidth,
-      rect.sh * img.naturalHeight,
-      drawX + rect.dx * drawW + wave,
-      drawY + rect.dy * drawH + Math.sin(t * 3 + rect.phase) * 0.8 * sy,
-      rect.dw * drawW,
-      rect.dh * drawH
-    );
-  });
-  ctx.restore();
 }
 
 function drawCreep(ctx, creep, sx, sy) {

@@ -138,6 +138,7 @@ class RoomStore {
       matchItems: [],
       creeps: [],
       creepProjectiles: [],
+      pendingTowerShots: [],
       creepSeq: 0,
       objectives: [],
       creepAggro: {},
@@ -358,6 +359,7 @@ class RoomStore {
     });
     room.creeps = [];
     room.creepProjectiles = [];
+    room.pendingTowerShots = [];
     room.creepSeq = 0;
     room.creepAggro = {};
     room.towerAggro = {};

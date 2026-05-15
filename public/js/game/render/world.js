@@ -324,16 +324,17 @@ function drawDamageNumber(ctx, n, sx, sy) {
 function drawBloodParticle(ctx, b, sx, sy) {
   const alpha = Math.max(0, b.life / b.maxLife);
   const scale = Math.min(sx, sy);
+  const color = b.color || '#D91F2A';
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.strokeStyle = 'rgba(185, 12, 22, 0.75)';
+  ctx.strokeStyle = b.color ? withAlpha(color, 0.75) : 'rgba(185, 12, 22, 0.75)';
   ctx.lineWidth = Math.max(1.2, b.size * 0.55 * scale);
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(b.x * sx, b.y * sy);
   ctx.lineTo((b.x - b.vx * 1.8) * sx, (b.y - b.vy * 1.8) * sy);
   ctx.stroke();
-  ctx.fillStyle = alpha > 0.45 ? '#D91F2A' : 'rgba(120, 8, 12, 0.9)';
+  ctx.fillStyle = b.color ? withAlpha(color, alpha > 0.45 ? 0.95 : 0.72) : (alpha > 0.45 ? '#D91F2A' : 'rgba(120, 8, 12, 0.9)');
   ctx.beginPath();
   ctx.arc(b.x * sx, b.y * sy, b.size * scale, 0, Math.PI * 2);
   ctx.fill();
