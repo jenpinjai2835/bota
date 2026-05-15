@@ -101,8 +101,8 @@ function setupWebSocket(server, rooms) {
     const dx = Math.abs(targetFoot.x - creepFoot.x);
     const depth = Math.abs((targetFoot.y - creepFoot.y) * 1.45);
     const range = creep.range || 38;
-    const reachX = range + unitFootRadiusX(target) * 0.75 + unitFootRadiusX(creep) * 0.35;
-    const reachZ = unitFootRadiusY(creep) + unitFootRadiusY(target) + Math.max(18, range * 0.9);
+    const reachX = range + unitFootRadiusX(target) * 0.46 + unitFootRadiusX(creep) * 0.18;
+    const reachZ = unitFootRadiusY(creep) + unitFootRadiusY(target) + Math.max(14, range * 0.48);
     return dx <= reachX && depth <= reachZ;
   }
 
