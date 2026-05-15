@@ -248,7 +248,7 @@ function drawObjective(ctx, obj, sx, sy) {
 
 function drawCreep(ctx, creep, sx, sy) {
   if (!creep || creep.hp <= 0) return;
-  const action = creep.state === 'attack' ? 'attack' : 'walk';
+  const action = getCreepVisualAction(creep);
   const frames = monsterImages[creep.type]?.[action] || [];
   const meta = MONSTER_ACTIONS[action] || MONSTER_ACTIONS.walk;
   const frame = getMonsterFrameIndex(creep, action, Math.max(1, frames.length), meta);
@@ -282,6 +282,14 @@ function drawCreep(ctx, creep, sx, sy) {
   drawUnitHealthBar(ctx, creep, x, y - h + groundOffset - 3 * sy, Math.max(32, 38 * scale), sx, sy);
 }
 
+function getCreepVisualAction(creep) {
+  const cooldown = Math.max(180, creep.attackCooldown || 900);
+  const attackStartedAt = creep.attackVisualStartedAt || 0;
+  if (attackStartedAt && Date.now() - attackStartedAt < cooldown) return 'attack';
+  if (creep.state === 'idle') return 'idle';
+  return creep.state === 'attack' ? 'attack' : 'walk';
+}
+
 function getMonsterFrameIndex(creep, action, frameCount, meta) {
   if (action === 'attack') {
     const cooldown = Math.max(180, creep.attackCooldown || 900);
@@ -295,6 +303,14 @@ function getMonsterFrameIndex(creep, action, frameCount, meta) {
 
 function getCreepGroundOffset(creep, scale) {
   return (creep.role === 'ranged' ? 6 : 8) * scale;
+}
+
+function getCreepAnimationPhase(creep) {
+  const id = String(creep.id || creep.type || '');
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  const speed = Math.max(0.75, creep.speed || 1.8);
+  return Date.now() * 0.012 * speed + (hash % 628) / 100;
 }
 
 function parseMonsterVectorScml(text) {
@@ -391,6 +407,9 @@ function getMonsterVectorAnimationTime(animation, creep, action) {
     const elapsed = Math.max(0, Date.now() - startedAt);
     const progress = Math.min(0.999, elapsed / cooldown);
     return progress * animation.length;
+  }
+  if (action === 'walk') {
+    return (getCreepAnimationPhase(creep) * 95) % animation.length;
   }
   return Date.now() % animation.length;
 }
@@ -567,6 +586,11 @@ function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action, groundOffset =
   const offsetX = -((bounds.minX + bounds.maxX) * 0.5 * scale);
   const offsetY = -bounds.maxY * scale + groundOffset;
   ctx.save();
+  if (action === 'walk') {
+    const phase = getCreepAnimationPhase(creep);
+    ctx.translate(0, Math.sin(phase * 2) * 1.8);
+    ctx.rotate(Math.sin(phase) * 0.035);
+  }
   ctx.translate(offsetX, offsetY);
   ctx.scale(scale, scale);
   objects.forEach(item => drawMonsterVectorObject(ctx, item));

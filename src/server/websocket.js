@@ -313,6 +313,8 @@ function setupWebSocket(server, rooms) {
         } else {
           damageObjective(room, target, creep.damage);
         }
+      } else {
+        creep.state = 'idle';
       }
     });
     resolveCreepSpacing(room);
