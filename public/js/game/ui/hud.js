@@ -21,8 +21,6 @@ function buildHUD() {
     <div class="hp-bar"><div class="hp-fill high" id="focus-hp" style="width:100%"></div><div class="hp-ticks" id="focus-hp-ticks"></div></div>
     <div class="hud-stat-line mana-line"><span>MP</span><span id="focus-mana-text"></span></div>
     <div class="mana-bar"><div class="mana-fill" id="focus-mana" style="width:100%"></div></div>
-    <div class="attr-strip" id="focus-attrs"></div>
-    <div class="derived-strip" id="focus-derived"></div>
   `;
   container.appendChild(div);
   updateCombatStatsPanel();
@@ -88,7 +86,15 @@ function updateHUD() {
   }
   const derivedEl = document.getElementById('focus-derived');
   if (derivedEl) {
-    derivedEl.textContent = `ATK ${stats.attackDamage || 0} / ARM ${stats.armor || 0} / AS ${(stats.attackSpeed || 1).toFixed(2)} / MR ${Math.round((stats.magicDefense || 0) * 100)}%`;
+    derivedEl.innerHTML = [
+      ['ATK', stats.attackDamage || 0],
+      ['ARM', stats.armor || 0],
+      ['AS', (stats.attackSpeed || 1).toFixed(2)],
+      ['MS', Math.round((stats.speed || 0) * 60)],
+      ['MR', `${Math.round((stats.magicDefense || 0) * 100)}%`],
+      ['HP+', (stats.hpRegen || 0).toFixed(1)],
+      ['MP+', (stats.manaRegen || 0).toFixed(1)],
+    ].map(([label, value]) => `<span><b>${label}</b>${value}</span>`).join('');
   }
 
   updateMiniMap();
@@ -350,25 +356,54 @@ function buildSkillsBar() {
   bar.innerHTML = '';
   if (!myPlayer) return;
   const ch = myPlayer.charData;
+
+  const miniPanel = document.createElement('div');
+  miniPanel.className = 'hud-dock-panel minimap-panel';
+  let miniMap = document.getElementById('mini-map');
+  if (!miniMap) {
+    miniMap = document.createElement('canvas');
+    miniMap.id = 'mini-map';
+    miniMap.width = 180;
+    miniMap.height = 106;
+    miniMap.setAttribute('aria-hidden', 'true');
+  }
+  miniPanel.appendChild(miniMap);
+  bar.appendChild(miniPanel);
+
+  const statPanel = document.createElement('div');
+  statPanel.className = 'hud-dock-panel stat-panel';
+  statPanel.innerHTML = '<div class="attr-strip" id="focus-attrs"></div><div class="derived-strip" id="focus-derived"></div>';
+  bar.appendChild(statPanel);
+
+  const detailPanel = document.createElement('div');
+  detailPanel.className = 'hud-dock-panel detail-panel';
+  const focusCard = document.getElementById('focused-hud-card');
+  if (focusCard) detailPanel.appendChild(focusCard);
+  bar.appendChild(detailPanel);
+
+  const skillPanel = document.createElement('div');
+  skillPanel.className = 'hud-dock-panel skill-panel';
   const expPanel = document.createElement('div');
   expPanel.className = 'skill-exp-panel';
   expPanel.innerHTML = '<div class="skill-exp-fill" id="skill-exp-fill" style="width:0%"></div>';
-  bar.appendChild(expPanel);
+  skillPanel.appendChild(expPanel);
   const basicSkill = ch.skills.find(sk => sk.basicAttack) || ch.skills[0];
   if (basicSkill) {
     const slot = document.createElement('div');
     slot.className = 'skill-slot basic-attack-slot';
     slot.id = `skill-${basicSkill.id}`;
     slot.innerHTML = `<span class="sicon">${basicSkill.icon}</span><span class="skey">${basicSkill.key}</span><span class="skill-level" id="skill-level-${basicSkill.id}">1</span><div class="scd" id="scd-${basicSkill.id}">0</div>`;
-    bar.appendChild(slot);
+    skillPanel.appendChild(slot);
   }
   ch.skills.filter(sk => sk.id !== basicSkill?.id).forEach(sk => {
     const slot = document.createElement('div');
     slot.className = 'skill-slot';
     slot.id = `skill-${sk.id}`;
     slot.innerHTML = `<span class="sicon">${sk.icon}</span><span class="skey">${sk.key}</span><span class="mana-cost" id="mana-cost-${sk.id}">${getSkillManaCost(sk)}</span><span class="skill-level" id="skill-level-${sk.id}">1</span><div class="scd" id="scd-${sk.id}">0</div>`;
-    bar.appendChild(slot);
+    skillPanel.appendChild(slot);
   });
+  bar.appendChild(skillPanel);
+  updateHUD();
 }
 
 function updateSkillsBar() {

@@ -547,31 +547,25 @@
   }
 
   .player-hud-card {
-    background:
-      linear-gradient(145deg, rgba(245,225,130,0.08), transparent 42%),
-      rgba(8,5,7,0.78);
-    border: 1px solid rgba(255,72,72,0.72);
-    border-radius: 6px;
-    padding: 8px 11px 9px;
-    min-width: 154px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    min-width: 150px;
     position: relative;
-    box-shadow: 0 0 18px rgba(255,72,72,0.12), 0 10px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08);
-    backdrop-filter: blur(8px);
+    box-shadow: none;
+    backdrop-filter: none;
   }
   .player-hud-card.is-focus {
-    width: 168px;
-    min-width: 168px;
+    width: 170px;
+    min-width: 170px;
   }
   .player-hud-card.is-enemy {
     border-color: rgba(255,72,72,0.9);
     box-shadow: 0 0 24px rgba(255,72,72,0.16), 0 10px 30px rgba(0,0,0,0.32);
   }
   .player-hud-card::before {
-    content: '';
-    position: absolute;
-    left: 10px; right: 10px; top: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(245,225,130,0.7), transparent);
+    content: none;
   }
   .player-hud-card.is-me {
     border-color: rgba(76,232,128,0.9);
@@ -621,7 +615,7 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 4px;
-    margin-top: 7px;
+    margin-top: 0;
     font: 800 9px/1 'Cinzel', serif;
     color: rgba(232,213,176,0.78);
   }
@@ -638,11 +632,27 @@
     background: rgba(212,175,55,0.1);
   }
   .derived-strip {
-    margin-top: 5px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    margin-top: 7px;
     color: rgba(232,213,176,0.64);
     font: 700 8.5px/1.25 'Cinzel', serif;
     letter-spacing: 0.04em;
-    text-align: center;
+  }
+  .derived-strip span {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 4px 5px;
+    border: 1px solid rgba(245,225,130,0.14);
+    border-radius: 5px;
+    background: rgba(0,0,0,0.2);
+    white-space: nowrap;
+  }
+  .derived-strip b {
+    color: rgba(245,225,130,0.86);
+    font-weight: 900;
   }
   .phud-score { font-size: 13px; color: var(--gold-light); text-align: right; font-family: 'Cinzel', serif; }
 
@@ -828,21 +838,57 @@
   /* Skills bar */
   .skills-bar {
     position: fixed;
-    bottom: 18px; left: 50%;
+    bottom: 14px; left: 50%;
     transform: translateX(-50%);
     display: none;
     align-items: stretch;
-    gap: 10px;
+    gap: 8px;
     z-index: 50;
     pointer-events: none;
-    padding: 8px 8px 15px;
+    padding: 8px;
     border: 1px solid rgba(245,225,130,0.18);
     border-radius: 8px;
-    background: rgba(5,4,6,0.52);
+    background:
+      linear-gradient(145deg, rgba(245,225,130,0.08), transparent 46%),
+      rgba(5,4,6,0.72);
     box-shadow: 0 18px 40px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.06);
     backdrop-filter: blur(10px);
   }
   .skills-bar.visible { display: flex; }
+
+  .hud-dock-panel {
+    position: relative;
+    border: 1px solid rgba(245,225,130,0.18);
+    border-radius: 7px;
+    background: rgba(8,5,7,0.58);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    pointer-events: none;
+  }
+  .hud-dock-panel::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(245,225,130,0.55), transparent);
+  }
+  .minimap-panel {
+    padding: 6px;
+  }
+  .stat-panel {
+    width: 174px;
+    padding: 8px;
+  }
+  .detail-panel {
+    padding: 8px 10px;
+  }
+  .skill-panel {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    padding: 8px 8px 15px;
+  }
 
   .skill-exp-panel {
     position: absolute;
@@ -935,8 +981,11 @@
 
   @media (max-width: 680px) {
     .skills-bar {
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 6px;
       padding: 6px 6px 13px;
+      max-width: calc(100vw - 16px);
     }
     .skill-exp-panel {
       left: 6px;
@@ -946,6 +995,13 @@
     .skill-slot {
       width: 50px;
       height: 50px;
+    }
+    .stat-panel {
+      width: 150px;
+      padding: 6px;
+    }
+    .detail-panel {
+      padding: 6px 8px;
     }
     .skill-slot .sicon {
       font-size: 20px;
