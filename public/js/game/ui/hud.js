@@ -310,8 +310,8 @@ function updateMiniMap() {
   });
 
   if (myPlayer) {
-    const viewW = w;
-    const viewH = h;
+    const viewW = getViewportWorldWidth();
+    const viewH = WORLD_H;
     ctx.strokeStyle = 'rgba(255,255,255,0.38)';
     ctx.lineWidth = 1;
     ctx.strokeRect(

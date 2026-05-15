@@ -110,6 +110,8 @@ function startGameClient(state) {
       remotePlayers[p.id] = pd;
     }
   });
+  CAM.x = Math.max(0, Math.min(WORLD_W - getViewportWorldWidth(), (myPlayer?.x || 0) + (myPlayer?.width || 0) / 2 - getViewportWorldWidth() / 2));
+  CAM.y = 0;
 
   // Init skills cooldown
   if (myPlayer) {

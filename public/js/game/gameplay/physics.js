@@ -5,11 +5,13 @@
 const GRAVITY = 0.55;
 const GROUND_Y = 466; // canvas height - platform height
 const CAM = { x: 0, y: 0 };
-const WORLD_W = 840;
+const VIEW_W = 840;
+const WORLD_W = 2520;
 const WORLD_H = 600;
 
 function getPlatforms() { return currentStage?.platforms || []; }
 function getStageWidth() { return WORLD_W; }
+function getViewportWorldWidth() { return VIEW_W; }
 function getBattlefieldTopY() { return BATTLEFIELD_TOP_Y; }
 function getBattlefieldBottomY() { return BATTLEFIELD_BOTTOM_Y; }
 function clampToBattlefieldDepth(p) {

@@ -7,17 +7,15 @@ const STAGES = [
     id: 1, name: "Temple of Ruins",
     bg: ['#1a0a06', '#3d1a0a', '#1a0a06'],
     platforms: [
-      { x: 0, y: 520, w: 900, h: 80, color: '#4a2800' },        // ground
-      { x: 80, y: 400, w: 160, h: 20, color: '#6b3a10' },
-      { x: 320, y: 340, w: 200, h: 20, color: '#6b3a10' },
-      { x: 600, y: 400, w: 160, h: 20, color: '#6b3a10' },
-      { x: 180, y: 250, w: 140, h: 20, color: '#5a3008' },
-      { x: 520, y: 250, w: 140, h: 20, color: '#5a3008' },
-      { x: 350, y: 165, w: 140, h: 20, color: '#4a2800' },
+      { x: 0, y: 540, w: 2520, h: 80, color: '#4a2800' },
+    ],
+    fountains: [
+      { x: 24, y: 418, w: 110, h: 122, teamId: 'sun' },
+      { x: 2386, y: 418, w: 110, h: 122, teamId: 'moon' },
     ],
     pillars: [
-      { x: 60, y: 300, w: 30, h: 220, color: '#3d2200' },
-      { x: 750, y: 300, w: 30, h: 220, color: '#3d2200' },
+      { x: 150, y: 330, w: 30, h: 210, color: '#3d2200' },
+      { x: 2340, y: 330, w: 30, h: 210, color: '#3d2200' },
     ],
     decorColor: '#D4AF37',
   },

@@ -18,8 +18,8 @@ function setupWebSocket(server, rooms) {
   const TEAM_IDS = ['sun', 'moon'];
   const TEAM_DIR = { sun: 1, moon: -1 };
   const CREEP_SPAWN = {
-    sun: { x: 118, y: 454 },
-    moon: { x: 690, y: 454 },
+    sun: { x: 260, y: 478 },
+    moon: { x: 2218, y: 478 },
   };
 
   function sendTo(playerId, message) {

@@ -53,22 +53,20 @@ function getPlayerAtScreenPoint(screenX, screenY) {
   const rect = canvas.getBoundingClientRect();
   const x = screenX - rect.left;
   const y = screenY - rect.top;
-  const scaleX = canvas.width / WORLD_W;
+  const scaleX = canvas.width / getViewportWorldWidth();
   const scaleY = canvas.height / WORLD_H;
+  const worldX = x / scaleX + CAM.x;
+  const worldY = y / scaleY + CAM.y;
   const candidates = [...Object.values(remotePlayers), myPlayer].filter(Boolean);
   for (let i = candidates.length - 1; i >= 0; i--) {
     const p = candidates[i];
-    const px = p.x * scaleX;
-    const py = p.y * scaleY;
-    const pw = p.width * scaleX;
-    const ph = p.height * scaleY;
-    const padX = Math.max(18, pw * 0.65);
-    const padTop = Math.max(26, ph * 0.9);
+    const padX = Math.max(18 / scaleX, p.width * 0.65);
+    const padTop = Math.max(26 / scaleY, p.height * 0.9);
     if (
-      x >= px - padX &&
-      x <= px + pw + padX &&
-      y >= py - padTop &&
-      y <= py + ph + 12
+      worldX >= p.x - padX &&
+      worldX <= p.x + p.width + padX &&
+      worldY >= p.y - padTop &&
+      worldY <= p.y + p.height + 12 / scaleY
     ) {
       return p;
     }

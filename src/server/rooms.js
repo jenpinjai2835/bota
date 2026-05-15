@@ -5,36 +5,36 @@ const TEAM_NAMES = { sun: 'Team 1', moon: 'Team 2' };
 const MATCH_ITEM_TYPES = ['healing_orb', 'mana_orb', 'power_rune', 'guard_rune', 'haste_rune'];
 const LOCKED_CHARACTER_ID = 'dragonfist';
 const ITEM_SPAWN_POINTS = [
-  { x: 205, y: 460 },
-  { x: 420, y: 388 },
-  { x: 640, y: 460 },
-  { x: 320, y: 318 },
-  { x: 520, y: 318 },
+  { x: 430, y: 486 },
+  { x: 840, y: 392 },
+  { x: 1260, y: 486 },
+  { x: 1680, y: 392 },
+  { x: 2090, y: 486 },
 ];
 
 const SPAWN_POINTS = [
-  { x: 132, y: 454, teamId: 'sun' },
-  { x: 200, y: 418, teamId: 'sun' },
-  { x: 268, y: 486, teamId: 'sun' },
-  { x: 664, y: 454, teamId: 'moon' },
-  { x: 596, y: 418, teamId: 'moon' },
-  { x: 528, y: 486, teamId: 'moon' },
+  { x: 178, y: 474, teamId: 'sun' },
+  { x: 246, y: 414, teamId: 'sun' },
+  { x: 314, y: 352, teamId: 'sun' },
+  { x: 2298, y: 474, teamId: 'moon' },
+  { x: 2230, y: 414, teamId: 'moon' },
+  { x: 2162, y: 352, teamId: 'moon' },
 ];
 
 const RESPAWN_POINTS = [
-  { x: 132, y: 454, teamId: 'sun' },
-  { x: 200, y: 418, teamId: 'sun' },
-  { x: 664, y: 454, teamId: 'moon' },
-  { x: 596, y: 418, teamId: 'moon' },
+  { x: 178, y: 474, teamId: 'sun' },
+  { x: 246, y: 414, teamId: 'sun' },
+  { x: 2298, y: 474, teamId: 'moon' },
+  { x: 2230, y: 414, teamId: 'moon' },
 ];
 
 const OBJECTIVE_BLUEPRINTS = [
-  { id: 'sun_ancient', type: 'ancient', teamId: 'sun', x: 52, y: 404, w: 70, h: 96, maxHp: 2500, name: 'Sun Ancient' },
-  { id: 'sun_tower_front', type: 'tower', teamId: 'sun', x: 218, y: 414, w: 42, h: 86, maxHp: 1000, name: 'Sun Front Tower', range: 190, damage: 34 },
-  { id: 'sun_tower_back', type: 'tower', teamId: 'sun', x: 128, y: 372, w: 42, h: 86, maxHp: 1000, name: 'Sun Back Tower', range: 190, damage: 34 },
-  { id: 'moon_ancient', type: 'ancient', teamId: 'moon', x: 718, y: 404, w: 70, h: 96, maxHp: 2500, name: 'Moon Ancient' },
-  { id: 'moon_tower_front', type: 'tower', teamId: 'moon', x: 580, y: 414, w: 42, h: 86, maxHp: 1000, name: 'Moon Front Tower', range: 190, damage: 34 },
-  { id: 'moon_tower_back', type: 'tower', teamId: 'moon', x: 670, y: 372, w: 42, h: 86, maxHp: 1000, name: 'Moon Back Tower', range: 190, damage: 34 },
+  { id: 'sun_ancient', type: 'ancient', teamId: 'sun', x: 96, y: 424, w: 74, h: 116, maxHp: 2500, name: 'Sun Ancient' },
+  { id: 'sun_tower_front', type: 'tower', teamId: 'sun', x: 610, y: 430, w: 42, h: 110, maxHp: 1000, name: 'Sun Front Tower', range: 220, damage: 34 },
+  { id: 'sun_tower_back', type: 'tower', teamId: 'sun', x: 350, y: 378, w: 42, h: 110, maxHp: 1000, name: 'Sun Back Tower', range: 220, damage: 34 },
+  { id: 'moon_ancient', type: 'ancient', teamId: 'moon', x: 2350, y: 424, w: 74, h: 116, maxHp: 2500, name: 'Moon Ancient' },
+  { id: 'moon_tower_front', type: 'tower', teamId: 'moon', x: 1868, y: 430, w: 42, h: 110, maxHp: 1000, name: 'Moon Front Tower', range: 220, damage: 34 },
+  { id: 'moon_tower_back', type: 'tower', teamId: 'moon', x: 2128, y: 378, w: 42, h: 110, maxHp: 1000, name: 'Moon Back Tower', range: 220, damage: 34 },
 ];
 
 const CHARACTER_MAX_HP = {

@@ -98,6 +98,33 @@ function drawBattlefieldFloor(ctx, stage, sx, sy) {
   ctx.restore();
 }
 
+function drawFountain(ctx, fountain, stage, sx, sy) {
+  const x = fountain.x * sx;
+  const y = fountain.y * sy;
+  const w = fountain.w * sx;
+  const h = fountain.h * sy;
+  const teamColor = fountain.teamId === 'sun' ? '#E44747' : '#3D8BFF';
+  ctx.save();
+  ctx.shadowColor = teamColor;
+  ctx.shadowBlur = 18;
+  const basin = ctx.createLinearGradient(0, y, 0, y + h);
+  basin.addColorStop(0, withAlpha(stage.decorColor, 0.78));
+  basin.addColorStop(0.38, teamColor);
+  basin.addColorStop(1, shade(teamColor, -55));
+  ctx.fillStyle = basin;
+  drawRoundRect(ctx, x, y + h * 0.28, w, h * 0.72, 6);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = withAlpha('#ffffff', 0.22);
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.5, y + h * 0.52, w * 0.26, h * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(stage.decorColor, 0.46);
+  ctx.lineWidth = Math.max(1, 1.5 * Math.min(sx, sy));
+  ctx.strokeRect(x + w * 0.04, y + h * 0.28, w * 0.92, h * 0.72);
+  ctx.restore();
+}
+
 function drawPlatform(ctx, plat, stage, sx, sy) {
   const x = plat.x * sx;
   const y = plat.y * sy;

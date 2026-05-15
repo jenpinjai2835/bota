@@ -192,10 +192,15 @@ function drawCreep(ctx, creep, sx, sy) {
   if (img?.complete && img.naturalWidth) {
     ctx.drawImage(img, -w / 2, -h, w, h);
   } else {
-    ctx.fillStyle = creep.teamId === 'sun' ? '#E44747' : '#3D8BFF';
+    ctx.strokeStyle = creep.teamId === 'sun' ? 'rgba(228,71,71,0.55)' : 'rgba(61,139,255,0.55)';
+    ctx.lineWidth = Math.max(1, 1.2 * scale);
     ctx.beginPath();
-    ctx.arc(0, -h * 0.45, w * 0.28, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(0, -h * 0.82);
+    ctx.lineTo(w * 0.24, -h * 0.36);
+    ctx.lineTo(0, -h * 0.16);
+    ctx.lineTo(-w * 0.24, -h * 0.36);
+    ctx.closePath();
+    ctx.stroke();
   }
   ctx.restore();
   drawUnitHealthBar(ctx, creep, x, y - h - 3 * sy, Math.max(32, 38 * scale), sx, sy);
