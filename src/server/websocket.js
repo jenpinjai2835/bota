@@ -337,14 +337,11 @@ function setupWebSocket(server, rooms) {
     const aggroHero = getCreepAggroHero(room, creep);
     if (aggroHero) return aggroHero;
 
-    if (!enemyCreeps.length) {
-      const nextObjective = getNextAttackableObjective(room, creep.teamId);
-      const defender = getDefendingHeroesNearObjective(room, creep, nextObjective)[0];
-      if (defender) {
-        rememberCreepHeroAggro(room, creep.teamId, defender.id);
-        return defender;
-      }
-      if (nextObjective) return nextObjective;
+    const nextObjective = getNextAttackableObjective(room, creep.teamId);
+    const defender = getDefendingHeroesNearObjective(room, creep, nextObjective)[0];
+    if (defender) {
+      rememberCreepHeroAggro(room, creep.teamId, defender.id);
+      return defender;
     }
 
     const enemyHeroes = getLivingEnemyHeroes(room, creep, CREEP_HERO_AGGRO_RANGE);
@@ -355,8 +352,9 @@ function setupWebSocket(server, rooms) {
       if (hero) rememberCreepHeroAggro(room, creep.teamId, hero.id);
       return hero;
     }
-    if (nearestCreep) return nearestCreep.unit;
-    return getNextAttackableObjective(room, creep.teamId);
+
+    if (nextObjective) return nextObjective;
+    return nearestCreep?.unit || null;
   }
 
   function queueCreepAttack(room, creep, target, now) {
