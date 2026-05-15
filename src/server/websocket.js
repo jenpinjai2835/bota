@@ -811,13 +811,13 @@ function setupWebSocket(server, rooms) {
   }
 
   function getObjectiveBetweenCreepAndTarget(room, creep, target) {
-    if (!target || target.type === 'tower' || target.type === 'ancient') return null;
+    if (!target) return null;
     const cf = unitFoot(creep);
     const tf = unitFoot(target);
     const minX = Math.min(cf.x, tf.x) - unitBlockRadiusX(creep);
     const maxX = Math.max(cf.x, tf.x) + unitBlockRadiusX(creep);
     return (room.objectives || [])
-      .filter(obj => obj.hp > 0)
+      .filter(obj => obj.hp > 0 && obj.id !== target.id)
       .map(obj => {
         const of = unitFoot(obj);
         const dxSpan = maxX - minX;
