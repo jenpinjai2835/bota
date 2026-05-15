@@ -174,3 +174,61 @@ function toggleReady() {
 function startGame() {
   send({ type: 'start_game' });
 }
+
+function showAssetLoadingScreen(state) {
+  showScreen('screen-loading');
+  updateAssetLoadingUI(state);
+}
+
+function updateAssetLoadingUI(state = roomState) {
+  if (!state) return;
+  const progress = state.assetProgress || {};
+  const players = state.players || [];
+  const humanPlayers = players.filter(player => !player.isAI);
+  const average = humanPlayers.length
+    ? humanPlayers.reduce((sum, player) => sum + (progress[player.id] || 0), 0) / humanPlayers.length
+    : 100;
+  const pct = Math.max(0, Math.min(100, Math.round(average)));
+  const fill = document.getElementById('loading-progress-fill');
+  const text = document.getElementById('loading-progress-text');
+  const list = document.getElementById('loading-player-list');
+  if (fill) fill.style.width = `${pct}%`;
+  if (text) text.textContent = `${pct}%`;
+  if (!list) return;
+  list.innerHTML = players.map(player => {
+    const playerPct = player.isAI ? 100 : Math.max(0, Math.min(100, progress[player.id] || 0));
+    return `
+      <div class="loading-player-row">
+        <div class="loading-player-name">${escapeHtml(player.name)}${player.id === myPlayerId ? ' (YOU)' : ''}${player.isAI ? ' · AI' : ''}</div>
+        <div class="loading-player-bar"><div class="loading-player-fill" style="width:${playerPct}%"></div></div>
+        <div class="loading-player-percent">${playerPct}%</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function startMatchAssetLoading(state) {
+  if (!state?.id || assetLoadingStartedForRoomId === state.id) return;
+  assetLoadingStartedForRoomId = state.id;
+  const startedAt = Date.now();
+  const urls = collectMatchAssetUrls();
+  const total = Math.max(1, urls.length);
+  let loaded = 0;
+  const report = () => {
+    const progress = Math.min(99, Math.round((loaded / total) * 100));
+    send({ type: 'asset_progress', progress });
+  };
+  report();
+  for (const url of urls) {
+    await loadAssetUrl(url);
+    loaded += 1;
+    report();
+  }
+  preloadSpriteAssets();
+  preloadMonsterAssets();
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < 900) {
+    await new Promise(resolve => setTimeout(resolve, 900 - elapsed));
+  }
+  send({ type: 'asset_progress', progress: 100 });
+}

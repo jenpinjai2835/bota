@@ -38,6 +38,7 @@ let lastKillAnnouncementAt = 0;
 let combatStatsExpanded = false;
 let combatStatsRenderSignature = '';
 let chatAutoHideTimer = null;
+let assetLoadingStartedForRoomId = null;
 const mutedChatPlayerIds = new Set();
 const RESPAWN_DELAY_MS = 10000;
 const CHARACTER_VISUAL_SCALE = 0.6;
@@ -147,6 +148,46 @@ const keys = {};
 let lastInputSent = 0;
 
 preloadSpriteAssets();
+
+function collectMatchAssetUrls() {
+  const urls = new Set();
+  CHARACTERS.forEach(ch => {
+    if (ch.sprite?.src) urls.add(ch.sprite.src);
+    Object.values(ch.sprite?.sheets || {}).forEach(sheet => {
+      if (sheet.src) urls.add(sheet.src);
+    });
+  });
+  WARRIOR_VECTOR_OVERLAY_FILES.forEach(file => urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}${file}`));
+  urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`);
+
+  const monsterTypes = typeof MONSTER_TYPES !== 'undefined' ? MONSTER_TYPES : [];
+  const monsterActions = typeof MONSTER_ACTIONS !== 'undefined' ? MONSTER_ACTIONS : {};
+  monsterTypes.forEach(type => {
+    Object.values(monsterActions).forEach(meta => {
+      for (let i = 0; i < meta.frames; i++) {
+        urls.add(`/assets/monsters/${type}/${meta.folder}/0_Monster_${meta.file}_${String(i).padStart(3, '0')}.png`);
+      }
+    });
+  });
+  return Array.from(urls);
+}
+
+function loadImageAsset(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+    if (img.complete) resolve(true);
+  });
+}
+
+function loadAssetUrl(url) {
+  if (url.endsWith('.json')) {
+    return fetch(url).then(response => response.ok).catch(() => false);
+  }
+  return loadImageAsset(url);
+}
 
 function getSkillForAction(ch, action) {
   return ch?.skills?.find(skill => skill.id === action) || null;

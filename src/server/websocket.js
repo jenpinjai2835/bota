@@ -12,9 +12,9 @@ function setupWebSocket(server, rooms) {
   const UNIT_DEATH_XP = 110;
   const CREEP_DEATH_XP = 38;
   const XP_SHARE_RADIUS = 280;
-  const CREEP_WAVE_MS = 8500;
+  const CREEP_WAVE_MS = 15000;
   const CREEP_LIMIT_PER_TEAM = 16;
-  const CREEP_LANE_OFFSETS = [-72, -24, 24, 68];
+  const CREEP_LANE_OFFSETS = [-60, -20, 20, 60];
   const CREEP_TEAM_TYPES = {
     sun: { melee: ['monster_6', 'monster_7'], ranged: ['monster_9'] },
     moon: { melee: ['monster_8'], ranged: ['monster_10'] },
@@ -24,8 +24,8 @@ function setupWebSocket(server, rooms) {
   const BATTLEFIELD_TOP_Y = 300;
   const BATTLEFIELD_BOTTOM_Y = 540;
   const CREEP_SPAWN = {
-    sun: { x: 260, y: 430 },
-    moon: { x: 2218, y: 430 },
+    sun: { x: 260, y: 438 },
+    moon: { x: 2218, y: 438 },
   };
 
   function sendTo(playerId, message) {
@@ -276,7 +276,7 @@ function setupWebSocket(server, rooms) {
         creep.state = 'walk';
         creep.x += dir * creep.speed;
         const desiredY = typeof creep.laneY === 'number' ? creep.laneY : target.y;
-        creep.y += Math.sign(desiredY - creep.y) * Math.min(1.35, Math.abs(desiredY - creep.y));
+        creep.y += Math.sign(desiredY - creep.y) * Math.min(1.8, Math.abs(desiredY - creep.y));
         creep.y = clampCreepY(creep.y, creep.h);
       } else if ((creep.attackAt || 0) <= now) {
         creep.state = 'attack';
@@ -333,6 +333,24 @@ function setupWebSocket(server, rooms) {
     const loop = worldLoops.get(roomId);
     if (loop) clearInterval(loop);
     worldLoops.delete(roomId);
+  }
+
+  function startRoomAfterAssetLoad(roomId) {
+    const room = rooms.get(roomId);
+    if (!room || room.status !== 'loading') return;
+    const elapsed = Date.now() - (room.assetLoadingStartedAt || 0);
+    if (elapsed < 1400) {
+      if (!room.assetStartScheduled) {
+        room.assetStartScheduled = true;
+        setTimeout(() => startRoomAfterAssetLoad(roomId), 1400 - elapsed);
+      }
+      return;
+    }
+    rooms.startGame(roomId);
+    const state = rooms.getState(roomId);
+    room.players.forEach(pid => sendTo(pid, { type: 'game_start', state }));
+    startWorldLoop(roomId);
+    broadcastRoomList();
   }
 
   function sendRoomList(playerId) {
@@ -463,11 +481,20 @@ function setupWebSocket(server, rooms) {
           break;
         }
 
-        rooms.startGame(roomId);
+        rooms.beginAssetLoading(roomId);
         const state = rooms.getState(roomId);
-        room.players.forEach(pid => sendTo(pid, { type: 'game_start', state }));
-        startWorldLoop(roomId);
+        room.players.forEach(pid => sendTo(pid, { type: 'asset_loading_start', state }));
         broadcastRoomList();
+        break;
+      }
+
+      case 'asset_progress': {
+        const roomId = ws.roomId;
+        const room = rooms.updateAssetProgress(roomId, playerId, msg.progress);
+        if (!room) break;
+        const state = rooms.getState(roomId);
+        room.players.forEach(pid => sendTo(pid, { type: 'asset_progress', state }));
+        if (rooms.areAssetsReady(roomId)) startRoomAfterAssetLoad(roomId);
         break;
       }
 

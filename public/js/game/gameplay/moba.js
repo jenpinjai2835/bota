@@ -67,12 +67,10 @@ function drawUnitFootprint(ctx, unit, sx, sy, options = {}) {
   const scale = Math.min(sx, sy);
   const rx = getUnitFootRadiusX(unit) * sx;
   const ry = getUnitFootRadiusY(unit) * sy;
-  const hostile = options.hostile ?? (myPlayer && unit.teamId && unit.teamId !== myPlayer.teamId);
-  const isMe = unit.id === myPlayerId;
   ctx.save();
-  ctx.fillStyle = hostile ? 'rgba(255,58,68,0.035)' : isMe ? 'rgba(76,232,128,0.055)' : 'rgba(61,139,255,0.04)';
-  ctx.strokeStyle = hostile ? 'rgba(255,58,68,0.36)' : isMe ? 'rgba(76,232,128,0.42)' : 'rgba(61,139,255,0.28)';
-  ctx.lineWidth = Math.max(1, 1 * scale);
+  ctx.fillStyle = options.fillStyle || 'rgba(180,180,180,0.012)';
+  ctx.strokeStyle = options.strokeStyle || 'rgba(190,190,190,0.16)';
+  ctx.lineWidth = Math.max(1, 0.85 * scale);
   ctx.setLineDash([Math.max(3, 4 * scale), Math.max(2, 3 * scale)]);
   ctx.beginPath();
   ctx.ellipse(foot.x * sx, foot.y * sy, rx, ry, 0, 0, Math.PI * 2);

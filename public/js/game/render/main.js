@@ -24,6 +24,7 @@ function render(canvas) {
     ...Object.values(remotePlayers).map(player => ({ kind: 'player', entity: player, depth: getUnitFoot(player).y })),
   ];
   if (myPlayer) depthEntities.push({ kind: 'player', entity: myPlayer, depth: getUnitFoot(myPlayer).y, isMe: true });
+  depthEntities.forEach(item => drawUnitFootprint(ctx, item.entity, scaleX, scaleY));
   depthEntities
     .sort((a, b) => a.depth - b.depth)
     .forEach(item => {

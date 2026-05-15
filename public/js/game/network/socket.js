@@ -48,6 +48,16 @@ function handleMessage(msg) {
       roomState = msg.state;
       updateLobbyUI(msg.state);
       break;
+    case 'asset_loading_start':
+      roomState = msg.state;
+      if (msg.state?.id) localStorage.setItem('bota_last_room_id', msg.state.id);
+      showAssetLoadingScreen(msg.state);
+      startMatchAssetLoading(msg.state);
+      break;
+    case 'asset_progress':
+      roomState = msg.state;
+      updateAssetLoadingUI(msg.state);
+      break;
     case 'game_start':
       roomState = msg.state;
       if (msg.state?.id) localStorage.setItem('bota_last_room_id', msg.state.id);

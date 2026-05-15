@@ -29,6 +29,7 @@ function leaveGame() {
   lastKillAnnouncementAt = 0;
   combatStatsExpanded = false;
   combatStatsRenderSignature = '';
+  assetLoadingStartedForRoomId = null;
   if (chatAutoHideTimer) {
     clearTimeout(chatAutoHideTimer);
     chatAutoHideTimer = null;
@@ -42,7 +43,7 @@ function leaveGame() {
     respawnTimer = null;
   }
 
-  ['hud', 'skills-bar', 'chat-container', 'controls-hint', 'scoreboard', 'death-overlay', 'game-summary'].forEach(id => {
+  ['hud', 'skills-bar', 'chat-container', 'controls-hint', 'scoreboard', 'death-overlay', 'game-summary', 'screen-loading'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('visible');
   });

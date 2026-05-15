@@ -138,6 +138,7 @@ class RoomStore {
       creepProjectiles: [],
       creepSeq: 0,
       objectives: [],
+      assetProgress: {},
       winner: null,
       gameState: null,
     });
@@ -166,6 +167,7 @@ class RoomStore {
       creeps: room.creeps || [],
       creepProjectiles: room.creepProjectiles || [],
       objectives: room.objectives || [],
+      assetProgress: room.assetProgress || {},
       winner: room.winner || null,
       teams: TEAM_IDS.map(id => ({
         id,
@@ -211,7 +213,7 @@ class RoomStore {
     if (!player) return room;
     if (player.isAI) return room;
 
-    if (room.status === 'playing') {
+    if (room.status === 'playing' || room.status === 'loading') {
       player.connected = false;
       player.disconnectedAt = Date.now();
       return room;
@@ -287,10 +289,44 @@ class RoomStore {
   canStart(roomId) {
     const room = this.get(roomId);
     if (!room) return { ok: false, reason: 'Room not found' };
+    if (room.status !== 'lobby') return { ok: false, reason: 'Room is not in lobby' };
     const counts = this.getTeamCounts(roomId);
     if (counts.sun < 1 || counts.moon < 1) return { ok: false, reason: 'Both teams need at least one unit' };
     if (counts.sun !== counts.moon) return { ok: false, reason: 'Team counts must be equal' };
     return { ok: true };
+  }
+
+  beginAssetLoading(roomId) {
+    const room = this.get(roomId);
+    if (!room) return null;
+    room.status = 'loading';
+    room.assetProgress = {};
+    room.assetLoadingStartedAt = Date.now();
+    room.assetStartScheduled = false;
+    room.players.forEach(pid => {
+      const player = room.playerData[pid];
+      room.assetProgress[pid] = player?.isAI ? 100 : 0;
+    });
+    return room;
+  }
+
+  updateAssetProgress(roomId, playerId, progress) {
+    const room = this.get(roomId);
+    if (!room || room.status !== 'loading') return null;
+    const player = room.playerData[playerId];
+    if (!player || player.isAI) return room;
+    room.assetProgress = room.assetProgress || {};
+    room.assetProgress[playerId] = Math.max(0, Math.min(100, Math.round(progress || 0)));
+    return room;
+  }
+
+  areAssetsReady(roomId) {
+    const room = this.get(roomId);
+    if (!room || room.status !== 'loading') return false;
+    return room.players.every(pid => {
+      const player = room.playerData[pid];
+      return player?.isAI || (room.assetProgress?.[pid] || 0) >= 100;
+    });
   }
 
   startGame(roomId) {
@@ -319,6 +355,7 @@ class RoomStore {
     room.creeps = [];
     room.creepProjectiles = [];
     room.creepSeq = 0;
+    room.assetProgress = {};
     room.nextCreepWaveAt = 0;
     room.objectives = createObjectives();
     room.winner = null;
