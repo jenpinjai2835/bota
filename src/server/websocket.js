@@ -485,6 +485,17 @@ function setupWebSocket(server, rooms) {
     });
   }
 
+  function getTowerTarget(room, tower) {
+    const hostileCreeps = (room.creeps || [])
+      .filter(creep => creep.hp > 0 && creep.teamId !== tower.teamId && distanceBetween(tower, creep) <= (tower.range || 170))
+      .map(unit => ({ unit, type: 'creep', distance: distanceBetween(tower, unit) }));
+    const hostileHeroes = Object.values(room.playerData || {})
+      .filter(hero => hero.hp > 0 && hero.teamId !== tower.teamId && distanceBetween(tower, hero) <= (tower.range || 170))
+      .map(unit => ({ unit, type: 'hero', distance: distanceBetween(tower, unit) }));
+    return [...hostileCreeps, ...hostileHeroes]
+      .sort((a, b) => a.distance - b.distance)[0] || null;
+  }
+
   function resolveCreepSpacing(room) {
     const live = (room.creeps || []).filter(creep => creep.hp > 0);
     for (let i = 0; i < live.length; i++) {
@@ -911,12 +922,15 @@ function setupWebSocket(server, rooms) {
 
     getLivingObjectives(room).forEach(obj => {
       if (obj.type !== 'tower' || (obj.attackAt || 0) > now) return;
-      const target = (room.creeps || [])
-        .filter(creep => creep.hp > 0 && creep.teamId !== obj.teamId && distanceBetween(obj, creep) <= (obj.range || 170))
-        .sort((a, b) => distanceBetween(obj, a) - distanceBetween(obj, b))[0];
-      if (!target) return;
+      const targetInfo = getTowerTarget(room, obj);
+      if (!targetInfo) return;
+      const { unit: target, type } = targetInfo;
       obj.attackAt = now + 1100;
-      damageCreep(room, target, obj.damage || 30, obj, null, roomId);
+      if (type === 'hero') {
+        damagePlayer(room, roomId, target, obj.damage || 30, obj.id, 'tower_shot', getDamageDirection(target, obj, TEAM_DIR[obj.teamId] || 1));
+      } else {
+        damageCreep(room, target, obj.damage || 30, obj, null, roomId);
+      }
       room.players.forEach(pid => sendTo(pid, {
         type: 'tower_shot',
         from: { x: obj.x + obj.w / 2, y: obj.y + obj.h * 0.35 },
