@@ -362,6 +362,13 @@
     color: var(--gold);
     font: 800 10px/1 'Cinzel', serif;
   }
+  .loading-hint {
+    margin-top: 14px;
+    color: rgba(232,213,176,0.58);
+    font: 600 12px/1.4 'Sarabun', sans-serif;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
 
   .room-browser-head {
     display: flex;

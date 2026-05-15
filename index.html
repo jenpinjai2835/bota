@@ -9,8 +9,21 @@
 <body>
 <div id="version-badge">v __APP_VERSION__</div>
 
+<!-- CLIENT LOADING -->
+<div id="screen-client-loading" class="screen loading-screen">
+  <div class="loading-panel">
+    <div class="game-logo" style="font-size:clamp(20px,3vw,34px);margin-bottom:10px">BRAWL OF THE ANCIENTS</div>
+    <div class="panel-title" id="client-loading-title">Loading Client Assets</div>
+    <div class="loading-progress-wrap">
+      <div class="loading-progress-fill" id="client-loading-progress-fill"></div>
+    </div>
+    <div class="loading-progress-text" id="client-loading-progress-text">0%</div>
+    <div class="loading-hint" id="client-loading-hint">Preparing fighters...</div>
+  </div>
+</div>
+
 <!-- MAIN MENU -->
-<div id="screen-menu" class="screen">
+<div id="screen-menu" class="screen hidden">
   <div class="game-logo">BRAWL OF<br>THE ANCIENTS</div>
   <div class="game-subtitle">⚔ &nbsp; The Eternal Arena &nbsp; ⚔</div>
   <div class="panel">

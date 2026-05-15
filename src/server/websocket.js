@@ -675,10 +675,10 @@ function setupWebSocket(server, rooms) {
     const room = rooms.get(roomId);
     if (!room || room.status !== 'loading') return;
     const elapsed = Date.now() - (room.assetLoadingStartedAt || 0);
-    if (elapsed < 1400) {
+    if (elapsed < 650) {
       if (!room.assetStartScheduled) {
         room.assetStartScheduled = true;
-        setTimeout(() => startRoomAfterAssetLoad(roomId), 1400 - elapsed);
+        setTimeout(() => startRoomAfterAssetLoad(roomId), 650 - elapsed);
       }
       return;
     }

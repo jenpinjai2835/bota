@@ -64,6 +64,7 @@ function joinRoom() {
 function showLobbyRoom(state) {
   showScreen('screen-lobby-room');
   document.getElementById('display-room-code').textContent = state.id;
+  startLobbyAssetPreload(state);
 
   const stageSection = document.getElementById('stage-section');
   const stageSelect = document.getElementById('stage-select');
@@ -92,6 +93,7 @@ function showLobbyRoom(state) {
 
 function updateLobbyUI(state) {
   roomState = state;
+  startLobbyAssetPreload(state);
   const list = document.getElementById('player-list');
   const counts = getLobbyTeamCounts(state);
   document.getElementById('lobby-title').textContent = `Lobby (${counts.sun} v ${counts.moon})`;
@@ -211,24 +213,19 @@ async function startMatchAssetLoading(state) {
   if (!state?.id || assetLoadingStartedForRoomId === state.id) return;
   assetLoadingStartedForRoomId = state.id;
   const startedAt = Date.now();
-  const urls = collectMatchAssetUrls();
-  const total = Math.max(1, urls.length);
-  let loaded = 0;
-  const report = () => {
-    const progress = Math.min(99, Math.round((loaded / total) * 100));
-    send({ type: 'asset_progress', progress });
-  };
-  report();
-  for (const url of urls) {
-    await loadAssetUrl(url);
-    loaded += 1;
-    report();
-  }
+  const urls = [
+    ...collectStageBackgroundAssetUrls(state.stage || 1),
+    ...collectMatchAssetUrls(),
+  ];
+  await loadAssetUrls(urls, progress => {
+    send({ type: 'asset_progress', progress: Math.min(99, progress) });
+  });
+  warmStageBackground(state.stage || 1);
   preloadSpriteAssets();
   preloadMonsterAssets();
   const elapsed = Date.now() - startedAt;
-  if (elapsed < 900) {
-    await new Promise(resolve => setTimeout(resolve, 900 - elapsed));
+  if (elapsed < 350) {
+    await new Promise(resolve => setTimeout(resolve, 350 - elapsed));
   }
   send({ type: 'asset_progress', progress: 100 });
 }

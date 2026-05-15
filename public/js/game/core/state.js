@@ -39,8 +39,12 @@ let combatStatsExpanded = false;
 let combatStatsRenderSignature = '';
 let chatAutoHideTimer = null;
 let assetLoadingStartedForRoomId = null;
+let clientBootAssetsReady = false;
+let lobbyAssetPreloadKey = '';
 const mutedChatPlayerIds = new Set();
 const recentCreepDeathBursts = new Map();
+const assetLoadCache = new Map();
+const stageBackgroundWarmupCache = new Map();
 const RESPAWN_DELAY_MS = 10000;
 const CHARACTER_VISUAL_SCALE = 0.6;
 const MIN_CHARACTER_HP = 500;
@@ -150,6 +154,25 @@ let lastInputSent = 0;
 
 preloadSpriteAssets();
 
+function collectInitialClientAssetUrls() {
+  const urls = new Set();
+  const ch = CHARACTERS.find(char => char.id === 'dragonfist') || CHARACTERS[0];
+  if (ch?.sprite?.src) urls.add(ch.sprite.src);
+  Object.values(ch?.sprite?.sheets || {}).forEach(sheet => {
+    if (sheet.src) urls.add(sheet.src);
+  });
+  [
+    'Body.png',
+    'Head.png',
+    'Left_Leg.png',
+    'Right_Leg.png',
+    'clothes/Body_clothes.png',
+    'clothes/Hat.png',
+  ].forEach(file => urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}${file}`));
+  urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`);
+  return Array.from(urls);
+}
+
 function collectMatchAssetUrls() {
   const urls = new Set();
   CHARACTERS.forEach(ch => {
@@ -180,6 +203,18 @@ function collectMatchAssetUrls() {
   return Array.from(urls);
 }
 
+function collectStageBackgroundAssetUrls(stageId = 1) {
+  const urls = new Set();
+  const stages = stageId ? STAGES.filter(stage => stage.id === stageId) : STAGES;
+  stages.forEach(stage => {
+    if (stage.bgImage) urls.add(stage.bgImage);
+    (stage.layers || []).forEach(layer => {
+      if (layer.src) urls.add(layer.src);
+    });
+  });
+  return Array.from(urls);
+}
+
 function loadImageAsset(url) {
   return new Promise(resolve => {
     const img = new Image();
@@ -191,8 +226,10 @@ function loadImageAsset(url) {
 }
 
 function loadAssetUrl(url) {
-  if (url.endsWith('.scml')) {
-    return fetch(url)
+  if (assetLoadCache.has(url)) return assetLoadCache.get(url);
+  const loader = (() => {
+    if (url.endsWith('.scml')) {
+      return fetch(url)
       .then(async response => {
         if (!response.ok) return false;
         const text = await response.text();
@@ -203,11 +240,96 @@ function loadAssetUrl(url) {
         return true;
       })
       .catch(() => false);
+    }
+    if (url.endsWith('.json')) {
+      return fetch(url)
+        .then(async response => {
+          if (!response.ok) return false;
+          if (url === `${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`) {
+            warriorVectorAnimationsData = await response.json();
+          }
+          return true;
+        })
+        .catch(() => false);
+    }
+    return loadImageAsset(url);
+  })();
+  assetLoadCache.set(url, loader);
+  return loader;
+}
+
+async function loadAssetUrls(urls, onProgress = null) {
+  const uniqueUrls = Array.from(new Set(urls));
+  const total = Math.max(1, uniqueUrls.length);
+  let loaded = 0;
+  const report = () => onProgress && onProgress(Math.round((loaded / total) * 100), loaded, total);
+  report();
+  for (const url of uniqueUrls) {
+    await loadAssetUrl(url);
+    loaded += 1;
+    report();
   }
-  if (url.endsWith('.json')) {
-    return fetch(url).then(response => response.ok).catch(() => false);
-  }
-  return loadImageAsset(url);
+}
+
+function warmStageBackground(stageId = 1) {
+  const stage = STAGES.find(item => item.id === stageId) || STAGES[0];
+  if (!stage || typeof document === 'undefined' || stageBackgroundWarmupCache.has(stage.id)) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = 960;
+  canvas.height = 540;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, stage.bg?.[0] || '#0A0608');
+  grad.addColorStop(0.45, stage.bg?.[1] || '#1a0a12');
+  grad.addColorStop(1, stage.bg?.[2] || '#0A0608');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  stageBackgroundWarmupCache.set(stage.id, canvas);
+}
+
+function setClientLoadingProgress(progress, hint = '') {
+  const pct = Math.max(0, Math.min(100, Math.round(progress || 0)));
+  const fill = document.getElementById('client-loading-progress-fill');
+  const text = document.getElementById('client-loading-progress-text');
+  const hintEl = document.getElementById('client-loading-hint');
+  if (fill) fill.style.width = `${pct}%`;
+  if (text) text.textContent = `${pct}%`;
+  if (hintEl && hint) hintEl.textContent = hint;
+}
+
+async function preloadInitialClientAssets() {
+  if (clientBootAssetsReady) return;
+  const startedAt = Date.now();
+  setClientLoadingProgress(3, 'Preparing fighters...');
+  await loadAssetUrls(collectInitialClientAssetUrls(), progress => {
+    setClientLoadingProgress(Math.min(92, progress), 'Loading fighter assets...');
+  });
+  warmStageBackground(1);
+  preloadSpriteAssets();
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < 450) await new Promise(resolve => setTimeout(resolve, 450 - elapsed));
+  clientBootAssetsReady = true;
+  setClientLoadingProgress(100, 'Ready');
+  showScreen('screen-menu');
+}
+
+function startLobbyAssetPreload(state = roomState) {
+  const stageId = state?.stage || 1;
+  const key = `${stageId}:match`;
+  if (lobbyAssetPreloadKey === key) return;
+  lobbyAssetPreloadKey = key;
+  warmStageBackground(stageId);
+  const urls = [
+    ...collectStageBackgroundAssetUrls(stageId),
+    ...collectMatchAssetUrls(),
+  ];
+  loadAssetUrls(urls)
+    .then(() => {
+      preloadSpriteAssets();
+      if (typeof preloadMonsterAssets === 'function') preloadMonsterAssets();
+    })
+    .catch(() => {});
 }
 
 function getSkillForAction(ch, action) {
