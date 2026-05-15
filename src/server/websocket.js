@@ -483,17 +483,17 @@ function setupWebSocket(server, rooms) {
     }
   }
 
-  function getFriendlyCreepBlockers(room, creep) {
+  function getCreepMoveBlockers(room, creep, target = null) {
     return [
-      ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.id !== creep.id && unit.teamId === creep.teamId),
-      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.teamId === creep.teamId),
-      ...(room.objectives || []).filter(unit => unit.hp > 0 && unit.teamId === creep.teamId),
+      ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.id !== creep.id && unit.id !== target?.id),
+      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.id !== target?.id),
+      ...(room.objectives || []).filter(unit => unit.hp > 0 && unit.id !== target?.id),
     ];
   }
 
-  function isCreepMoveBlocked(room, creep, nextX, nextY) {
+  function getCreepBlockingUnit(room, creep, nextX, nextY, target = null) {
     const candidate = { ...creep, x: nextX, y: nextY };
-    return getFriendlyCreepBlockers(room, creep).some(unit => {
+    return getCreepMoveBlockers(room, creep, target).find(unit => {
       const cf = unitFoot(candidate);
       const uf = unitFoot(unit);
       const dx = Math.abs(cf.x - uf.x);
@@ -503,9 +503,58 @@ function setupWebSocket(server, rooms) {
     });
   }
 
-  function tryMoveCreep(room, creep, candidates, goalX, goalY) {
+  function isCreepMoveBlocked(room, creep, nextX, nextY, target = null) {
+    return Boolean(getCreepBlockingUnit(room, creep, nextX, nextY, target));
+  }
+
+  function getForwardBlockingUnit(room, creep, goalX, goalY, target = null) {
+    const cf = unitFoot(creep);
+    const dxToGoal = goalX - cf.x;
+    const dir = Math.sign(dxToGoal) || creep.facing || TEAM_DIR[creep.teamId] || 1;
+    return getCreepMoveBlockers(room, creep, target)
+      .map(unit => {
+        const uf = unitFoot(unit);
+        const dx = (uf.x - cf.x) * dir;
+        const dy = Math.abs(uf.y - cf.y);
+        const frontReach = unitBlockRadiusX(creep) + unitBlockRadiusX(unit) + Math.max(34, Math.abs(dxToGoal) * 0.45);
+        const depthReach = unitBlockRadiusY(creep) + unitBlockRadiusY(unit) + 24;
+        return { unit, dx, dy, frontReach, depthReach, score: dx + dy * 0.7 };
+      })
+      .filter(entry => entry.dx > -unitBlockRadiusX(entry.unit) && entry.dx < entry.frontReach && entry.dy < entry.depthReach)
+      .sort((a, b) => a.score - b.score)[0]?.unit || null;
+  }
+
+  function addObstacleAvoidanceCandidates(room, creep, candidates, goalX, goalY, target = null) {
+    const blocker = getForwardBlockingUnit(room, creep, goalX, goalY, target);
+    if (!blocker) return;
+    const speed = creep.speed || 1.8;
+    const cf = unitFoot(creep);
+    const bf = unitFoot(blocker);
+    const dir = Math.sign(goalX - cf.x) || creep.facing || TEAM_DIR[creep.teamId] || 1;
+    const clearanceY = unitBlockRadiusY(creep) + unitBlockRadiusY(blocker) + 12;
+    const topY = clampCreepY(bf.y - clearanceY - unitHeight(creep), unitHeight(creep));
+    const bottomY = clampCreepY(bf.y + clearanceY - unitHeight(creep), unitHeight(creep));
+    const preferredSide = Math.abs((goalY || cf.y) - (topY + unitHeight(creep))) < Math.abs((goalY || cf.y) - (bottomY + unitHeight(creep))) ? -1 : 1;
+    const side = creep.avoidSide || preferredSide || 1;
+    creep.avoidSide = side;
+    const primaryY = side < 0 ? topY : bottomY;
+    const secondaryY = side < 0 ? bottomY : topY;
+    const lateralBoost = creep.stuckTicks > 2 ? 3.6 : 2.2;
+
+    [primaryY, secondaryY].forEach((nextY, index) => {
+      [0.2, 0.65, 1, 1.45, 2.1, -0.35].forEach(xMult => {
+        candidates.push([
+          creep.x + dir * speed * xMult,
+          creep.y + Math.sign(nextY - creep.y) * Math.min(Math.abs(nextY - creep.y), Math.max(1.2, speed * CREEP_DEPTH_SPEED_MULTIPLIER * (lateralBoost - index * 0.7))),
+        ]);
+      });
+    });
+  }
+
+  function tryMoveCreep(room, creep, candidates, goalX, goalY, target = null) {
     const unique = [];
     const seen = new Set();
+    addObstacleAvoidanceCandidates(room, creep, candidates, goalX, goalY, target);
     candidates.forEach(([nextX, nextY]) => {
       const x = Math.round(nextX * 10) / 10;
       const y = Math.round(clampCreepY(nextY, creep.h) * 10) / 10;
@@ -516,7 +565,7 @@ function setupWebSocket(server, rooms) {
     });
 
     const sorted = unique
-      .filter(([nextX, nextY]) => (nextX !== creep.x || nextY !== creep.y) && !isCreepMoveBlocked(room, creep, nextX, nextY))
+      .filter(([nextX, nextY]) => (nextX !== creep.x || nextY !== creep.y) && !isCreepMoveBlocked(room, creep, nextX, nextY, target))
       .sort((a, b) => {
         const da = Math.hypot((a[0] + unitWidth(creep) / 2) - goalX, (a[1] + unitHeight(creep)) - goalY);
         const db = Math.hypot((b[0] + unitWidth(creep) / 2) - goalX, (b[1] + unitHeight(creep)) - goalY);
@@ -533,6 +582,7 @@ function setupWebSocket(server, rooms) {
     creep.x = x;
     creep.y = y;
     creep.stuckTicks = 0;
+    if (!getForwardBlockingUnit(room, creep, goalX, goalY, target)) creep.avoidSide = 0;
     return true;
   }
 
@@ -556,7 +606,7 @@ function setupWebSocket(server, rooms) {
   }
 
   function isChaseTarget(room, target) {
-    return Boolean(target?.id?.startsWith?.('cr_') || room.playerData?.[target?.id]);
+    return Boolean(target?.id?.startsWith?.('cr_') || room.playerData?.[target?.id] || target?.type === 'tower' || target?.type === 'ancient');
   }
 
   function moveCreepTowardTarget(room, creep, target, dir) {
@@ -590,7 +640,7 @@ function setupWebSocket(server, rooms) {
         ]);
       });
     });
-    if (!tryMoveCreep(room, creep, candidates, goalFootX, targetFoot.y)) creep.state = 'idle';
+    if (!tryMoveCreep(room, creep, candidates, goalFootX, targetFoot.y, target)) creep.state = 'idle';
   }
 
   function tickWorld(roomId) {
