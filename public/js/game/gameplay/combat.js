@@ -15,9 +15,10 @@ function doMeleeHit(attacker, skill) {
   });
   if (attacker === myPlayer) {
     getAttackableUnits(myPlayer).forEach(unit => {
-      const center = getUnitCenter(unit);
+      const hitUnit = getRenderedWorldUnit(unit);
+      const center = getUnitCenter(hitUnit);
       const dx = center.x - (attacker.x + attacker.width/2);
-      if (isUnitInAttackRange(attacker, unit, range, true)) {
+      if (isUnitInAttackRange(attacker, hitUnit, range, true)) {
         damageWorldUnit(unit, skill.damage, skill.id, Math.sign(dx) || attacker.facing || 1);
       }
     });
@@ -59,10 +60,11 @@ function spawnAOE(owner, skill) {
   });
   if (owner === myPlayer) {
     getAttackableUnits(myPlayer).forEach(unit => {
-      const center = getUnitCenter(unit);
+      const hitUnit = getRenderedWorldUnit(unit);
+      const center = getUnitCenter(hitUnit);
       const dx = center.x - cx;
       const dy = (center.y - cy) * DEPTH_DISTANCE_SCALE;
-      if (Math.sqrt(dx*dx + dy*dy) < skill.range + getUnitFootRadiusX(unit) * 0.5) {
+      if (Math.sqrt(dx*dx + dy*dy) < skill.range + getUnitFootRadiusX(hitUnit) * 0.5) {
         damageWorldUnit(unit, skill.damage, skill.id, Math.sign(dx) || owner.facing || 1);
       }
     });
@@ -341,10 +343,11 @@ function updateProjectiles() {
       });
       getAttackableUnits(myPlayer).forEach(unit => {
         if (p.life <= 0) return;
-        const center = getUnitCenter(unit);
+        const hitUnit = getRenderedWorldUnit(unit);
+        const center = getUnitCenter(hitUnit);
         const dx = center.x - p.x;
         const dy = (center.y - p.y) * DEPTH_DISTANCE_SCALE;
-        if (Math.sqrt(dx*dx + dy*dy) < p.radius + Math.max(18, (unit.w || 36) * 0.45)) {
+        if (Math.sqrt(dx*dx + dy*dy) < p.radius + Math.max(18, (hitUnit.w || 36) * 0.45)) {
           damageWorldUnit(unit, p.damage, p.skillId, Math.sign(dx) || Math.sign(p.vx) || 1);
           spawnEffect(p.x, p.y, p.skillId, p.color, 30);
           p.life = 0;

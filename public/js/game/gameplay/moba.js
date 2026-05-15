@@ -138,6 +138,14 @@ function handleWorldUnitDeath(msg) {
   spawnCreepDeathBurst(creep, hitDir, msg.damage || creep.lastDamage || 34);
 }
 
+function handleWorldUnitHitConfirmed(msg) {
+  const unit = creeps.find(entry => entry.id === msg.unitId);
+  if (!unit) return;
+  unit.hp = Math.max(0, Number(msg.hp) || 0);
+  unit.lastDamage = msg.damage || unit.lastDamage || 0;
+  unit.lastHitDir = msg.hitDir || unit.lastHitDir || unit.facing || 1;
+}
+
 function getUnitCenter(unit) {
   return {
     x: unit.x + (unit.w || unit.width || 0) / 2,
@@ -185,8 +193,17 @@ function getAttackableUnits(player = myPlayer) {
   ];
 }
 
+function getRenderedWorldUnit(unit) {
+  if (!unit) return unit;
+  return {
+    ...unit,
+    x: unit.renderX ?? unit.x,
+    y: unit.renderY ?? unit.y,
+  };
+}
+
 function damageWorldUnit(unit, damage, skillId, hitDir = 1) {
-  if (!unit || !myRoomId || unit.hp <= 0) return;
+  if (!unit || unit.hp <= 0) return;
   unit.hp = Math.max(0, unit.hp - damage);
   send({ type: 'unit_hit', unitId: unit.id, damage, skillId, hitDir });
   const center = getUnitCenter(unit);

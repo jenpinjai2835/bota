@@ -150,7 +150,10 @@ function handleMessage(msg) {
     case 'game_start':
       stopReconnectFlow();
       roomState = msg.state;
-      if (msg.state?.id) localStorage.setItem('bota_last_room_id', msg.state.id);
+      if (msg.state?.id) {
+        myRoomId = msg.state.id;
+        localStorage.setItem('bota_last_room_id', msg.state.id);
+      }
       startGameClient(msg.state);
       break;
     case 'world_state':
@@ -161,6 +164,9 @@ function handleMessage(msg) {
       break;
     case 'unit_death':
       handleWorldUnitDeath(msg);
+      break;
+    case 'unit_hit_confirmed':
+      handleWorldUnitHitConfirmed(msg);
       break;
     case 'game_over':
       gameWinner = msg.winner;

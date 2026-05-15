@@ -1274,7 +1274,17 @@ function setupWebSocket(server, rooms) {
         const unitId = String(msg.unitId || '');
         const creep = (room.creeps || []).find(entry => entry.id === unitId);
         if (creep && creep.teamId !== attacker.teamId) {
-          damageCreep(room, creep, damage, attacker, msg.hitDir || null, roomId);
+          const killed = damageCreep(room, creep, damage, attacker, msg.hitDir || null, roomId);
+          if (!killed) {
+            sendTo(playerId, {
+              type: 'unit_hit_confirmed',
+              unitId: creep.id,
+              hp: creep.hp,
+              damage,
+              skillId: msg.skillId,
+              hitDir: msg.hitDir || null,
+            });
+          }
           break;
         }
         const objective = (room.objectives || []).find(entry => entry.id === unitId);
