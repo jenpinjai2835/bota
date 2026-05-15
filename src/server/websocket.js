@@ -1023,8 +1023,8 @@ function setupWebSocket(server, rooms) {
       }
       room.players.forEach(pid => sendTo(pid, {
         type: 'tower_shot',
-        from: { x: obj.x + obj.w / 2, y: obj.y + obj.h * 0.18 },
-        to: { x: target.x + target.w / 2, y: target.y + target.h * 0.45 },
+        from: { x: obj.x + unitWidth(obj) / 2, y: obj.y + unitHeight(obj) * 0.18 },
+        to: { x: target.x + unitWidth(target) / 2, y: target.y + unitHeight(target) * 0.45 },
         teamId: obj.teamId,
       }));
     });

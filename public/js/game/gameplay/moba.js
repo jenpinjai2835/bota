@@ -344,7 +344,7 @@ function drawObjective(ctx, obj, sx, sy) {
     const pulse = 0.72 + Math.sin(t * 2.1) * 0.18;
     ctx.shadowColor = teamColor;
     ctx.shadowBlur = (13 + pulse * 8) * scale;
-    ctx.drawImage(towerTexture, drawX, drawY + Math.sin(t) * 1.1 * sy, drawW, drawH);
+    ctx.drawImage(towerTexture, drawX, drawY, drawW, drawH);
     drawTowerLivingEffects(ctx, towerTexture, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t);
     ctx.shadowBlur = 0;
     drawUnitHealthBar(ctx, obj, cx, footY - drawH + 2 * sy, Math.max(58, drawW * 0.42), sx, sy);
