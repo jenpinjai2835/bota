@@ -213,15 +213,16 @@ function setupWebSocket(server, rooms) {
   }
 
   function findNearestEnemyUnit(room, creep) {
-    const aggroHero = getCreepAggroHero(room, creep);
-    if (aggroHero) return aggroHero;
-
     const enemyCreeps = (room.creeps || []).filter(other => other.hp > 0 && other.teamId !== creep.teamId);
     const nearestCreep = enemyCreeps
       .map(unit => ({ unit, distance: distanceBetween(creep, unit) }))
       .sort((a, b) => a.distance - b.distance)[0] || null;
     const creepDetectRange = creep.enemyCreepDetectRange || CREEP_ENEMY_CREEP_DETECT_RANGE[creep.role] || 118;
     if (nearestCreep && nearestCreep.distance <= creepDetectRange) return nearestCreep.unit;
+
+    const aggroHero = getCreepAggroHero(room, creep);
+    if (aggroHero) return aggroHero;
+
     const enemyHeroes = getLivingEnemyHeroes(room, creep, CREEP_HERO_AGGRO_RANGE);
     if (enemyHeroes.length) {
       const hero = enemyHeroes
