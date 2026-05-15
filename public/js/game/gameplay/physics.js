@@ -237,8 +237,40 @@ function isPlayerWorldBlockedAt(x, y, blockers) {
   });
 }
 
+function getPlayerBlockerProximity(x, y, unit) {
+  const candidate = { ...myPlayer, x, y };
+  const pf = getUnitFoot(candidate);
+  const uf = getUnitFoot(unit);
+  const radiusX = getUnitFootRadiusX(candidate) + getUnitFootRadiusX(unit);
+  const radiusY = getUnitFootRadiusY(candidate) + getUnitFootRadiusY(unit);
+  const nx = (uf.x - pf.x) / Math.max(1, radiusX);
+  const ny = (uf.y - pf.y) / Math.max(1, radiusY);
+  return nx * nx + ny * ny;
+}
+
+function isMyPlayerEnteringWorldBlocker(unit) {
+  if (!previousMyPlayerBodyPosition) return false;
+  const movedX = myPlayer.x - previousMyPlayerBodyPosition.x;
+  const movedY = myPlayer.y - previousMyPlayerBodyPosition.y;
+  if (Math.hypot(movedX, movedY) < 0.12) return false;
+  const previousProximity = getPlayerBlockerProximity(previousMyPlayerBodyPosition.x, previousMyPlayerBodyPosition.y, unit);
+  const currentProximity = getPlayerBlockerProximity(myPlayer.x, myPlayer.y, unit);
+  return currentProximity < previousProximity - 0.015;
+}
+
+function isMyPlayerLeavingWorldBlocker(unit) {
+  if (!previousMyPlayerBodyPosition) return false;
+  const movedX = myPlayer.x - previousMyPlayerBodyPosition.x;
+  const movedY = myPlayer.y - previousMyPlayerBodyPosition.y;
+  if (Math.hypot(movedX, movedY) < 0.12) return false;
+  const previousProximity = getPlayerBlockerProximity(previousMyPlayerBodyPosition.x, previousMyPlayerBodyPosition.y, unit);
+  const currentProximity = getPlayerBlockerProximity(myPlayer.x, myPlayer.y, unit);
+  return currentProximity > previousProximity + 0.015;
+}
+
 function trySlideMyPlayerAroundWorldBlocker(unit, blockers, overlapX, overlapY) {
   if (!previousMyPlayerBodyPosition) return false;
+  if (!isMyPlayerEnteringWorldBlocker(unit)) return false;
   const previous = previousMyPlayerBodyPosition;
   const desired = { x: myPlayer.x, y: myPlayer.y };
   const pf = getUnitFoot(myPlayer);
@@ -289,14 +321,15 @@ function resolvePlayerWorldBodyCollisions() {
     if (overlapX <= 0 || overlapY <= 0) return;
 
     const slid = trySlideMyPlayerAroundWorldBlocker(unit, blockers, overlapX, overlapY);
+    const leaving = !slid && isMyPlayerLeavingWorldBlocker(unit);
     if (previousMyPlayerBodyPosition) {
-      if (!slid) {
+      if (!slid && !leaving) {
         myPlayer.x = previousMyPlayerBodyPosition.x;
         myPlayer.y = previousMyPlayerBodyPosition.y;
       }
     }
-    myPlayer.vx = 0;
-    if (overlapY < overlapX * 0.85) myPlayer.vy = Math.min(0, myPlayer.vy || 0);
+    if (!leaving) myPlayer.vx = 0;
+    if (!leaving && overlapY < overlapX * 0.85) myPlayer.vy = Math.min(0, myPlayer.vy || 0);
     clampToBattlefieldDepth(myPlayer);
     myPlayer.x = Math.max(0, Math.min(getStageWidth() - myPlayer.width, myPlayer.x));
   });
