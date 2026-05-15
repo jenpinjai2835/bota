@@ -694,6 +694,47 @@ function setupWebSocket(server, rooms) {
     return Boolean(target?.id?.startsWith?.('cr_') || room.playerData?.[target?.id] || target?.type === 'tower' || target?.type === 'ancient');
   }
 
+  function getCreepAttackSlotGoal(room, creep, target, approachDir, fallbackGoalX, fallbackGoalY) {
+    if (!target || creep.role === 'ranged') return { x: fallbackGoalX, y: fallbackGoalY };
+    const tf = unitFoot(target);
+    const range = creep.range || 38;
+    const gapX = Math.max(18, range * 0.5 + unitFootRadiusX(target) * 0.55);
+    const depthOffsets = [0, -24, 24, -44, 44, -64, 64];
+    const sideOptions = [approachDir, -approachDir];
+    const blockers = [
+      ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.id !== creep.id && unit.teamId === creep.teamId),
+      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.teamId === creep.teamId),
+    ];
+    const slots = [];
+    sideOptions.forEach((side, sideIndex) => {
+      depthOffsets.forEach((offset, offsetIndex) => {
+        const footX = tf.x - side * gapX;
+        const footY = Math.max(BATTLEFIELD_TOP_Y, Math.min(BATTLEFIELD_BOTTOM_Y, tf.y + offset));
+        const topX = footX - unitWidth(creep) / 2;
+        const topY = footY - unitHeight(creep);
+        const candidate = { ...creep, x: topX, y: topY };
+        const blockedBy = blockers.filter(unit => {
+          const cf = unitFoot(candidate);
+          const uf = unitFoot(unit);
+          const dx = Math.abs(cf.x - uf.x);
+          const dy = Math.abs(cf.y - uf.y);
+          return dx < unitBlockRadiusX(candidate) + unitBlockRadiusX(unit) + 2 &&
+            dy < unitBlockRadiusY(candidate) + unitBlockRadiusY(unit) + 2;
+        }).length;
+        const inRange = isCreepTargetInRange(candidate, target);
+        const currentDistance = Math.hypot(footX - unitFoot(creep).x, (footY - unitFoot(creep).y) * 1.45);
+        slots.push({
+          x: footX,
+          y: footY,
+          blockedBy,
+          inRange,
+          score: blockedBy * 1000 + (inRange ? 0 : 160) + sideIndex * 48 + offsetIndex * 18 + currentDistance * 0.05,
+        });
+      });
+    });
+    return slots.sort((a, b) => a.score - b.score)[0] || { x: fallbackGoalX, y: fallbackGoalY };
+  }
+
   function moveCreepTowardTarget(room, creep, target, dir) {
     if (!isChaseTarget(room, target)) {
       moveCreepTowardLane(room, creep, dir);
@@ -707,7 +748,8 @@ function setupWebSocket(server, rooms) {
     const preferredGap = creep.role === 'ranged' ? Math.max(96, (creep.range || 210) * 0.68) : Math.max(14, (creep.range || 38) * 0.38);
     const approachDir = Math.sign(dx) || dir || TEAM_DIR[creep.teamId] || 1;
     const goalFootX = targetFoot.x - approachDir * preferredGap;
-    const navigationGoal = getCreepNavigationGoal(room, creep, target, goalFootX, targetFoot.y);
+    const attackSlotGoal = getCreepAttackSlotGoal(room, creep, target, approachDir, goalFootX, targetFoot.y);
+    const navigationGoal = getCreepNavigationGoal(room, creep, target, attackSlotGoal.x, attackSlotGoal.y);
     const navTopX = navigationGoal.x - unitWidth(creep) / 2;
     const goalDx = navTopX - creep.x;
     const stepX = Math.sign(goalDx) * Math.min(Math.abs(goalDx), speed);
