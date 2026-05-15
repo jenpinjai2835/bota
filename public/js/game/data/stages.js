@@ -10,8 +10,8 @@ const STAGES = [
       { x: 0, y: 540, w: 2520, h: 80, color: '#4a2800' },
     ],
     fountains: [
-      { x: 24, y: 418, w: 110, h: 122, teamId: 'sun' },
-      { x: 2386, y: 418, w: 110, h: 122, teamId: 'moon' },
+      { x: 24, y: 298, w: 110, h: 122, teamId: 'sun' },
+      { x: 2386, y: 298, w: 110, h: 122, teamId: 'moon' },
     ],
     pillars: [
       { x: 150, y: 330, w: 30, h: 210, color: '#3d2200' },

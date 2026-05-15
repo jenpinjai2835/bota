@@ -21,6 +21,7 @@ function setupWebSocket(server, rooms) {
   const CREEP_ENEMY_CREEP_DETECT_RANGE = { melee: 118, ranged: 155 };
   const CREEP_ATTACK_ANIMATION_MS = 600;
   const CREEP_ATTACK_WINDUP_RATIO = { melee: 0.46, ranged: 0.58 };
+  const CREEP_DEPTH_SPEED_MULTIPLIER = 0.56;
   const CREEP_TEAM_TYPES = {
     sun: { melee: ['monster_6', 'monster_7'], ranged: ['monster_9'] },
     moon: { melee: ['monster_8'], ranged: ['monster_10'] },
@@ -538,7 +539,7 @@ function setupWebSocket(server, rooms) {
   function moveCreepTowardLane(room, creep, dir) {
     const speed = creep.speed || 1.8;
     const desiredY = typeof creep.laneY === 'number' ? creep.laneY : creep.y;
-    const laneStep = Math.sign(desiredY - creep.y) * Math.min(1.8, Math.abs(desiredY - creep.y));
+    const laneStep = Math.sign(desiredY - creep.y) * Math.min(1.8 * CREEP_DEPTH_SPEED_MULTIPLIER, Math.abs(desiredY - creep.y));
     const avoidSign = creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1;
     const sideSteps = [0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2];
     const xSteps = [1, 0.75, 0.45, -0.25];
@@ -547,7 +548,7 @@ function setupWebSocket(server, rooms) {
       sideSteps.forEach(side => {
         candidates.push([
           creep.x + dir * speed * xMult,
-          creep.y + laneStep + side * Math.max(2, speed * (creep.stuckTicks > 2 ? 2.8 : 1.45)),
+          creep.y + laneStep + side * Math.max(1.1, speed * CREEP_DEPTH_SPEED_MULTIPLIER * (creep.stuckTicks > 2 ? 1.55 : 0.72)),
         ]);
       });
     });
@@ -576,7 +577,7 @@ function setupWebSocket(server, rooms) {
     const goalTopX = goalFootX - unitWidth(creep) / 2;
     const goalDx = goalTopX - creep.x;
     const stepX = Math.sign(goalDx) * Math.min(Math.abs(goalDx), speed);
-    const stepY = Math.sign(depthDelta) * Math.min(Math.abs(depthDelta), Math.max(1.5, speed * 0.95));
+    const stepY = Math.sign(depthDelta) * Math.min(Math.abs(depthDelta), Math.max(0.85, speed * CREEP_DEPTH_SPEED_MULTIPLIER));
     const avoidSign = creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1;
     const sideSteps = [0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2, avoidSign * 3, -avoidSign * 3];
     const xSteps = [1, 0, 0.6, -0.35, 1.25];
@@ -585,7 +586,7 @@ function setupWebSocket(server, rooms) {
       sideSteps.forEach(side => {
         candidates.push([
           creep.x + stepX * xMult,
-          creep.y + stepY + side * Math.max(2, speed * (creep.stuckTicks > 2 ? 3.4 : 1.4)),
+          creep.y + stepY + side * Math.max(1.1, speed * CREEP_DEPTH_SPEED_MULTIPLIER * (creep.stuckTicks > 2 ? 1.85 : 0.72)),
         ]);
       });
     });

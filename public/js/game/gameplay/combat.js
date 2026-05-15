@@ -159,6 +159,10 @@ function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
 
 function applyHitReaction(target, dir = 1, skillId = null) {
   if (!target) return;
+  if (!shouldApplyHitReaction(skillId)) {
+    target.hitDir = dir;
+    return;
+  }
   const force = getHitReactionForce(skillId, 0) * Math.max(0.25, 1 - getPlayerStat(target, 'knockbackResist'));
   target.vx = dir * force;
   target.vy = Math.min(target.vy || 0, -3.3);
@@ -166,6 +170,10 @@ function applyHitReaction(target, dir = 1, skillId = null) {
   target.hitStunUntil = Date.now() + 260;
   target.hitDir = dir;
   if (target.hp > 0) target.state = 'hurt';
+}
+
+function shouldApplyHitReaction(skillId = null) {
+  return !['punch', 'creep_melee', 'creep_fireball', 'hit'].includes(skillId);
 }
 
 function getHitReactionForce(skillId = null, damage = 0) {

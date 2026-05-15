@@ -29,14 +29,14 @@ const RESPAWN_POINTS = [
 ];
 
 const OBJECTIVE_BLUEPRINTS = [
-  { id: 'sun_ancient', type: 'ancient', teamId: 'sun', x: 96, y: 424, w: 74, h: 116, maxHp: 2500, name: 'Sun Ancient' },
-  { id: 'sun_tower_base', type: 'tower', teamId: 'sun', x: 430, y: 400, w: 42, h: 110, maxHp: 1000, name: 'Sun Base Tower', range: 220, damage: 34 },
-  { id: 'sun_tower_mid', type: 'tower', teamId: 'sun', x: 740, y: 400, w: 42, h: 110, maxHp: 1000, name: 'Sun Mid Tower', range: 220, damage: 34 },
-  { id: 'sun_tower_front', type: 'tower', teamId: 'sun', x: 1050, y: 400, w: 42, h: 110, maxHp: 1000, name: 'Sun Front Tower', range: 220, damage: 34 },
-  { id: 'moon_ancient', type: 'ancient', teamId: 'moon', x: 2350, y: 424, w: 74, h: 116, maxHp: 2500, name: 'Moon Ancient' },
-  { id: 'moon_tower_base', type: 'tower', teamId: 'moon', x: 2048, y: 400, w: 42, h: 110, maxHp: 1000, name: 'Moon Base Tower', range: 220, damage: 34 },
-  { id: 'moon_tower_mid', type: 'tower', teamId: 'moon', x: 1738, y: 400, w: 42, h: 110, maxHp: 1000, name: 'Moon Mid Tower', range: 220, damage: 34 },
-  { id: 'moon_tower_front', type: 'tower', teamId: 'moon', x: 1428, y: 400, w: 42, h: 110, maxHp: 1000, name: 'Moon Front Tower', range: 220, damage: 34 },
+  { id: 'sun_ancient', type: 'ancient', teamId: 'sun', x: 96, y: 304, w: 74, h: 116, maxHp: 2500, name: 'Sun Ancient' },
+  { id: 'sun_tower_base', type: 'tower', teamId: 'sun', x: 430, y: 294, w: 42, h: 110, maxHp: 1000, name: 'Sun Base Tower', range: 220, damage: 34 },
+  { id: 'sun_tower_mid', type: 'tower', teamId: 'sun', x: 740, y: 294, w: 42, h: 110, maxHp: 1000, name: 'Sun Mid Tower', range: 220, damage: 34 },
+  { id: 'sun_tower_front', type: 'tower', teamId: 'sun', x: 1050, y: 294, w: 42, h: 110, maxHp: 1000, name: 'Sun Front Tower', range: 220, damage: 34 },
+  { id: 'moon_ancient', type: 'ancient', teamId: 'moon', x: 2350, y: 304, w: 74, h: 116, maxHp: 2500, name: 'Moon Ancient' },
+  { id: 'moon_tower_base', type: 'tower', teamId: 'moon', x: 2048, y: 294, w: 42, h: 110, maxHp: 1000, name: 'Moon Base Tower', range: 220, damage: 34 },
+  { id: 'moon_tower_mid', type: 'tower', teamId: 'moon', x: 1738, y: 294, w: 42, h: 110, maxHp: 1000, name: 'Moon Mid Tower', range: 220, damage: 34 },
+  { id: 'moon_tower_front', type: 'tower', teamId: 'moon', x: 1428, y: 294, w: 42, h: 110, maxHp: 1000, name: 'Moon Front Tower', range: 220, damage: 34 },
 ];
 
 const CHARACTER_MAX_HP = {
