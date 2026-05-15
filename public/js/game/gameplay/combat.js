@@ -177,7 +177,7 @@ function applyHitReaction(target, dir = 1, skillId = null) {
 }
 
 function shouldApplyHitReaction(skillId = null) {
-  return !['punch', 'creep_melee', 'creep_fireball', 'hit'].includes(skillId);
+  return !['punch', 'creep_melee', 'creep_fireball', 'tower_shot', 'hit'].includes(skillId);
 }
 
 function getHitReactionForce(skillId = null, damage = 0) {

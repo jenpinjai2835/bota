@@ -18,6 +18,7 @@ function setupWebSocket(server, rooms) {
   const CREEP_FORMATION_X = { melee: [72, 42, 12], ranged: [-24] };
   const CREEP_HERO_AGGRO_RANGE = 360;
   const CREEP_HERO_DISENGAGE_RANGE = 540;
+  const TOWER_HERO_AGGRO_MS = 3000;
   const CREEP_ENEMY_CREEP_DETECT_RANGE = { melee: 118, ranged: 155 };
   const CREEP_ATTACK_ANIMATION_MS = 600;
   const CREEP_ATTACK_WINDUP_RATIO = { melee: 0.46, ranged: 0.58 };
@@ -260,6 +261,41 @@ function setupWebSocket(server, rooms) {
     room.creepAggro[allyTeamId] = { targetId, startedAt: Date.now() };
   }
 
+  function rememberTowerHeroAggro(room, defendingTeamId, targetId) {
+    if (!room || !defendingTeamId || !targetId) return;
+    room.towerAggro = room.towerAggro || {};
+    room.towerAggro[defendingTeamId] = { targetId, startedAt: Date.now() };
+  }
+
+  function clearTowerAggroTarget(room, targetId) {
+    if (!room?.towerAggro || !targetId) return;
+    Object.entries(room.towerAggro).forEach(([teamId, aggro]) => {
+      if (aggro?.targetId === targetId) delete room.towerAggro[teamId];
+    });
+  }
+
+  function isHeroInAnyEnemyTowerAggro(room, defendingTeamId, hero) {
+    if (!hero || hero.hp <= 0) return false;
+    return getLivingObjectives(room, defendingTeamId).some(obj =>
+      obj.type === 'tower' &&
+      distanceBetween(obj, hero) <= (obj.range || 170)
+    );
+  }
+
+  function getTowerAggroHero(room, tower, now = Date.now()) {
+    const aggro = room.towerAggro?.[tower.teamId];
+    if (!aggro || now - aggro.startedAt > TOWER_HERO_AGGRO_MS) {
+      if (aggro) delete room.towerAggro[tower.teamId];
+      return null;
+    }
+    const hero = room.playerData?.[aggro.targetId];
+    if (!hero || hero.hp <= 0 || hero.teamId === tower.teamId || distanceBetween(tower, hero) > (tower.range || 170)) {
+      delete room.towerAggro[tower.teamId];
+      return null;
+    }
+    return hero;
+  }
+
   function getCreepAggroHero(room, creep) {
     const aggro = room.creepAggro?.[creep.teamId];
     if (!aggro) return null;
@@ -402,6 +438,7 @@ function setupWebSocket(server, rooms) {
 
     if (target.hp <= 0) {
       target.deaths = (target.deaths || 0) + 1;
+      clearTowerAggroTarget(room, target.id);
       if (attacker && room.playerData?.[attacker.id]) {
         attacker.kills = (attacker.kills || 0) + 1;
         attacker.score = (attacker.score || 0) + 100;
@@ -485,14 +522,21 @@ function setupWebSocket(server, rooms) {
     });
   }
 
-  function getTowerTarget(room, tower) {
+  function getTowerTarget(room, tower, now = Date.now()) {
+    const aggroHero = getTowerAggroHero(room, tower, now);
+    if (aggroHero) return { unit: aggroHero, type: 'hero', priority: 'hero_aggro', distance: distanceBetween(tower, aggroHero) };
+
     const hostileCreeps = (room.creeps || [])
       .filter(creep => creep.hp > 0 && creep.teamId !== tower.teamId && distanceBetween(tower, creep) <= (tower.range || 170))
       .map(unit => ({ unit, type: 'creep', distance: distanceBetween(tower, unit) }));
+    if (hostileCreeps.length) {
+      return hostileCreeps.sort((a, b) => a.distance - b.distance)[0];
+    }
+
     const hostileHeroes = Object.values(room.playerData || {})
       .filter(hero => hero.hp > 0 && hero.teamId !== tower.teamId && distanceBetween(tower, hero) <= (tower.range || 170))
       .map(unit => ({ unit, type: 'hero', distance: distanceBetween(tower, unit) }));
-    return [...hostileCreeps, ...hostileHeroes]
+    return hostileHeroes
       .sort((a, b) => a.distance - b.distance)[0] || null;
   }
 
@@ -922,7 +966,7 @@ function setupWebSocket(server, rooms) {
 
     getLivingObjectives(room).forEach(obj => {
       if (obj.type !== 'tower' || (obj.attackAt || 0) > now) return;
-      const targetInfo = getTowerTarget(room, obj);
+      const targetInfo = getTowerTarget(room, obj, now);
       if (!targetInfo) return;
       const { unit: target, type } = targetInfo;
       obj.attackAt = now + 1100;
@@ -1165,6 +1209,7 @@ function setupWebSocket(server, rooms) {
         if (player.hp <= 0 && player.teamId && room.creepAggro?.[player.teamId]?.targetId === player.id) {
           delete room.creepAggro[player.teamId];
         }
+        if (player.hp <= 0) clearTowerAggroTarget(room, player.id);
 
         broadcast(roomId, {
           type: 'player_state',
@@ -1194,6 +1239,9 @@ function setupWebSocket(server, rooms) {
         if (attacker?.teamId && target.teamId && attacker.teamId === target.teamId) break;
         if (attacker?.teamId && target.teamId && attacker.teamId !== target.teamId) {
           rememberCreepHeroAggro(room, target.teamId, attacker.id);
+          if (isHeroInAnyEnemyTowerAggro(room, target.teamId, attacker)) {
+            rememberTowerHeroAggro(room, target.teamId, attacker.id);
+          }
         }
         damagePlayer(room, roomId, target, msg.damage, playerId, msg.skillId, msg.hitDir || 1);
         break;

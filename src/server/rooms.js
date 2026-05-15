@@ -140,6 +140,8 @@ class RoomStore {
       creepProjectiles: [],
       creepSeq: 0,
       objectives: [],
+      creepAggro: {},
+      towerAggro: {},
       assetProgress: {},
       winner: null,
       gameState: null,
@@ -357,6 +359,8 @@ class RoomStore {
     room.creeps = [];
     room.creepProjectiles = [];
     room.creepSeq = 0;
+    room.creepAggro = {};
+    room.towerAggro = {};
     room.assetProgress = {};
     room.nextCreepWaveAt = 0;
     room.objectives = createObjectives();
