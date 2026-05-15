@@ -14,7 +14,7 @@ function setupWebSocket(server, rooms) {
   const XP_SHARE_RADIUS = 280;
   const CREEP_WAVE_MS = 30000;
   const CREEP_LIMIT_PER_TEAM = 16;
-  const CREEP_LANE_OFFSETS = [-42, 0, 42, 0];
+  const CREEP_LANE_OFFSETS = [-24, 0, 24, 0];
   const CREEP_FORMATION_X = { melee: [72, 42, 12], ranged: [-24] };
   const CREEP_HERO_AGGRO_RANGE = 360;
   const CREEP_HERO_DISENGAGE_RANGE = 540;
@@ -30,8 +30,8 @@ function setupWebSocket(server, rooms) {
   const BATTLEFIELD_TOP_Y = 300;
   const BATTLEFIELD_BOTTOM_Y = 540;
   const CREEP_SPAWN = {
-    sun: { x: 260, y: 438 },
-    moon: { x: 2218, y: 438 },
+    sun: { x: 360, y: 378 },
+    moon: { x: 2118, y: 378 },
   };
 
   function sendTo(playerId, message) {
@@ -77,6 +77,24 @@ function setupWebSocket(server, rooms) {
 
   function unitFootRadiusY(unit) {
     return Number(unit?.footRadiusY) || Math.max(9, unitHeight(unit) * 0.18);
+  }
+
+  function isCreepUnit(unit) {
+    return Boolean(unit?.id?.startsWith?.('cr_'));
+  }
+
+  function unitBlockRadiusX(unit) {
+    if (isCreepUnit(unit)) return Number(unit?.footRadiusX) || Math.max(12, unitWidth(unit) * 0.34);
+    if (unit?.type === 'tower') return Math.max(22, unitWidth(unit) * 0.58);
+    if (unit?.type === 'ancient') return Math.max(36, unitWidth(unit) * 0.58);
+    return Math.max(14, unitWidth(unit) * 0.36);
+  }
+
+  function unitBlockRadiusY(unit) {
+    if (isCreepUnit(unit)) return Number(unit?.footRadiusY) || Math.max(7, unitHeight(unit) * 0.13);
+    if (unit?.type === 'tower') return Math.max(18, unitHeight(unit) * 0.2);
+    if (unit?.type === 'ancient') return Math.max(24, unitHeight(unit) * 0.22);
+    return Math.max(9, unitHeight(unit) * 0.16);
   }
 
   function distanceBetween(a, b) {
@@ -180,6 +198,8 @@ function setupWebSocket(server, rooms) {
       laneIndex,
       w: isRanged ? 40 : 42,
       h,
+      footRadiusX: isRanged ? 12.5 : 14,
+      footRadiusY: isRanged ? 7 : 7.5,
       hp: isRanged ? 95 : 135,
       maxHp: isRanged ? 95 : 135,
       damage: isRanged ? 14 : 17,
@@ -444,8 +464,8 @@ function setupWebSocket(server, rooms) {
         const bf = unitFoot(b);
         const dx = bf.x - af.x;
         const dy = bf.y - af.y;
-        const overlapX = 38 - Math.abs(dx);
-        const overlapY = 32 - Math.abs(dy);
+        const overlapX = unitBlockRadiusX(a) + unitBlockRadiusX(b) - Math.abs(dx);
+        const overlapY = unitBlockRadiusY(a) + unitBlockRadiusY(b) - Math.abs(dy);
         if (overlapX <= 0 || overlapY <= 0) continue;
         if (overlapY < overlapX || Math.abs(dy) > 4) {
           const push = (overlapY + 2) * 0.5;
@@ -466,6 +486,7 @@ function setupWebSocket(server, rooms) {
     return [
       ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.id !== creep.id && unit.teamId === creep.teamId),
       ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.teamId === creep.teamId),
+      ...(room.objectives || []).filter(unit => unit.hp > 0 && unit.teamId === creep.teamId),
     ];
   }
 
@@ -476,34 +497,61 @@ function setupWebSocket(server, rooms) {
       const uf = unitFoot(unit);
       const dx = Math.abs(cf.x - uf.x);
       const dy = Math.abs(cf.y - uf.y);
-      return dx < (unitWidth(candidate) + unitWidth(unit)) * 0.42 &&
-        dy < (unitHeight(candidate) + unitHeight(unit)) * 0.22;
+      return dx < unitBlockRadiusX(candidate) + unitBlockRadiusX(unit) &&
+        dy < unitBlockRadiusY(candidate) + unitBlockRadiusY(unit);
     });
+  }
+
+  function tryMoveCreep(room, creep, candidates, goalX, goalY) {
+    const unique = [];
+    const seen = new Set();
+    candidates.forEach(([nextX, nextY]) => {
+      const x = Math.round(nextX * 10) / 10;
+      const y = Math.round(clampCreepY(nextY, creep.h) * 10) / 10;
+      const key = `${x}:${y}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      unique.push([x, y]);
+    });
+
+    const sorted = unique
+      .filter(([nextX, nextY]) => (nextX !== creep.x || nextY !== creep.y) && !isCreepMoveBlocked(room, creep, nextX, nextY))
+      .sort((a, b) => {
+        const da = Math.hypot((a[0] + unitWidth(creep) / 2) - goalX, (a[1] + unitHeight(creep)) - goalY);
+        const db = Math.hypot((b[0] + unitWidth(creep) / 2) - goalX, (b[1] + unitHeight(creep)) - goalY);
+        return da - db;
+      });
+
+    if (!sorted.length) {
+      creep.stuckTicks = (creep.stuckTicks || 0) + 1;
+      if (creep.stuckTicks > 4) creep.avoidSide = -(creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1));
+      return false;
+    }
+
+    const [x, y] = sorted[0];
+    creep.x = x;
+    creep.y = y;
+    creep.stuckTicks = 0;
+    return true;
   }
 
   function moveCreepTowardLane(room, creep, dir) {
     const speed = creep.speed || 1.8;
     const desiredY = typeof creep.laneY === 'number' ? creep.laneY : creep.y;
     const laneStep = Math.sign(desiredY - creep.y) * Math.min(1.8, Math.abs(desiredY - creep.y));
-    let nextX = creep.x + dir * speed;
-    let nextY = clampCreepY(creep.y + laneStep, creep.h);
-    if (!isCreepMoveBlocked(room, creep, nextX, nextY)) {
-      creep.x = nextX;
-      creep.y = nextY;
-      return;
-    }
-
-    const avoidSign = (creep.laneIndex % 2 === 0 ? -1 : 1) || 1;
-    for (const side of [avoidSign, -avoidSign]) {
-      nextX = creep.x + dir * speed * 0.55;
-      nextY = clampCreepY(creep.y + side * Math.max(2.2, speed * 1.4), creep.h);
-      if (!isCreepMoveBlocked(room, creep, nextX, nextY)) {
-        creep.x = nextX;
-        creep.y = nextY;
-        return;
-      }
-    }
-    creep.state = 'idle';
+    const avoidSign = creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1;
+    const sideSteps = [0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2];
+    const xSteps = [1, 0.75, 0.45, -0.25];
+    const candidates = [];
+    xSteps.forEach(xMult => {
+      sideSteps.forEach(side => {
+        candidates.push([
+          creep.x + dir * speed * xMult,
+          creep.y + laneStep + side * Math.max(2, speed * (creep.stuckTicks > 2 ? 2.8 : 1.45)),
+        ]);
+      });
+    });
+    if (!tryMoveCreep(room, creep, candidates, creep.x + dir * speed * 6, desiredY + unitHeight(creep))) creep.state = 'idle';
   }
 
   function isChaseTarget(room, target) {
@@ -522,26 +570,26 @@ function setupWebSocket(server, rooms) {
     const dx = targetFoot.x - creepFoot.x;
     const desiredTopY = clampCreepY(targetFoot.y - unitHeight(creep), unitHeight(creep));
     const depthDelta = desiredTopY - creep.y;
-    const holdX = creep.role === 'ranged' ? Math.max(42, (creep.range || 210) * 0.58) : Math.max(10, (creep.range || 38) * 0.45);
-    const stepX = Math.abs(dx) > holdX ? Math.sign(dx) * speed : 0;
+    const preferredGap = creep.role === 'ranged' ? Math.max(96, (creep.range || 210) * 0.68) : Math.max(14, (creep.range || 38) * 0.38);
+    const approachDir = Math.sign(dx) || dir || TEAM_DIR[creep.teamId] || 1;
+    const goalFootX = targetFoot.x - approachDir * preferredGap;
+    const goalTopX = goalFootX - unitWidth(creep) / 2;
+    const goalDx = goalTopX - creep.x;
+    const stepX = Math.sign(goalDx) * Math.min(Math.abs(goalDx), speed);
     const stepY = Math.sign(depthDelta) * Math.min(Math.abs(depthDelta), Math.max(1.5, speed * 0.95));
-    const candidates = [
-      [creep.x + stepX, clampCreepY(creep.y + stepY, creep.h)],
-      [creep.x, clampCreepY(creep.y + stepY, creep.h)],
-      [creep.x + stepX, creep.y],
-      [creep.x + (dir || TEAM_DIR[creep.teamId] || 1) * speed * 0.45, clampCreepY(creep.y + Math.sign(depthDelta || 1) * speed * 1.35, creep.h)],
-      [creep.x + (dir || TEAM_DIR[creep.teamId] || 1) * speed * 0.45, clampCreepY(creep.y - Math.sign(depthDelta || 1) * speed * 1.35, creep.h)],
-    ];
-
-    for (const [nextX, nextY] of candidates) {
-      if (nextX === creep.x && nextY === creep.y) continue;
-      if (!isCreepMoveBlocked(room, creep, nextX, nextY)) {
-        creep.x = nextX;
-        creep.y = nextY;
-        return;
-      }
-    }
-    creep.state = 'idle';
+    const avoidSign = creep.avoidSide || (creep.laneIndex % 2 === 0 ? -1 : 1) || 1;
+    const sideSteps = [0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2, avoidSign * 3, -avoidSign * 3];
+    const xSteps = [1, 0, 0.6, -0.35, 1.25];
+    const candidates = [];
+    xSteps.forEach(xMult => {
+      sideSteps.forEach(side => {
+        candidates.push([
+          creep.x + stepX * xMult,
+          creep.y + stepY + side * Math.max(2, speed * (creep.stuckTicks > 2 ? 3.4 : 1.4)),
+        ]);
+      });
+    });
+    if (!tryMoveCreep(room, creep, candidates, goalFootX, targetFoot.y)) creep.state = 'idle';
   }
 
   function tickWorld(roomId) {
