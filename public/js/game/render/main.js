@@ -17,7 +17,7 @@ function render(canvas) {
   matchItems.forEach(item => drawMatchItem(ctx, item, scaleX, scaleY));
   projectiles.forEach(p => drawProjectile(ctx, p, scaleX, scaleY));
   creepProjectiles.forEach(shot => drawCreepProjectile(ctx, shot, scaleX, scaleY));
-  effects.forEach(e => drawEffect(ctx, e, scaleX, scaleY));
+  effects.filter(e => e.id !== 'level-up').forEach(e => drawEffect(ctx, e, scaleX, scaleY));
   const depthEntities = [
     ...objectives.map(obj => ({ kind: 'objective', entity: obj, depth: getUnitFoot(obj).y })),
     ...creeps.map(creep => ({ kind: 'creep', entity: creep, depth: getUnitFoot(creep).y })),
@@ -32,6 +32,7 @@ function render(canvas) {
       if (item.kind === 'creep') drawCreep(ctx, item.entity, scaleX, scaleY);
       if (item.kind === 'player') drawPlayer(ctx, item.entity, scaleX, scaleY, !!item.isMe);
     });
+  effects.filter(e => e.id === 'level-up').forEach(e => drawEffect(ctx, e, scaleX, scaleY));
   deathParts.forEach(part => drawDeathPart(ctx, part, scaleX, scaleY));
   bloodParticles.forEach(b => drawBloodParticle(ctx, b, scaleX, scaleY));
   damageNumbers.forEach(n => drawDamageNumber(ctx, n, scaleX, scaleY));

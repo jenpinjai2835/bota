@@ -237,8 +237,9 @@ function drawLevelUpEffect(ctx, e, sx, sy) {
   ctx.globalCompositeOperation = 'lighter';
 
   const aura = ctx.createRadialGradient(x, y, 0, x, y, baseRadius * 1.75);
-  aura.addColorStop(0, `rgba(255, 247, 184, ${0.42 * alpha})`);
-  aura.addColorStop(0.38, withAlpha(e.color, 0.22 * alpha));
+  aura.addColorStop(0, 'rgba(255, 247, 184, 0)');
+  aura.addColorStop(0.28, 'rgba(255, 247, 184, 0)');
+  aura.addColorStop(0.52, withAlpha(e.color, 0.2 * alpha));
   aura.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = aura;
   ctx.beginPath();
@@ -271,20 +272,23 @@ function drawLevelUpEffect(ctx, e, sx, sy) {
     ctx.fill();
   }
 
-  const beamWidth = baseRadius * 0.56 * (1 - progress * 0.45);
+  const beamWidth = baseRadius * 0.58 * (1 - progress * 0.45);
+  const beamGap = baseRadius * 0.26;
   const beam = ctx.createLinearGradient(x, y + baseRadius * 0.45, x, y - baseRadius * 2.35);
   beam.addColorStop(0, 'rgba(255, 236, 138, 0)');
-  beam.addColorStop(0.2, `rgba(255, 236, 138, ${0.24 * alpha})`);
-  beam.addColorStop(0.64, withAlpha(e.color, 0.34 * alpha));
+  beam.addColorStop(0.2, `rgba(255, 236, 138, ${0.16 * alpha})`);
+  beam.addColorStop(0.64, withAlpha(e.color, 0.24 * alpha));
   beam.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = beam;
-  ctx.beginPath();
-  ctx.moveTo(x - beamWidth, y + baseRadius * 0.42);
-  ctx.lineTo(x + beamWidth, y + baseRadius * 0.42);
-  ctx.lineTo(x + beamWidth * 0.3, y - baseRadius * 2.35);
-  ctx.lineTo(x - beamWidth * 0.3, y - baseRadius * 2.35);
-  ctx.closePath();
-  ctx.fill();
+  [-1, 1].forEach(side => {
+    ctx.beginPath();
+    ctx.moveTo(x + side * beamGap, y + baseRadius * 0.42);
+    ctx.lineTo(x + side * beamWidth, y + baseRadius * 0.42);
+    ctx.lineTo(x + side * beamWidth * 0.3, y - baseRadius * 2.35);
+    ctx.lineTo(x + side * beamGap * 0.45, y - baseRadius * 2.35);
+    ctx.closePath();
+    ctx.fill();
+  });
 
   const textAlpha = Math.min(1, alpha * 1.6) * (progress < 0.18 ? progress / 0.18 : 1);
   ctx.globalCompositeOperation = 'source-over';

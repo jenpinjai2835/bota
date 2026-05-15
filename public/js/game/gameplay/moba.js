@@ -67,9 +67,13 @@ function syncWorldState(msg) {
     .forEach(creep => spawnCreepDeathBurst(creep, creep.lastHitDir || creep.facing || (creep.teamId === 'sun' ? 1 : -1), creep.lastDamage || 34));
   creeps = incoming.map(creep => {
     const existing = creeps.find(entry => entry.id === creep.id);
+    const attackVisualStartedAt = creep.state === 'attack' && creep.attackAt !== existing?.attackAt
+      ? Date.now()
+      : existing?.attackVisualStartedAt;
     return {
       ...existing,
       ...creep,
+      attackVisualStartedAt,
       renderX: existing?.renderX ?? creep.x,
       renderY: existing?.renderY ?? creep.y,
       targetX: creep.x,
@@ -137,8 +141,15 @@ function drawUnitFootprint(ctx, unit, sx, sy, options = {}) {
   const scale = Math.min(sx, sy);
   const rx = getUnitFootRadiusX(unit) * sx;
   const ry = getUnitFootRadiusY(unit) * sy;
+  const isObjective = unit.type === 'tower' || unit.type === 'ancient';
   ctx.save();
-  ctx.fillStyle = options.fillStyle || 'rgba(180,180,180,0.012)';
+  if (!isObjective) {
+    ctx.fillStyle = options.shadowFillStyle || 'rgba(0,0,0,0.075)';
+    ctx.beginPath();
+    ctx.ellipse(foot.x * sx, foot.y * sy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = options.fillStyle || 'rgba(180,180,180,0.006)';
   ctx.strokeStyle = options.strokeStyle || 'rgba(190,190,190,0.16)';
   ctx.lineWidth = Math.max(1, 0.85 * scale);
   ctx.setLineDash([Math.max(3, 4 * scale), Math.max(2, 3 * scale)]);
@@ -240,7 +251,7 @@ function drawCreep(ctx, creep, sx, sy) {
   const action = creep.state === 'attack' ? 'attack' : 'walk';
   const frames = monsterImages[creep.type]?.[action] || [];
   const meta = MONSTER_ACTIONS[action] || MONSTER_ACTIONS.walk;
-  const frame = Math.floor(Date.now() / (1000 / meta.fps)) % Math.max(1, frames.length);
+  const frame = getMonsterFrameIndex(creep, action, Math.max(1, frames.length), meta);
   const img = getRenderableMonsterFrame(creep.type, action, frame) || creep.lastRenderableMonsterFrame || null;
   if (img?.complete && img.naturalWidth) creep.lastRenderableMonsterFrame = img;
   const drawX = creep.renderX ?? creep.x;
@@ -250,6 +261,7 @@ function drawCreep(ctx, creep, sx, sy) {
   const scale = Math.min(sx, sy);
   const w = 58 * scale;
   const h = 58 * scale;
+  const groundOffset = getCreepGroundOffset(creep, scale);
   const facing = creep.facing || (creep.teamId === 'sun' ? 1 : -1);
   const hostile = myPlayer && creep.teamId !== myPlayer.teamId;
   ctx.save();
@@ -259,15 +271,30 @@ function drawCreep(ctx, creep, sx, sy) {
   }
   ctx.translate(x, y);
   ctx.scale(facing > 0 ? 1 : -1, 1);
-  if (drawMonsterVectorCreep(ctx, creep, w, h, action)) {
+  if (drawMonsterVectorCreep(ctx, creep, w, h, action, groundOffset)) {
     // Vector parts are the primary creep renderer. PNG frames remain as fallback.
   } else if (img?.complete && img.naturalWidth) {
-    ctx.drawImage(img, -w / 2, -h, w, h);
+    ctx.drawImage(img, -w / 2, -h + groundOffset, w, h);
   } else {
-    drawCreepSilhouette(ctx, creep, w, h, scale);
+    drawCreepSilhouette(ctx, creep, w, h, scale, groundOffset);
   }
   ctx.restore();
-  drawUnitHealthBar(ctx, creep, x, y - h - 3 * sy, Math.max(32, 38 * scale), sx, sy);
+  drawUnitHealthBar(ctx, creep, x, y - h + groundOffset - 3 * sy, Math.max(32, 38 * scale), sx, sy);
+}
+
+function getMonsterFrameIndex(creep, action, frameCount, meta) {
+  if (action === 'attack') {
+    const cooldown = Math.max(180, creep.attackCooldown || 900);
+    const startedAt = creep.attackVisualStartedAt || Math.max(0, (creep.attackAt || 0) - cooldown);
+    const elapsed = Math.max(0, Date.now() - startedAt);
+    const progress = Math.min(0.999, elapsed / cooldown);
+    return Math.floor(progress * frameCount) % frameCount;
+  }
+  return Math.floor(Date.now() / (1000 / (meta?.fps || 12))) % frameCount;
+}
+
+function getCreepGroundOffset(creep, scale) {
+  return (creep.role === 'ranged' ? 6 : 8) * scale;
 }
 
 function parseMonsterVectorScml(text) {
@@ -359,8 +386,11 @@ function getMonsterVectorAnimationName(creep, action) {
 function getMonsterVectorAnimationTime(animation, creep, action) {
   if (!animation?.length) return 0;
   if (action === 'attack') {
-    const startedAt = creep.attackVisualStartedAt || 0;
-    return startedAt ? (Date.now() - startedAt) % animation.length : Date.now() % animation.length;
+    const cooldown = Math.max(180, creep.attackCooldown || 900);
+    const startedAt = creep.attackVisualStartedAt || Math.max(0, (creep.attackAt || 0) - cooldown);
+    const elapsed = Math.max(0, Date.now() - startedAt);
+    const progress = Math.min(0.999, elapsed / cooldown);
+    return progress * animation.length;
   }
   return Date.now() % animation.length;
 }
@@ -520,7 +550,7 @@ function drawMonsterVectorObject(ctx, item) {
   ctx.restore();
 }
 
-function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action) {
+function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action, groundOffset = 0) {
   const type = creep.type;
   const data = monsterVectorData[type];
   if (!data?.animations) return false;
@@ -535,7 +565,7 @@ function drawMonsterVectorCreep(ctx, creep, drawW, drawH, action) {
   if (!bounds || !referenceBounds) return false;
   const scale = Math.min(drawW / referenceBounds.width, drawH / referenceBounds.height) * 0.98;
   const offsetX = -((bounds.minX + bounds.maxX) * 0.5 * scale);
-  const offsetY = -bounds.maxY * scale;
+  const offsetY = -bounds.maxY * scale + groundOffset;
   ctx.save();
   ctx.translate(offsetX, offsetY);
   ctx.scale(scale, scale);
@@ -585,7 +615,7 @@ function getAnyRenderableMonsterFrame(action, frameIndex = 0) {
   return monsterFrameFallbackCache[`any:${action}`] || monsterFrameFallbackCache.any || null;
 }
 
-function drawCreepSilhouette(ctx, creep, w, h, scale) {
+function drawCreepSilhouette(ctx, creep, w, h, scale, groundOffset = 0) {
   const color = creep.teamId === 'sun' ? 'rgba(96,44,34,0.78)' : 'rgba(42,58,86,0.78)';
   const edge = creep.teamId === 'sun' ? 'rgba(228,71,71,0.42)' : 'rgba(61,139,255,0.42)';
   ctx.save();
@@ -593,12 +623,12 @@ function drawCreepSilhouette(ctx, creep, w, h, scale) {
   ctx.strokeStyle = edge;
   ctx.lineWidth = Math.max(1, 1.1 * scale);
   ctx.beginPath();
-  ctx.ellipse(0, -h * 0.42, w * 0.23, h * 0.34, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -h * 0.42 + groundOffset, w * 0.23, h * 0.34, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = 'rgba(255,232,150,0.72)';
   ctx.beginPath();
-  ctx.arc(w * 0.08, -h * 0.53, Math.max(1.5, 2.4 * scale), 0, Math.PI * 2);
+  ctx.arc(w * 0.08, -h * 0.53 + groundOffset, Math.max(1.5, 2.4 * scale), 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }

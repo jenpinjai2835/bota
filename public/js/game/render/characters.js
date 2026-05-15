@@ -828,10 +828,6 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
 
   ctx.save();
   ctx.globalAlpha = bodyAlpha;
-  ctx.fillStyle = 'rgba(0,0,0,0.46)';
-  ctx.beginPath();
-  ctx.ellipse(footX, footY + 2 * sy, drawW * 0.38, 8 * sy, 0, 0, Math.PI * 2);
-  ctx.fill();
 
   if (isMe) {
     const aura = ctx.createRadialGradient(footX, footY - drawH * 0.45, 0, footX, footY - drawH * 0.45, drawW * 0.95);
@@ -876,10 +872,6 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   if (drawSpritePlayer(ctx, p, sx, sy, isMe)) return;
 
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.42)';
-  ctx.beginPath();
-  ctx.ellipse(x + w / 2, y + h + 4 * sy, w * 0.7, 7 * sy, 0, 0, Math.PI * 2);
-  ctx.fill();
 
   if (isMe) {
     const aura = ctx.createRadialGradient(x + w / 2, y + h / 2, 0, x + w / 2, y + h / 2, w * 1.25);
