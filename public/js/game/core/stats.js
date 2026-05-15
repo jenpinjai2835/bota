@@ -42,30 +42,50 @@ function arePlayersHostile(a, b) {
 
 function calculatePlayerStats(player) {
   const ch = player?.charData || CHARACTERS.find(c => c.id === player?.character) || CHARACTERS[0];
-  const stats = {
-    maxHp: getCharacterMaxHp(ch),
-    attackPower: ch?.baseStats?.attackPower || 1,
-    defense: ch?.baseStats?.defense || 0,
-    speed: ch?.baseStats?.speed || ch?.speed || 5,
-    jumpPower: ch?.baseStats?.jumpPower || ch?.jumpPower || 13,
-    knockbackPower: ch?.baseStats?.knockbackPower || 1,
-    knockbackResist: ch?.baseStats?.knockbackResist || 0,
-    maxMana: ch?.baseStats?.maxMana || getMaxMana(ch),
-    attackSpeed: ch?.baseStats?.attackSpeed || ch?.attackSpeed || 1,
-    manaRegen: ch?.baseStats?.manaRegen || getManaRegen(ch),
-    cooldownReduction: 0,
-  };
-
+  const baseStats = ch?.baseStats || {};
   const level = Math.max(1, player?.progression?.level || 1);
-  const gains = LEVEL_CONFIG.statGain;
-  for (let i = 1; i < level; i++) {
-    Object.entries(gains).forEach(([key, value]) => {
-      stats[key] = (stats[key] || 0) + value;
-    });
-  }
-
+  const levelBonus = level - 1;
+  const baseAttributes = baseStats.attributes || { str: 18, agi: 18, int: 18 };
+  const attrGain = baseStats.attributeGain || LEVEL_CONFIG.attributesPerLevel || {};
+  const attributes = {
+    str: (baseAttributes.str || 0) + levelBonus * (attrGain.str ?? LEVEL_CONFIG.attributesPerLevel.str),
+    agi: (baseAttributes.agi || 0) + levelBonus * (attrGain.agi ?? LEVEL_CONFIG.attributesPerLevel.agi),
+    int: (baseAttributes.int || 0) + levelBonus * (attrGain.int ?? LEVEL_CONFIG.attributesPerLevel.int),
+  };
   const now = Date.now();
   player.itemModifiers = (player.itemModifiers || []).filter(mod => !mod.expiresAt || mod.expiresAt > now);
+  player.itemModifiers.forEach(mod => {
+    Object.entries(mod.attributes || {}).forEach(([key, value]) => {
+      if (attributes[key] !== undefined) attributes[key] += value;
+    });
+  });
+  const derived = LEVEL_CONFIG.derived || {};
+  const primaryAttribute = baseStats.primaryAttribute || 'str';
+  const primaryValue = attributes[primaryAttribute] || 0;
+  const baseDamage = baseStats.baseDamage || 18;
+  const stats = {
+    primaryAttribute,
+    attributes,
+    strength: attributes.str,
+    agility: attributes.agi,
+    intelligence: attributes.int,
+    maxHp: 120 + attributes.str * (derived.hpPerStr || 22),
+    hpRegen: attributes.str * (derived.hpRegenPerStr || 0.08),
+    maxMana: 40 + attributes.int * (derived.manaPerInt || 12),
+    manaRegen: 0.2 + attributes.int * (derived.manaRegenPerInt || 0.045),
+    attackDamage: baseDamage + primaryValue,
+    attackPower: 1 + primaryValue * 0.01,
+    defense: (baseStats.baseArmor || 0) + attributes.agi * (derived.armorPerAgi || 0.16),
+    armor: 0,
+    magicDefense: (baseStats.baseMagicDefense || 0) + attributes.int * (derived.magicDefensePerInt || 0.0035),
+    speed: (baseStats.speed || ch?.speed || 5) + attributes.agi * (derived.speedPerAgi || 0.018),
+    jumpPower: baseStats.jumpPower || ch?.jumpPower || 13,
+    knockbackPower: baseStats.knockbackPower || 1,
+    knockbackResist: baseStats.knockbackResist || 0,
+    attackSpeed: Math.max(0.35, 1 / (baseStats.baseAttackTime || 1.7) + attributes.agi * (derived.attackSpeedPerAgi || 0.012)),
+    cooldownReduction: attributes.int * (derived.cooldownReductionPerInt || 0.0014),
+  };
+
   player.itemModifiers.forEach(mod => {
     Object.entries(mod.stats || {}).forEach(([key, value]) => {
       stats[key] = (stats[key] || 0) + value;
@@ -75,6 +95,10 @@ function calculatePlayerStats(player) {
   stats.maxHp = Math.max(MIN_CHARACTER_HP, Math.round(stats.maxHp));
   stats.maxMana = Math.max(1, Math.round(stats.maxMana));
   stats.speed = Math.max(1.5, stats.speed);
+  stats.attackDamage = Math.max(1, Math.round(stats.attackDamage));
+  stats.armor = Math.max(0, Math.round((stats.defense || 0) * 10) / 10);
+  stats.defense = stats.armor;
+  stats.magicDefense = Math.max(0, Math.min(0.75, stats.magicDefense || 0));
   stats.attackSpeed = Math.max(0.35, stats.attackSpeed || 1);
   stats.jumpPower = Math.max(6, stats.jumpPower);
   stats.cooldownReduction = Math.max(0, Math.min(0.5, stats.cooldownReduction || 0));
@@ -114,7 +138,10 @@ function getScaledSkill(player, skill) {
   const level = getSkillLevel(player, skill);
   const levelBonus = level - 1;
   const damageSign = skill.damage < 0 ? -1 : 1;
-  const scaledDamage = Math.round(Math.abs(skill.damage || 0) * (1 + levelBonus * 0.16) * (damageSign > 0 ? (stats.attackPower || 1) : 1));
+  const baseDamage = Math.abs(skill.damage || 0);
+  const scaledDamage = skill.basicAttack
+    ? Math.round(baseDamage + (stats.attackDamage || 0))
+    : Math.round(baseDamage * (1 + levelBonus * 0.16) * (damageSign > 0 ? (stats.attackPower || 1) : 1));
   return {
     ...skill,
     baseSkill: skill,
@@ -126,8 +153,12 @@ function getScaledSkill(player, skill) {
   };
 }
 
-function applyDefenseToDamage(target, rawDamage) {
+function applyDefenseToDamage(target, rawDamage, damageType = 'physical') {
   if (rawDamage <= 0) return rawDamage;
+  if (damageType === 'magic') {
+    const resist = getPlayerStat(target, 'magicDefense');
+    return Math.max(1, Math.round(rawDamage * (1 - resist)));
+  }
   const defense = getPlayerStat(target, 'defense');
   return Math.max(1, Math.round(rawDamage * (100 / (100 + defense))));
 }

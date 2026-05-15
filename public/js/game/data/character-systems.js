@@ -1,14 +1,14 @@
 // Character identity, stat profiles, match items, and teams
 const STAT_PROFILE_PRESETS = {
-  brawler: { maxHp: 560, attackPower: 1.02, attackSpeed: 1.05, defense: 12, speed: 5, jumpPower: 14, knockbackPower: 1.08, knockbackResist: 0.08, maxMana: 110, manaRegen: 0.32 },
-  assassin: { maxHp: 500, attackPower: 1.18, defense: 5, speed: 7, jumpPower: 15, knockbackPower: 1.16, knockbackResist: 0.02, maxMana: 100, manaRegen: 0.28 },
-  tank: { maxHp: 720, attackPower: 0.94, defense: 28, speed: 3, jumpPower: 11, knockbackPower: 0.92, knockbackResist: 0.28, maxMana: 90, manaRegen: 0.22 },
-  ranger: { maxHp: 510, attackPower: 1.08, defense: 8, speed: 5, jumpPower: 14, knockbackPower: 1, knockbackResist: 0.05, maxMana: 105, manaRegen: 0.26 },
-  mage: { maxHp: 500, attackPower: 1.14, defense: 6, speed: 4, jumpPower: 13, knockbackPower: 0.96, knockbackResist: 0.04, maxMana: 125, manaRegen: 0.36 },
-  warrior: { maxHp: 590, attackPower: 1.1, defense: 14, speed: 5, jumpPower: 14, knockbackPower: 1.1, knockbackResist: 0.1, maxMana: 105, manaRegen: 0.3 },
-  rogue: { maxHp: 510, attackPower: 1.15, defense: 7, speed: 6, jumpPower: 14, knockbackPower: 1.1, knockbackResist: 0.04, maxMana: 100, manaRegen: 0.28 },
-  support: { maxHp: 540, attackPower: 0.98, defense: 10, speed: 5, jumpPower: 13, knockbackPower: 0.92, knockbackResist: 0.08, maxMana: 130, manaRegen: 0.38 },
-  heavy: { maxHp: 680, attackPower: 1.02, defense: 24, speed: 3, jumpPower: 10, knockbackPower: 1.04, knockbackResist: 0.24, maxMana: 95, manaRegen: 0.22 },
+  brawler: { primaryAttribute: 'str', attributes: { str: 24, agi: 15, int: 13 }, attributeGain: { str: 3.2, agi: 1.8, int: 1.5 }, baseDamage: 22, baseArmor: 1.5, baseMagicDefense: 0.08, baseAttackTime: 1.7, speed: 5, jumpPower: 14, knockbackPower: 1.08, knockbackResist: 0.08 },
+  assassin: { primaryAttribute: 'agi', attributes: { str: 17, agi: 25, int: 14 }, attributeGain: { str: 2.0, agi: 3.4, int: 1.7 }, baseDamage: 18, baseArmor: 1, baseMagicDefense: 0.06, baseAttackTime: 1.55, speed: 7, jumpPower: 15, knockbackPower: 1.16, knockbackResist: 0.02 },
+  tank: { primaryAttribute: 'str', attributes: { str: 30, agi: 10, int: 12 }, attributeGain: { str: 3.7, agi: 1.2, int: 1.4 }, baseDamage: 20, baseArmor: 2.5, baseMagicDefense: 0.1, baseAttackTime: 1.8, speed: 3, jumpPower: 11, knockbackPower: 0.92, knockbackResist: 0.28 },
+  ranger: { primaryAttribute: 'agi', attributes: { str: 18, agi: 23, int: 16 }, attributeGain: { str: 2.1, agi: 3.0, int: 1.9 }, baseDamage: 20, baseArmor: 1, baseMagicDefense: 0.07, baseAttackTime: 1.65, speed: 5, jumpPower: 14, knockbackPower: 1, knockbackResist: 0.05 },
+  mage: { primaryAttribute: 'int', attributes: { str: 17, agi: 14, int: 25 }, attributeGain: { str: 1.9, agi: 1.5, int: 3.4 }, baseDamage: 17, baseArmor: 0.5, baseMagicDefense: 0.1, baseAttackTime: 1.7, speed: 4, jumpPower: 13, knockbackPower: 0.96, knockbackResist: 0.04 },
+  warrior: { primaryAttribute: 'str', attributes: { str: 23, agi: 18, int: 15 }, attributeGain: { str: 2.8, agi: 2.2, int: 1.8 }, baseDamage: 21, baseArmor: 1.5, baseMagicDefense: 0.08, baseAttackTime: 1.7, speed: 5, jumpPower: 14, knockbackPower: 1.1, knockbackResist: 0.1 },
+  rogue: { primaryAttribute: 'agi', attributes: { str: 18, agi: 24, int: 15 }, attributeGain: { str: 2.0, agi: 3.2, int: 1.7 }, baseDamage: 19, baseArmor: 1, baseMagicDefense: 0.07, baseAttackTime: 1.6, speed: 6, jumpPower: 14, knockbackPower: 1.1, knockbackResist: 0.04 },
+  support: { primaryAttribute: 'int', attributes: { str: 19, agi: 15, int: 24 }, attributeGain: { str: 2.2, agi: 1.6, int: 3.1 }, baseDamage: 16, baseArmor: 1, baseMagicDefense: 0.12, baseAttackTime: 1.72, speed: 5, jumpPower: 13, knockbackPower: 0.92, knockbackResist: 0.08 },
+  heavy: { primaryAttribute: 'str', attributes: { str: 28, agi: 11, int: 13 }, attributeGain: { str: 3.4, agi: 1.3, int: 1.5 }, baseDamage: 23, baseArmor: 2, baseMagicDefense: 0.09, baseAttackTime: 1.85, speed: 3, jumpPower: 10, knockbackPower: 1.04, knockbackResist: 0.24 },
 };
 
 const CHARACTER_IDENTITIES = {
@@ -30,16 +30,17 @@ const LEVEL_CONFIG = {
   xpGrowth: 55,
   skillLevelEvery: 3,
   maxSkillLevel: 4,
-  statGain: {
-    maxHp: 34,
-    attackPower: 0.025,
-    defense: 1.1,
-    speed: 0.025,
-    jumpPower: 0.03,
-    knockbackPower: 0.012,
-    knockbackResist: 0.006,
-    maxMana: 6,
-    manaRegen: 0.012,
+  attributesPerLevel: { str: 2.3, agi: 2.0, int: 1.8 },
+  derived: {
+    hpPerStr: 22,
+    hpRegenPerStr: 0.08,
+    manaPerInt: 12,
+    manaRegenPerInt: 0.045,
+    armorPerAgi: 0.16,
+    attackSpeedPerAgi: 0.012,
+    speedPerAgi: 0.018,
+    magicDefensePerInt: 0.0035,
+    cooldownReductionPerInt: 0.0014,
   },
 };
 

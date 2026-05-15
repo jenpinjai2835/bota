@@ -40,7 +40,7 @@ const OBJECTIVE_BLUEPRINTS = [
 ];
 
 const CHARACTER_MAX_HP = {
-  dragonfist: 560,
+  dragonfist: 648,
   shadowblade: 500,
   stoneguard: 720,
   stormarrow: 510,

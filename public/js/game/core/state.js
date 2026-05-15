@@ -442,7 +442,7 @@ function getSkillManaCost(skill) {
 }
 
 function getAttackSpeed(player) {
-  return Math.max(0.35, (player?.stats?.attackSpeed || player?.charData?.baseStats?.attackSpeed || player?.charData?.attackSpeed || 1) + ((player?.progression?.level || 1) - 1) * 0.012);
+  return Math.max(0.35, player?.stats?.attackSpeed || player?.charData?.baseStats?.attackSpeed || player?.charData?.attackSpeed || 1);
 }
 
 function getBasicAttackCooldown(player, skill) {

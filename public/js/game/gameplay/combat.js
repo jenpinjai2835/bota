@@ -213,7 +213,9 @@ function startDeathMotion(target, dir = 1, damage = 0, skillId = null) {
 function dealDamage(target, damage, skillId, hitDir = 1) {
   if (!isAlive && target === myPlayer) return;
   if (myPlayer && target !== myPlayer && !arePlayersHostile(myPlayer, target)) return;
-  const finalDamage = applyDefenseToDamage(target, damage);
+  const sourceSkill = myPlayer?.charData?.skills?.find(skill => skill.id === skillId);
+  const damageType = sourceSkill?.damageType || (sourceSkill?.type === 'projectile' || sourceSkill?.type === 'aoe' ? 'magic' : 'physical');
+  const finalDamage = applyDefenseToDamage(target, damage, damageType);
   const targetId = target.id || (target === myPlayer ? myPlayerId : null);
   send({ type: 'player_hit', targetId, damage: finalDamage, skillId, hitDir });
   spawnEffect(target.x + target.width/2, target.y + target.height/2, skillId, '#FF4444', 30);

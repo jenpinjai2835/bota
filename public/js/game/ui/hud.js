@@ -21,6 +21,8 @@ function buildHUD() {
     <div class="hp-bar"><div class="hp-fill high" id="focus-hp" style="width:100%"></div><div class="hp-ticks" id="focus-hp-ticks"></div></div>
     <div class="hud-stat-line mana-line"><span>MP</span><span id="focus-mana-text"></span></div>
     <div class="mana-bar"><div class="mana-fill" id="focus-mana" style="width:100%"></div></div>
+    <div class="attr-strip" id="focus-attrs"></div>
+    <div class="derived-strip" id="focus-derived"></div>
   `;
   container.appendChild(div);
   updateCombatStatsPanel();
@@ -46,6 +48,7 @@ function updateHUD() {
 
   ensurePlayerSystems(p);
   const ch = p.charData || CHARACTERS.find(c => c.id === p.character) || CHARACTERS[0];
+  const stats = syncPlayerStats(p) || {};
   const hpPct = Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100));
   const manaPct = Math.max(0, Math.min(100, ((p.mana || 0) / (p.maxMana || 1)) * 100));
 
@@ -71,6 +74,21 @@ function updateHUD() {
   if (ticksEl && ticksEl.dataset.maxHp !== String(p.maxHp || 0)) {
     ticksEl.dataset.maxHp = String(p.maxHp || 0);
     ticksEl.innerHTML = buildHpTicks(p.maxHp || 0);
+  }
+
+  const attrsEl = document.getElementById('focus-attrs');
+  if (attrsEl) {
+    const attr = stats.attributes || {};
+    const primary = stats.primaryAttribute || 'str';
+    attrsEl.innerHTML = ['str', 'agi', 'int'].map(key => {
+      const label = key.toUpperCase();
+      const value = Math.floor(attr[key] || 0);
+      return `<span class="${key === primary ? 'primary' : ''}">${label} ${value}</span>`;
+    }).join('');
+  }
+  const derivedEl = document.getElementById('focus-derived');
+  if (derivedEl) {
+    derivedEl.textContent = `ATK ${stats.attackDamage || 0} / ARM ${stats.armor || 0} / AS ${(stats.attackSpeed || 1).toFixed(2)} / MR ${Math.round((stats.magicDefense || 0) * 100)}%`;
   }
 
   updateMiniMap();
@@ -336,7 +354,15 @@ function buildSkillsBar() {
   expPanel.className = 'skill-exp-panel';
   expPanel.innerHTML = '<div class="skill-exp-fill" id="skill-exp-fill" style="width:0%"></div>';
   bar.appendChild(expPanel);
-  ch.skills.forEach(sk => {
+  const basicSkill = ch.skills.find(sk => sk.basicAttack) || ch.skills[0];
+  if (basicSkill) {
+    const slot = document.createElement('div');
+    slot.className = 'skill-slot basic-attack-slot';
+    slot.id = `skill-${basicSkill.id}`;
+    slot.innerHTML = `<span class="sicon">${basicSkill.icon}</span><span class="skey">${basicSkill.key}</span><span class="skill-level" id="skill-level-${basicSkill.id}">1</span><div class="scd" id="scd-${basicSkill.id}">0</div>`;
+    bar.appendChild(slot);
+  }
+  ch.skills.filter(sk => sk.id !== basicSkill?.id).forEach(sk => {
     const slot = document.createElement('div');
     slot.className = 'skill-slot';
     slot.id = `skill-${sk.id}`;
