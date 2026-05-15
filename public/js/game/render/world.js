@@ -346,12 +346,26 @@ function drawDeathPart(ctx, part, sx, sy) {
   ctx.globalAlpha = alpha;
   ctx.translate(part.x * sx, part.y * sy);
   ctx.rotate(part.angle || 0);
-  ctx.drawImage(
-    part.img,
-    -part.w * sx / 2,
-    -part.h * sy / 2,
-    part.w * sx,
-    part.h * sy
-  );
+  if (Number.isFinite(part.sx) && Number.isFinite(part.sy) && Number.isFinite(part.sw) && Number.isFinite(part.sh)) {
+    ctx.drawImage(
+      part.img,
+      part.sx,
+      part.sy,
+      part.sw,
+      part.sh,
+      -part.w * sx / 2,
+      -part.h * sy / 2,
+      part.w * sx,
+      part.h * sy
+    );
+  } else {
+    ctx.drawImage(
+      part.img,
+      -part.w * sx / 2,
+      -part.h * sy / 2,
+      part.w * sx,
+      part.h * sy
+    );
+  }
   ctx.restore();
 }

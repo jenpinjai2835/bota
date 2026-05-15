@@ -160,10 +160,13 @@ function handleMessage(msg) {
       syncWorldState(msg);
       break;
     case 'tower_shot':
-      towerShots.push({ ...msg, life: 14, maxLife: 14 });
+      towerShots.push({ ...msg, life: 34, maxLife: 34, startedAt: Date.now() });
       break;
     case 'unit_death':
       handleWorldUnitDeath(msg);
+      break;
+    case 'objective_destroyed':
+      handleObjectiveDestroyed(msg);
       break;
     case 'unit_hit_confirmed':
       handleWorldUnitHitConfirmed(msg);

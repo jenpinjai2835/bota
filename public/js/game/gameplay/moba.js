@@ -227,6 +227,26 @@ function updateTowerShots() {
   });
 }
 
+function getObjectiveTexture(obj) {
+  if (!obj || obj.type !== 'tower') return null;
+  return objectiveImages[obj.teamId === 'sun' ? 'sunTower' : 'moonTower'] || null;
+}
+
+function getObjectiveTextureDrawBox(obj, sx, sy) {
+  const x = obj.x * sx;
+  const y = obj.y * sy;
+  const w = obj.w * sx;
+  const h = obj.h * sy;
+  const img = getObjectiveTexture(obj);
+  const aspect = img?.naturalWidth && img?.naturalHeight ? img.naturalWidth / img.naturalHeight : 1;
+  const scale = Math.min(sx, sy);
+  const drawH = Math.max(h * 1.55, 151 * scale);
+  const drawW = drawH * aspect;
+  const cx = x + w / 2;
+  const footY = y + h;
+  return { x: cx - drawW / 2, y: footY - drawH + 7 * sy, w: drawW, h: drawH, cx, footY, scale };
+}
+
 function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
   const frames = monsterImages[creep.type]?.idle || monsterImages[creep.type]?.walk || [];
   const img = frames.find(frame => frame?.complete && frame.naturalWidth);
@@ -262,6 +282,52 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
   spawnBloodBurst(cx, cy, dir, 16, groundY);
 }
 
+function spawnObjectiveDeathBurst(obj, damage = 0) {
+  const img = getObjectiveTexture(obj);
+  if (!img?.complete || !img.naturalWidth) return;
+  const foot = getUnitFoot(obj);
+  const groundY = foot.y;
+  const cx = foot.x;
+  const cy = groundY - (obj.h || 104) * 0.55;
+  const dir = obj.teamId === 'sun' ? -1 : 1;
+  const force = 2.4 + Math.min(5, Math.max(0, damage) * 0.02);
+  for (let i = 0; i < 18; i++) {
+    const col = i % 6;
+    const row = Math.floor(i / 6);
+    const sw = img.naturalWidth * (0.12 + (i % 3) * 0.025);
+    const sh = img.naturalHeight * (0.095 + (i % 4) * 0.018);
+    const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.24 + col * 0.095)));
+    const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.18 + row * 0.21)));
+    const spread = (i / 17 - 0.5) * 2;
+    const size = 20 + (i % 4) * 8;
+    deathParts.push({
+      img,
+      sx,
+      sy,
+      sw,
+      sh,
+      x: cx + spread * 18,
+      y: cy + (Math.random() - 0.5) * 32,
+      vx: dir * (force + Math.random() * 2.8) + spread * (3.8 + Math.random() * 2.2),
+      vy: -4.4 - Math.random() * 5.6,
+      w: size,
+      h: size * (sh / sw),
+      groundY,
+      angle: (Math.random() - 0.5) * 1.8,
+      spin: (Math.random() - 0.5) * 0.22 + spread * 0.05,
+      life: Math.round(DEATH_PART_LIFE * 0.96),
+      maxLife: Math.round(DEATH_PART_LIFE * 0.96),
+    });
+  }
+  spawnEffect(cx, cy, 'tower-break', obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 92);
+}
+
+function handleObjectiveDestroyed(msg) {
+  if (!msg?.objective || msg.objective.type !== 'tower') return;
+  const existing = objectives.find(entry => entry.id === msg.objective.id);
+  spawnObjectiveDeathBurst({ ...existing, ...msg.objective }, msg.damage || 0);
+}
+
 function drawObjective(ctx, obj, sx, sy) {
   if (!obj || obj.hp <= 0) return;
   const x = obj.x * sx;
@@ -270,19 +336,16 @@ function drawObjective(ctx, obj, sx, sy) {
   const h = obj.h * sy;
   const isSun = obj.teamId === 'sun';
   const teamColor = isSun ? '#23B8FF' : '#9D55FF';
-  const towerTexture = obj.type === 'tower'
-    ? objectiveImages[isSun ? 'sunTower' : 'moonTower']
-    : null;
+  const towerTexture = getObjectiveTexture(obj);
   ctx.save();
   if (towerTexture?.complete && towerTexture.naturalWidth) {
-    const cx = x + w / 2;
-    const footY = y + h;
-    const scale = Math.min(sx, sy);
-    const drawH = Math.max(h * 1.72, 168 * scale);
-    const drawW = drawH * (towerTexture.naturalWidth / towerTexture.naturalHeight);
+    const { x: drawX, y: drawY, w: drawW, h: drawH, cx, footY, scale } = getObjectiveTextureDrawBox(obj, sx, sy);
+    const t = Date.now() * 0.0023 + (obj.x || 0) * 0.006;
+    const pulse = 0.72 + Math.sin(t * 2.1) * 0.18;
     ctx.shadowColor = teamColor;
-    ctx.shadowBlur = 18 * scale;
-    ctx.drawImage(towerTexture, cx - drawW / 2, footY - drawH + 7 * sy, drawW, drawH);
+    ctx.shadowBlur = (13 + pulse * 8) * scale;
+    ctx.drawImage(towerTexture, drawX, drawY + Math.sin(t) * 1.1 * sy, drawW, drawH);
+    drawTowerLivingEffects(ctx, towerTexture, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t);
     ctx.shadowBlur = 0;
     drawUnitHealthBar(ctx, obj, cx, footY - drawH + 2 * sy, Math.max(58, drawW * 0.42), sx, sy);
     ctx.restore();
@@ -308,6 +371,42 @@ function drawObjective(ctx, obj, sx, sy) {
     ctx.fill();
   }
   drawUnitHealthBar(ctx, obj, x + w / 2, y - 8 * sy, Math.max(46, w * 1.1), sx, sy);
+  ctx.restore();
+}
+
+function drawTowerLivingEffects(ctx, img, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t) {
+  const scale = Math.min(sx, sy);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const glow = ctx.createRadialGradient(drawX + drawW * 0.5, drawY + drawH * 0.18, 0, drawX + drawW * 0.5, drawY + drawH * 0.18, drawW * 0.34);
+  glow.addColorStop(0, withAlpha(teamColor, 0.24 + Math.sin(t * 3.2) * 0.08));
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(drawX + drawW * 0.5, drawY + drawH * 0.18, drawW * 0.34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const bannerRects = [
+    { sx: 0.27, sy: 0.29, sw: 0.16, sh: 0.25, dx: 0.27, dy: 0.29, dw: 0.16, dh: 0.25, phase: 0 },
+    { sx: 0.61, sy: 0.29, sw: 0.16, sh: 0.25, dx: 0.61, dy: 0.29, dw: 0.16, dh: 0.25, phase: 1.7 },
+  ];
+  ctx.save();
+  ctx.globalAlpha = 0.82;
+  bannerRects.forEach(rect => {
+    const wave = Math.sin(t * 4.4 + rect.phase) * 2.6 * scale;
+    ctx.drawImage(
+      img,
+      rect.sx * img.naturalWidth,
+      rect.sy * img.naturalHeight,
+      rect.sw * img.naturalWidth,
+      rect.sh * img.naturalHeight,
+      drawX + rect.dx * drawW + wave,
+      drawY + rect.dy * drawH + Math.sin(t * 3 + rect.phase) * 0.8 * sy,
+      rect.dw * drawW,
+      rect.dh * drawH
+    );
+  });
   ctx.restore();
 }
 
@@ -772,17 +871,45 @@ function drawUnitHealthBar(ctx, unit, centerX, topY, width, sx, sy) {
 }
 
 function drawTowerShot(ctx, shot, sx, sy) {
-  const alpha = Math.max(0, shot.life / shot.maxLife);
+  const progress = 1 - Math.max(0, shot.life / Math.max(1, shot.maxLife));
+  const alpha = Math.max(0, Math.sin(progress * Math.PI));
+  const scale = Math.min(sx, sy);
+  const fromX = shot.from.x * sx;
+  const fromY = shot.from.y * sy;
+  const toX = shot.to.x * sx;
+  const toY = shot.to.y * sy;
+  const x = fromX + (toX - fromX) * progress;
+  const y = fromY + (toY - fromY) * progress + Math.sin(progress * Math.PI) * -18 * scale;
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const trailX = x - dx * 0.075;
+  const trailY = y - dy * 0.075;
+  const color = shot.teamId === 'sun' ? '#33C7FF' : '#B46AFF';
+  const core = shot.teamId === 'sun' ? '#D8FBFF' : '#F1D7FF';
   ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.strokeStyle = shot.teamId === 'sun' ? '#FF8A70' : '#79AEFF';
-  ctx.lineWidth = Math.max(2, 3 * Math.min(sx, sy));
-  ctx.shadowColor = ctx.strokeStyle;
-  ctx.shadowBlur = 12;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = alpha * 0.85;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2.4, 4 * scale);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 18 * scale;
   ctx.beginPath();
-  ctx.moveTo(shot.from.x * sx, shot.from.y * sy);
-  ctx.lineTo(shot.to.x * sx, shot.to.y * sy);
+  ctx.moveTo(trailX, trailY);
+  ctx.lineTo(x, y);
   ctx.stroke();
+  const radius = Math.max(5, 8 * scale);
+  const flame = ctx.createRadialGradient(x, y, 0, x, y, radius * 2.8);
+  flame.addColorStop(0, core);
+  flame.addColorStop(0.38, color);
+  flame.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = flame;
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 2.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 0.72, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 

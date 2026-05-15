@@ -92,14 +92,14 @@ function setupWebSocket(server, rooms) {
 
   function unitBlockRadiusX(unit) {
     if (isCreepUnit(unit)) return Number(unit?.footRadiusX) || Math.max(12, unitWidth(unit) * 0.34);
-    if (unit?.type === 'tower') return Math.max(22, unitWidth(unit) * 0.58);
+    if (unit?.type === 'tower') return Number(unit?.footRadiusX) || Math.max(22, unitWidth(unit) * 0.58);
     if (unit?.type === 'ancient') return Math.max(36, unitWidth(unit) * 0.58);
     return Math.max(14, unitWidth(unit) * 0.36);
   }
 
   function unitBlockRadiusY(unit) {
     if (isCreepUnit(unit)) return Number(unit?.footRadiusY) || Math.max(7, unitHeight(unit) * 0.13);
-    if (unit?.type === 'tower') return Math.max(18, unitHeight(unit) * 0.2);
+    if (unit?.type === 'tower') return Number(unit?.footRadiusY) || Math.max(18, unitHeight(unit) * 0.2);
     if (unit?.type === 'ancient') return Math.max(24, unitHeight(unit) * 0.22);
     return Math.max(9, unitHeight(unit) * 0.16);
   }
@@ -392,7 +392,7 @@ function setupWebSocket(server, rooms) {
     } else if (room.playerData?.[target.id]) {
       damagePlayer(room, roomId, target, attack.damage, creep.id, 'creep_melee', getDamageDirection(target, creep, creep.facing || 1));
     } else {
-      damageObjective(room, target, attack.damage, creep.teamId);
+      damageObjective(room, target, attack.damage, creep.teamId, roomId);
     }
   }
 
@@ -427,12 +427,21 @@ function setupWebSocket(server, rooms) {
     return true;
   }
 
-  function damageObjective(room, objective, amount, attackerTeamId = null) {
-    if (!objective || objective.hp <= 0 || !canDamageObjective(room, attackerTeamId, objective)) return;
+  function damageObjective(room, objective, amount, attackerTeamId = null, roomId = null) {
+    if (!objective || objective.hp <= 0 || !canDamageObjective(room, attackerTeamId, objective)) return false;
     objective.hp = Math.max(0, objective.hp - amount);
+    if (objective.hp <= 0 && roomId) {
+      room.players.forEach(pid => sendTo(pid, {
+        type: 'objective_destroyed',
+        objective,
+        damage: amount,
+        attackerTeamId,
+      }));
+    }
     if (objective.type === 'ancient' && objective.hp <= 0 && !room.winner) {
       room.winner = objective.teamId === 'sun' ? 'moon' : 'sun';
     }
+    return objective.hp <= 0;
   }
 
   function damagePlayer(room, roomId, target, amount, attackerId = null, skillId = 'hit', hitDir = 1) {
@@ -520,7 +529,7 @@ function setupWebSocket(server, rooms) {
           const source = getUnitById(room, shot.sourceId);
           damagePlayer(room, roomId, target, shot.damage, source?.id || shot.sourceId, 'creep_fireball', Math.sign(targetFoot.x - (shot.prevX ?? shot.x)) || TEAM_DIR[shot.teamId] || 1);
         } else {
-          damageObjective(room, target, shot.damage, shot.teamId);
+          damageObjective(room, target, shot.damage, shot.teamId, roomId);
         }
         return false;
       }
@@ -1014,7 +1023,7 @@ function setupWebSocket(server, rooms) {
       }
       room.players.forEach(pid => sendTo(pid, {
         type: 'tower_shot',
-        from: { x: obj.x + obj.w / 2, y: obj.y + obj.h * 0.35 },
+        from: { x: obj.x + obj.w / 2, y: obj.y + obj.h * 0.18 },
         to: { x: target.x + target.w / 2, y: target.y + target.h * 0.45 },
         teamId: obj.teamId,
       }));
@@ -1326,7 +1335,7 @@ function setupWebSocket(server, rooms) {
         }
         const objective = (room.objectives || []).find(entry => entry.id === unitId);
         if (objective && objective.teamId !== attacker.teamId) {
-          damageObjective(room, objective, damage, attacker.teamId);
+          damageObjective(room, objective, damage, attacker.teamId, roomId);
         }
         break;
       }
