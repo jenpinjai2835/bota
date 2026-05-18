@@ -82,6 +82,7 @@ const OBJECTIVE_TEXTURE_URLS = {
 };
 const EFFECT_TEXTURE_URLS = {
   towerBurn: '/assets/effects/tower-burn.gif',
+  towerBurnSheet: '/assets/effects/tower-burn-sheet.png',
 };
 const monsterImages = {};
 const warriorVectorOverlayImages = {};

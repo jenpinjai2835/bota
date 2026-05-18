@@ -599,7 +599,7 @@ function drawObjective(ctx, obj, sx, sy) {
     ctx.shadowBlur = (13 + pulse * 8) * scale;
     ctx.drawImage(towerTexture, drawX, drawY, drawW, drawH);
     drawTowerLivingEffects(ctx, towerTexture, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t);
-    drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t);
+    drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH);
     ctx.shadowBlur = 0;
     if (!obj.collapseHideHealth) {
       drawUnitHealthBar(ctx, obj, cx, footY - drawH + 2 * sy, Math.max(58, drawW * 0.42), sx, sy);
@@ -645,12 +645,19 @@ function drawTowerLivingEffects(ctx, img, obj, drawX, drawY, drawW, drawH, teamC
 
 }
 
-function drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t) {
+function drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH) {
   const hpPct = Math.max(0, Math.min(1, (obj.hp || 0) / Math.max(1, obj.maxHp || 1)));
   const damagePct = 1 - hpPct;
   if (damagePct < 0.12) return;
-  const burnImg = effectImages?.towerBurn;
-  if (!burnImg?.complete || !burnImg.naturalWidth) return;
+  const burnImg = effectImages?.towerBurnSheet;
+  const frameW = 489;
+  const frameH = 489;
+  const frameCount = 24;
+  const frameCols = 6;
+  if (!burnImg?.complete || burnImg.naturalWidth < frameW) return;
+  const frame = Math.floor(Date.now() / 80) % frameCount;
+  const frameX = (frame % frameCols) * frameW;
+  const frameY = Math.floor(frame / frameCols) * frameH;
   const burnCount = Math.min(6, Math.max(1, Math.ceil(damagePct * 6)));
   ctx.save();
   ctx.beginPath();
@@ -659,20 +666,13 @@ function drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH, teamColor, s
   ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < burnCount; i++) {
     const slot = burnCount === 1 ? 0.5 : i / (burnCount - 1);
-    const wave = Math.sin(t * (2.6 + i * 0.13) + i * 2.11);
     const centerX = drawX + drawW * (0.36 + slot * 0.28 + (debrisRand(i, 71) - 0.5) * 0.028);
     const centerY = drawY + drawH * (0.3 + debrisRand(i, 79) * 0.42);
-    const burnW = drawW * (0.15 + debrisRand(i, 83) * 0.07) * (0.74 + damagePct * 0.46) * (0.94 + wave * 0.06);
+    const burnW = drawW * (0.15 + debrisRand(i, 83) * 0.07) * (0.74 + damagePct * 0.46);
     const burnH = burnW * 1.25;
     ctx.globalAlpha = Math.min(0.9, 0.3 + damagePct * 0.62);
-    ctx.drawImage(burnImg, centerX - burnW / 2, centerY - burnH * 0.68, burnW, burnH);
+    ctx.drawImage(burnImg, frameX, frameY, frameW, frameH, centerX - burnW / 2, centerY - burnH * 0.68, burnW, burnH);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = `rgba(20, 12, 8, ${0.18 + damagePct * 0.26})`;
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY + burnH * 0.18, burnW * 0.35, burnH * 0.13, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'lighter';
   }
   ctx.restore();
 }
