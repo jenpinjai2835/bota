@@ -265,7 +265,7 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
     const ringMul = outer.radiusMul || 1;
     const ex = x + Math.cos(t) * ringR * stretchX * ringMul * (1.01 + wobble);
     const ey = y + Math.sin(t) * ringR * (0.31 * stretchY) * ringMul * (1.0 + wobble * 0.45);
-    const er = Math.max(8.4 * scale, ringR * 0.122 * (outer.sizeMul || 1) * radiusBaseMul);
+    const er = Math.max(8.4 * scale, ringR * 0.1586 * (outer.sizeMul || 1) * radiusBaseMul);
     drawDustPuff(ctx, dustSprite, ex, ey, er, 0.25 * fade * opacityMul * (outer.alphaMul || 1));
   }
 
@@ -276,7 +276,7 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
     const py = puffState.yBase * sy + puffState.oy;
     const phase = puffState.phase || 0;
     const pulse = 1 + 0.08 * Math.sin(progress * 7 + phase);
-    const pr = Math.max(8.8 * scale, ringR * 0.24 * (puffState.radiusScale || 1) * pulse * radiusBaseMul);
+    const pr = Math.max(8.8 * scale, ringR * 0.312 * (puffState.radiusScale || 1) * pulse * radiusBaseMul);
     drawDustPuff(ctx, dustSprite, px, py, pr, 0.24 * fade * (puffState.alphaScale || 1) * opacityMul);
   }
 
