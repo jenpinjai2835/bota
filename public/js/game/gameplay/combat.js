@@ -102,6 +102,18 @@ function spawnEffect(x, y, id, color, radius = 40, options = {}) {
     const puffCount = 44;
     const ringRadius = radius * 0.14;
     const baseY = Number.isFinite(effect.groundY) ? effect.groundY - 7 : y;
+    const variantSeed = Math.random();
+    effect.dustProfile = {
+      angleOffset: Math.random() * Math.PI * 2,
+      ringStretchX: 1 + (Math.random() - 0.5) * 0.16,
+      ringStretchY: 1 + (Math.random() - 0.5) * 0.14,
+      ringPulseA: 0.03 + Math.random() * 0.03,
+      ringPulseB: 0.02 + Math.random() * 0.03,
+      radiusBaseMul: 0.96 + Math.random() * 0.12,
+      opacityMul: 0.9 + Math.random() * 0.2,
+      countBias: Math.round((Math.random() - 0.5) * 6),
+      seed: variantSeed,
+    };
     effect.dustPuffs = Array.from({ length: puffCount }, (_, i) => {
       const angle = (i / puffCount) * Math.PI * 2;
       const dirX = Math.cos(angle);
@@ -114,6 +126,8 @@ function spawnEffect(x, y, id, color, radius = 40, options = {}) {
         vy: -0.14 - Math.random() * 0.28,
         radiusScale: 0.8 + Math.random() * 0.38,
         yBase: baseY + Math.sin(angle) * 2,
+        phase: Math.random() * Math.PI * 2,
+        alphaScale: 0.82 + Math.random() * 0.32,
       };
     });
   }
