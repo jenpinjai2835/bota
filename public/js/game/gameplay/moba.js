@@ -321,22 +321,41 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
   const cx = foot.x;
   const cy = groundY - (creep.h || 42) * 0.48;
   const force = 2.1 + Math.min(5, Math.max(0, damage) * 0.035);
-  for (let i = 0; i < 8; i++) {
-    const spread = (i / 7 - 0.5) * 2;
-    const size = 14 + (i % 3) * 5;
+  const partCount = 11;
+  for (let i = 0; i < partCount; i++) {
+    const col = i % 4;
+    const row = Math.floor(i / 4);
+    const sw = img.naturalWidth * (0.22 + debrisRand(i, 5) * 0.12);
+    const sh = img.naturalHeight * (0.2 + debrisRand(i, 9) * 0.14);
+    const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.1 + col * 0.21 + (debrisRand(i, 13) - 0.5) * 0.08)));
+    const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.08 + row * 0.27 + (debrisRand(i, 17) - 0.5) * 0.1)));
+    const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
+    const size = 12 + debrisRand(i, 21) * 10 + (i % 3) * 2;
     deathParts.push({
       img,
-      x: cx + spread * 5,
-      y: cy + (Math.random() - 0.5) * 14,
-      vx: dir * (force + Math.random() * 3.2) + spread * 2.2,
-      vy: -3.4 - Math.random() * 4.4,
+      sx,
+      sy,
+      sw,
+      sh,
+      x: cx + spread * 7,
+      y: cy + (debrisRand(i, 25) - 0.5) * 18,
+      vx: dir * (force + debrisRand(i, 29) * 3.2) + spread * (2.5 + debrisRand(i, 33) * 1.8),
+      vy: -3.6 - debrisRand(i, 37) * 4.8,
       w: size,
-      h: size,
+      h: size * (sh / sw),
       groundY,
-      angle: (Math.random() - 0.5) * 1.6,
-      spin: (Math.random() - 0.5 + dir * 0.3) * 0.18,
-      life: Math.round(DEATH_PART_LIFE * 0.72),
-      maxLife: Math.round(DEATH_PART_LIFE * 0.72),
+      angle: (debrisRand(i, 41) - 0.5) * 1.7,
+      spin: (debrisRand(i, 45) - 0.5 + dir * 0.28) * 0.16,
+      gravityScale: 0.32,
+      bounceScale: 0.28,
+      groundFriction: 0.7,
+      airFriction: 0.986,
+      spinBounceScale: -0.52,
+      tint: creep.teamId === 'sun' ? 'rgba(160, 220, 255, 0.08)' : 'rgba(216, 154, 255, 0.08)',
+      cracks: createDebrisCracks(i + 61, 1 + (i % 2)),
+      polygon: createDebrisPolygon(i + 91, 5 + (i % 4)),
+      life: Math.round(DEATH_PART_LIFE * 0.82),
+      maxLife: Math.round(DEATH_PART_LIFE * 0.82),
     });
   }
   spawnBloodBurst(cx, cy, dir, 16, groundY);
