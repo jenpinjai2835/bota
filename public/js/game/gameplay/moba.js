@@ -571,7 +571,7 @@ function handleObjectiveDestroyed(msg) {
     };
     objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...collapsingObjective } : entry);
     spawnObjectiveDeathBurst(collapsingObjective, msg.damage || 0, {
-      delayPartsMs: 300,
+      delayPartsMs: 0,
       textureHoldAfterBurstMs: 0,
       partCount: 22,
       hitDir: msg.hitDir || objective.lastHitDir || collapsingObjective.lastHitDir,
