@@ -271,9 +271,8 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   const puffs = Array.isArray(e.dustPuffs) ? e.dustPuffs : [];
   for (let i = 0; i < puffs.length; i++) {
     const puffState = puffs[i];
-    const rr = ringR * (0.9 + (i % 3) * 0.12);
-    const px = x + Math.cos(puffState.wobble) * rr * 0.06 + puffState.ox;
-    const py = puffState.yBase * sy + Math.sin(puffState.wobble) * 1.2 + puffState.oy;
+    const px = x + puffState.ox;
+    const py = puffState.yBase * sy + puffState.oy;
     const pr = Math.max(8.8 * scale, ringR * 0.24 * (puffState.radiusScale || 1));
     ctx.fillStyle = `rgba(164, 146, 126, ${0.24 * fade})`;
     ctx.beginPath();

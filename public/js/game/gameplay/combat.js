@@ -113,7 +113,6 @@ function spawnEffect(x, y, id, color, radius = 40, options = {}) {
         vx: dirX * speed,
         vy: -0.08 - Math.random() * 0.2,
         radiusScale: 0.8 + Math.random() * 0.38,
-        wobble: Math.random() * Math.PI * 2,
         yBase: baseY + Math.sin(angle) * 2,
       };
     });
