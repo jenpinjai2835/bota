@@ -74,6 +74,16 @@ node server.js
 # เปิด http://localhost:3000
 ```
 
+### QC smoke test
+
+Run the server-side match regression suite:
+
+```bash
+npm run qc:match
+```
+
+This checks creep group movement, tower polygon collision, restart speed stacking, objective order, creep death events, and tower hero targeting.
+
 ถ้าจะให้เพื่อนในวง LAN เข้าเล่น ใช้ IP เครื่องคุณ เช่น `http://192.168.1.x:3000`
 
 ---
