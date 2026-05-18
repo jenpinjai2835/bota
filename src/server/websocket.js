@@ -726,6 +726,35 @@ function setupWebSocket(server, rooms) {
     });
   }
 
+  function addSlideAroundBlockerCandidates(room, creep, candidates, goalX, goalY, target = null) {
+    const blocker = getForwardBlockingUnit(room, creep, goalX, goalY, target);
+    if (!blocker) return;
+    const speed = creep.speed || 1.8;
+    const cf = unitFoot(creep);
+    const bf = unitFoot(blocker);
+    const dir = Math.sign(goalX - cf.x) || creep.facing || TEAM_DIR[creep.teamId] || 1;
+    const lanePush = Math.max(1.4, speed * CREEP_DEPTH_SPEED_MULTIPLIER * 1.15);
+    const sidePush = Math.max(1.8, speed * CREEP_DEPTH_SPEED_MULTIPLIER * 1.55);
+    const overlapY = Math.abs(bf.y - cf.y);
+    const blockerClearanceY = unitBlockRadiusY(creep) + unitBlockRadiusY(blocker) + 8;
+    const autoSide = overlapY < blockerClearanceY ? (bf.y >= cf.y ? -1 : 1) : (bf.y >= cf.y ? 1 : -1);
+    const preferred = creep.avoidSide || autoSide || getCreepAvoidSign(creep) || 1;
+    const alt = -preferred;
+
+    const slideOrders = [preferred, alt];
+    const forwardWeights = [0.18, 0.35, 0.62, 0.86];
+    slideOrders.forEach((side, sideIndex) => {
+      forwardWeights.forEach((fw, i) => {
+        const sideMul = sideIndex === 0 ? 1 : 0.9;
+        const lateral = side * sidePush * (1 + i * 0.42) * sideMul;
+        const forward = dir * speed * fw;
+        candidates.push([creep.x + forward, creep.y + lanePush + lateral]);
+        candidates.push([creep.x + forward * 0.8, creep.y + lateral]);
+        candidates.push([creep.x + forward * 1.15, creep.y + lateral * 0.9]);
+      });
+    });
+  }
+
   function addUnstuckCandidates(room, creep, candidates, goalX, goalY, target = null) {
     const blocker = getCreepBlockingUnit(room, creep, creep.x, creep.y, target);
     if (!blocker) return;
@@ -889,6 +918,7 @@ function setupWebSocket(server, rooms) {
     addUnstuckCandidates(room, creep, candidates, goalX, goalY, target);
     addPathSearchCandidates(room, creep, candidates, goalX, goalY, target);
     addObstacleAvoidanceCandidates(room, creep, candidates, goalX, goalY, target);
+    addSlideAroundBlockerCandidates(room, creep, candidates, goalX, goalY, target);
     candidates.forEach(([nextX, nextY]) => {
       const x = Math.round(nextX * 10) / 10;
       const y = Math.round(clampCreepY(nextY, creep.h) * 10) / 10;
@@ -904,7 +934,15 @@ function setupWebSocket(server, rooms) {
         const personalGoalY = goalY + (creep.depthBias || 0);
         const da = Math.hypot((a[0] + unitWidth(creep) / 2) - goalX, (a[1] + unitHeight(creep)) - personalGoalY);
         const db = Math.hypot((b[0] + unitWidth(creep) / 2) - goalX, (b[1] + unitHeight(creep)) - personalGoalY);
-        return da - db;
+        const vaX = a[0] - creep.x;
+        const vaY = a[1] - creep.y;
+        const vbX = b[0] - creep.x;
+        const vbY = b[1] - creep.y;
+        const prevVX = creep.lastStepX || 0;
+        const prevVY = creep.lastStepY || 0;
+        const turnPenaltyA = Math.abs(vaX - prevVX) * 0.18 + Math.abs(vaY - prevVY) * 0.3;
+        const turnPenaltyB = Math.abs(vbX - prevVX) * 0.18 + Math.abs(vbY - prevVY) * 0.3;
+        return (da + turnPenaltyA) - (db + turnPenaltyB);
       });
 
     if (!sorted.length) {
@@ -916,6 +954,8 @@ function setupWebSocket(server, rooms) {
     const beforeFoot = unitFoot(creep);
     const beforeDistance = Math.hypot(beforeFoot.x - goalX, (beforeFoot.y - goalY) * 1.45);
     const [x, y] = sorted[0];
+    creep.lastStepX = x - creep.x;
+    creep.lastStepY = y - creep.y;
     creep.x = x;
     creep.y = y;
     const afterFoot = unitFoot(creep);
