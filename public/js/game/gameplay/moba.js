@@ -569,12 +569,12 @@ function handleObjectiveDestroyed(msg) {
       lastHitDir: msg.hitDir || objective.lastHitDir,
       state: 'collapsing',
       collapseHideHealth: true,
-      collapsingUntil: Date.now() + 680,
+      collapsingUntil: Date.now() + 320,
     };
     objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...collapsingObjective } : entry);
     spawnObjectiveDeathBurst(collapsingObjective, msg.damage || 0, {
       delayPartsMs: 300,
-      textureHoldAfterBurstMs: 380,
+      textureHoldAfterBurstMs: 0,
       hitDir: msg.hitDir || objective.lastHitDir || collapsingObjective.lastHitDir,
       onBurst: () => {
         objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0, state: 'dead' } : entry);
