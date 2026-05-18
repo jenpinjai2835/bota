@@ -234,12 +234,19 @@ function drawEffect(ctx, e, sx, sy) {
 function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   const alpha = Math.max(0, Math.min(1, e.life / e.maxLife));
   const progress = 1 - alpha;
+  const elapsed = Math.max(0, (e.maxLife || 0) - (e.life || 0));
   const scale = Math.min(sx, sy);
   const x = e.x * sx;
   const y = e.y * sy;
   const base = e.radius * scale;
-  const shockEase = 1 - Math.pow(1 - progress, 4);
-  const ringR = base * (0.08 + shockEase * 1.12);
+  const burstFrames = 12; // ~200ms at 60fps
+  const burstT = Math.max(0, Math.min(1, elapsed / burstFrames));
+  const burstEase = 1 - Math.pow(1 - burstT, 5);
+  const tailT = Math.max(0, Math.min(1, (progress - burstFrames / Math.max(1, e.maxLife || 1)) / (1 - burstFrames / Math.max(1, e.maxLife || 1))));
+  const tailEase = 1 - Math.pow(1 - tailT, 2.2);
+  const earlyRadius = 0.08 + burstEase * 1.28;
+  const ringScale = earlyRadius + tailEase * 0.42;
+  const ringR = base * ringScale;
   const fade = Math.pow(alpha, 0.75);
 
   ctx.save();
@@ -255,7 +262,7 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   ctx.fill();
 
   ctx.strokeStyle = `rgba(202, 178, 151, ${0.68 * fade})`;
-  ctx.lineWidth = Math.max(2, 4.4 * scale * (1 - shockEase * 0.2));
+  ctx.lineWidth = Math.max(2, 4.4 * scale * (1 - ringScale * 0.1));
   ctx.beginPath();
   ctx.ellipse(x, y + ringR * 0.02, ringR * 1.05, ringR * 0.31, 0, 0, Math.PI * 2);
   ctx.stroke();
