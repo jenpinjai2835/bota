@@ -245,11 +245,24 @@ function drawDebugBlockPolygons(ctx, scaleX, scaleY) {
     const rx = radiusX * scaleX;
     const ry = radiusY * scaleY;
 
-    // Approximate collision ellipse as an 8-point polygon for easy visual QC.
     const points = [];
-    for (let i = 0; i < 8; i++) {
-      const t = (i / 8) * Math.PI * 2;
-      points.push([cx + Math.cos(t) * rx, cy + Math.sin(t) * ry]);
+    if (unit.type === 'tower') {
+      [
+        [-0.95, -0.08],
+        [-0.42, -0.74],
+        [0.42, -0.74],
+        [0.95, -0.08],
+        [0.56, 0.56],
+        [0.24, 0.82],
+        [-0.24, 0.82],
+        [-0.56, 0.56],
+      ].forEach(([px, py]) => points.push([cx + px * rx, cy + py * ry]));
+    } else {
+      // Approximate collision ellipse as an 8-point polygon for easy visual QC.
+      for (let i = 0; i < 8; i++) {
+        const t = (i / 8) * Math.PI * 2;
+        points.push([cx + Math.cos(t) * rx, cy + Math.sin(t) * ry]);
+      }
     }
 
     ctx.strokeStyle = color;
