@@ -351,12 +351,10 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
   const cy = groundY - (obj.h || 104) * 0.55;
   const dir = Math.sign(options.hitDir || obj.lastHitDir || 0) || (obj.teamId === 'sun' ? -1 : 1);
   const isAncient = obj.type === 'ancient' || options.ancient;
-  const partCount = options.partCount || (isAncient ? 26 : 22);
-  const force = (isAncient ? 3.1 : 3.05) + Math.min(isAncient ? 5.4 : 5.6, Math.max(0, damage) * (isAncient ? 0.018 : 0.018));
+  const partCount = options.partCount || 22;
+  const force = 3.05 + Math.min(5.6, Math.max(0, damage) * 0.018);
   const teamColor = obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF';
-  if (!isAncient) {
-    spawnEffect(cx, cy - (obj.h || 104) * 0.06, 'tower-warp', teamColor, 120, { life: 26, maxLife: 26 });
-  }
+  spawnEffect(cx, cy - (obj.h || 104) * 0.06, 'tower-warp', teamColor, 120, { life: 26, maxLife: 26 });
   const burst = () => spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, partCount, force, teamColor });
   const finishBurst = () => {
     if (typeof options.onBurst !== 'function') return;
@@ -378,7 +376,7 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
 }
 
 function spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, partCount, force, teamColor }) {
-  if (!isAncient) spawnTowerRuinBase(img, cx, groundY, obj.teamId);
+  spawnTowerRuinBase(img, cx, groundY, obj.teamId);
   for (let i = 0; i < partCount; i++) {
     const col = i % 6;
     const row = Math.floor(i / 6);
@@ -387,52 +385,52 @@ function spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, 
     const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.18 + col * 0.105)));
     const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.13 + row * 0.16)));
     const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
-    const size = (isAncient ? 20 : 14) + (i % 5) * (isAncient ? 7 : 5);
+    const size = 14 + (i % 5) * 5;
     deathParts.push({
       img,
       sx,
       sy,
       sw,
       sh,
-      x: cx + spread * (isAncient ? 22 : 24),
-      y: cy + (Math.random() - 0.5) * (isAncient ? 42 : 34),
-      vx: dir * (force + Math.random() * (isAncient ? 2.2 : 2.7)) + spread * ((isAncient ? 4.6 : 5.8) + Math.random() * (isAncient ? 2.2 : 2.8)),
-      vy: (isAncient ? -4.3 : -5.8) - Math.random() * (isAncient ? 6.2 : 8.4),
+      x: cx + spread * 24,
+      y: cy + (Math.random() - 0.5) * 34,
+      vx: dir * (force + Math.random() * 2.7) + spread * (5.8 + Math.random() * 2.8),
+      vy: -5.8 - Math.random() * 8.4,
       w: size,
       h: size * (sh / sw),
       groundY,
       angle: (Math.random() - 0.5) * 1.8,
       spin: (Math.random() - 0.5) * 0.08 + spread * 0.02,
-      gravityScale: isAncient ? 0.38 : 0.22,
-      bounceScale: isAncient ? 0.24 : 0.2,
-      groundFriction: isAncient ? 0.6 : 0.74,
-      airFriction: isAncient ? 0.98 : 0.992,
-      spinBounceScale: isAncient ? -0.34 : -0.36,
-      trail: isAncient ? i % 2 === 0 : true,
+      gravityScale: 0.22,
+      bounceScale: 0.2,
+      groundFriction: 0.74,
+      airFriction: 0.992,
+      spinBounceScale: -0.36,
+      trail: true,
       trailColor: obj.teamId === 'sun' ? '#33C7FF' : '#B46AFF',
-      trailInterval: isAncient ? 4 : 5,
-      trailScale: isAncient ? 1 : 2.05,
-      trailScatter: isAncient ? 0.9 : 1.6,
-      trailSmokeSize: isAncient ? 8 : 9,
-      trailSmokeSizeRange: isAncient ? 10 : 15,
-      trailSmokeLife: isAncient ? 32 : 68,
-      trailSmokeLifeRange: isAncient ? 18 : 42,
-      trailSmokeMaxLife: isAncient ? 58 : 128,
-      trailFireChance: isAncient ? 0.18 : 0.38,
-      trailFireSize: isAncient ? 4 : 6,
-      trailFireSizeRange: isAncient ? 6 : 8,
-      trailFireLife: isAncient ? 34 : 76,
-      trailFireLifeRange: isAncient ? 28 : 52,
-      trailFireMaxLife: isAncient ? 84 : 142,
+      trailInterval: 5,
+      trailScale: 2.05,
+      trailScatter: 1.6,
+      trailSmokeSize: 9,
+      trailSmokeSizeRange: 15,
+      trailSmokeLife: 68,
+      trailSmokeLifeRange: 42,
+      trailSmokeMaxLife: 128,
+      trailFireChance: 0.38,
+      trailFireSize: 6,
+      trailFireSizeRange: 8,
+      trailFireLife: 76,
+      trailFireLifeRange: 52,
+      trailFireMaxLife: 142,
       tint: obj.teamId === 'sun' ? 'rgba(91, 179, 210, 0.13)' : 'rgba(165, 103, 224, 0.14)',
-      cracks: createDebrisCracks(i, isAncient ? 2 : 3),
+      cracks: createDebrisCracks(i, 3),
       polygon: createDebrisPolygon(i, 5 + (i % 4)),
-      life: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
-      maxLife: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
+      life: Math.round(DEATH_PART_LIFE * 1.6),
+      maxLife: Math.round(DEATH_PART_LIFE * 1.6),
     });
   }
-  spawnEffect(cx, cy, 'tower-break', teamColor, isAncient ? 112 : 66);
-  spawnTowerCollapsePlumes(cx, cy, groundY, obj.teamId, force, { intensity: isAncient ? 2.4 : 1.5 });
+  spawnEffect(cx, cy, 'tower-break', teamColor, 66);
+  spawnTowerCollapsePlumes(cx, cy, groundY, obj.teamId, force, { intensity: 1.5 });
 }
 
 function createDebrisCracks(seed = 0, count = 3) {
@@ -561,7 +559,7 @@ function handleObjectiveDestroyed(msg) {
   if (!msg?.objective || !['tower', 'ancient'].includes(msg.objective.type)) return;
   const existing = objectives.find(entry => entry.id === msg.objective.id);
   const objective = { ...existing, ...msg.objective };
-  if (objective.type === 'tower') {
+  if (objective.type === 'tower' || objective.type === 'ancient') {
     const collapsingHp = Math.max(1, existing?.hp || objective.maxHp || 1);
     const collapsingObjective = {
       ...objective,
@@ -575,20 +573,16 @@ function handleObjectiveDestroyed(msg) {
     spawnObjectiveDeathBurst(collapsingObjective, msg.damage || 0, {
       delayPartsMs: 300,
       textureHoldAfterBurstMs: 0,
+      partCount: 22,
       hitDir: msg.hitDir || objective.lastHitDir || collapsingObjective.lastHitDir,
       onBurst: () => {
         objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0, state: 'dead' } : entry);
+        if (objective.type === 'ancient' && typeof beginCinematicPause === 'function') {
+          const foot = getUnitFoot(collapsingObjective);
+          beginCinematicPause('ancient-break', null, { focusX: foot.x, focusY: foot.y });
+        }
       },
     });
-  } else {
-    objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0 } : entry);
-    const foot = getUnitFoot(objective);
-    const cx = foot.x;
-    const cy = foot.y - (objective.h || 116) * 0.55;
-    spawnObjectiveDeathBurst(objective, msg.damage || 0, { ancient: true, partCount: 30, hitDir: msg.hitDir || objective.lastHitDir });
-    if (typeof beginCinematicPause === 'function') {
-      beginCinematicPause('ancient-break', null, { focusX: cx, focusY: foot.y });
-    }
   }
 }
 
