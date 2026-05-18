@@ -236,19 +236,26 @@ function drawTowerWarpEffect(ctx, e, sx, sy) {
   const baseRadius = e.radius * scale;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const core = ctx.createRadialGradient(x, y, 0, x, y, baseRadius * (0.55 + progress * 0.45));
-  core.addColorStop(0, `rgba(255, 248, 202, ${0.78 * alpha})`);
-  core.addColorStop(0.34, withAlpha(e.color, 0.52 * alpha));
+  const coreRadius = baseRadius * (1.05 + progress * 0.82);
+  const core = ctx.createRadialGradient(x, y, 0, x, y, coreRadius);
+  core.addColorStop(0, `rgba(255, 248, 202, ${0.92 * alpha})`);
+  core.addColorStop(0.34, withAlpha(e.color, 0.76 * alpha));
+  core.addColorStop(0.72, `rgba(255, 116, 32, ${0.42 * alpha})`);
   core.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = core;
   ctx.beginPath();
-  ctx.arc(x, y, baseRadius * (0.62 + progress * 0.36), 0, Math.PI * 2);
+  ctx.arc(x, y, coreRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = withAlpha(e.color, 0.28 * alpha);
+  ctx.beginPath();
+  ctx.ellipse(x, y + baseRadius * 0.12, coreRadius * 0.88, coreRadius * 0.62, 0, 0, Math.PI * 2);
   ctx.fill();
 
   for (let i = 0; i < 3; i++) {
-    const ringRadius = baseRadius * (0.28 + progress * 0.72 + i * 0.18);
-    ctx.strokeStyle = i === 1 ? `rgba(255, 154, 55, ${0.5 * alpha})` : withAlpha(e.color, (0.72 - i * 0.14) * alpha);
-    ctx.lineWidth = Math.max(1.2, (4 - i) * scale);
+    const ringRadius = baseRadius * (0.52 + progress * 1.0 + i * 0.26);
+    ctx.strokeStyle = i === 1 ? `rgba(255, 154, 55, ${0.26 * alpha})` : withAlpha(e.color, (0.32 - i * 0.07) * alpha);
+    ctx.lineWidth = Math.max(1, (2.2 - i * 0.28) * scale);
     ctx.beginPath();
     ctx.ellipse(x, y + baseRadius * 0.18, ringRadius, ringRadius * (0.25 + i * 0.04), progress * Math.PI * 1.6, 0, Math.PI * 2);
     ctx.stroke();
@@ -256,8 +263,8 @@ function drawTowerWarpEffect(ctx, e, sx, sy) {
 
   for (let i = 0; i < 12; i++) {
     const angle = (i / 12) * Math.PI * 2 + progress * Math.PI * 2.4;
-    const inner = baseRadius * (0.14 + progress * 0.16);
-    const outer = baseRadius * (0.48 + progress * 0.64);
+    const inner = baseRadius * (0.22 + progress * 0.22);
+    const outer = baseRadius * (0.86 + progress * 1.04);
     ctx.strokeStyle = i % 3 === 0 ? `rgba(255, 120, 35, ${0.58 * alpha})` : withAlpha(e.color, 0.5 * alpha);
     ctx.lineWidth = Math.max(0.9, 1.35 * scale);
     ctx.beginPath();
