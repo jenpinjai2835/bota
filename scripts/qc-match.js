@@ -55,13 +55,14 @@ function openMatch(port, name = 'QC') {
   const ws = new WebSocket(url);
   let roomId = null;
   let playerId = null;
+  const sessionToken = `qc-${Date.now()}-${Math.random()}`;
   const send = msg => ws.send(JSON.stringify(msg));
   const close = () => {
     try { ws.close(); } catch {}
   };
   const ready = new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Match open timed out (${name})`)), TEST_TIMEOUT_MS);
-    ws.on('open', () => send({ type: 'create_room', name, teamId: 'sun', sessionToken: `qc-${Date.now()}-${Math.random()}` }));
+    ws.on('open', () => send({ type: 'create_room', name, teamId: 'sun', sessionToken }));
     ws.on('message', raw => {
       const msg = JSON.parse(raw);
       if (msg.type === 'connected') playerId = msg.playerId;
@@ -73,7 +74,34 @@ function openMatch(port, name = 'QC') {
       if (msg.type === 'asset_loading_start') send({ type: 'asset_progress', progress: 100 });
       if (msg.type === 'world_state' && (msg.creeps || []).length >= 10) {
         clearTimeout(timer);
-        resolve({ ws, send, close, roomId, playerId, firstWorld: msg });
+        resolve({ ws, send, close, roomId, playerId, sessionToken, firstWorld: msg });
+      }
+    });
+    ws.on('error', reject);
+  });
+  return ready;
+}
+
+function reconnectMatch(port, roomId, sessionToken) {
+  const ws = new WebSocket(`ws://localhost:${port}`);
+  let playerId = null;
+  const send = msg => ws.send(JSON.stringify(msg));
+  const close = () => {
+    try { ws.close(); } catch {}
+  };
+  const ready = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Reconnect timed out')), TEST_TIMEOUT_MS);
+    ws.on('open', () => send({ type: 'rejoin_session', roomId, sessionToken }));
+    ws.on('message', raw => {
+      const msg = JSON.parse(raw);
+      if (msg.type === 'connected') playerId = msg.playerId;
+      if (msg.type === 'rejoin_failed') {
+        clearTimeout(timer);
+        reject(new Error('Server rejected reconnect'));
+      }
+      if (msg.type === 'game_start' && msg.rejoined) {
+        clearTimeout(timer);
+        resolve({ ws, send, close, roomId, playerId, state: msg.state });
       }
     });
     ws.on('error', reject);
@@ -277,6 +305,21 @@ async function testTowerShootsHero(port) {
   return { towerId: shot.towerId, targetId: shot.targetId };
 }
 
+async function testReconnect(port) {
+  const match = await openMatch(port, 'QC Reconnect');
+  const { roomId, sessionToken, playerId } = match;
+  match.close();
+  const rejoined = await reconnectMatch(port, roomId, sessionToken);
+  const world = await waitForMessage(rejoined.ws, msg => msg.type === 'world_state' && (msg.creeps || []).length >= 10, 8000);
+  rejoined.close();
+  return {
+    roomId,
+    playerId,
+    rejoinedPlayerId: rejoined.playerId,
+    creeps: (world.creeps || []).length,
+  };
+}
+
 async function run() {
   const port = await getFreePort();
   const server = await startServer(port);
@@ -287,6 +330,7 @@ async function run() {
     ['objective chain', testObjectiveChain],
     ['creep damage/death', testCreepDamage],
     ['tower shoots hero', testTowerShootsHero],
+    ['reconnect match', testReconnect],
   ];
   const results = [];
   try {
