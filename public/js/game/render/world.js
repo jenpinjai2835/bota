@@ -245,27 +245,11 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   const fade = Math.pow(alpha, 0.75);
   const dustSprite = effectImages.dustPuff?.complete && effectImages.dustPuff.naturalWidth ? effectImages.dustPuff : null;
   const profile = e.dustProfile || {};
-  const stretchX = profile.ringStretchX || 1;
-  const stretchY = profile.ringStretchY || 1;
-  const angleOffset = profile.angleOffset || 0;
-  const ringPulseA = profile.ringPulseA || 0.03;
-  const ringPulseB = profile.ringPulseB || 0.025;
   const radiusBaseMul = profile.radiusBaseMul || 1;
   const opacityMul = profile.opacityMul || 1;
-  const countBias = profile.countBias || 0;
 
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
-
-  const ringPuffCount = Math.max(20, Math.round(44 - progress * 16 + countBias));
-  for (let i = 0; i < ringPuffCount; i++) {
-    const t = (i / ringPuffCount) * Math.PI * 2 + angleOffset;
-    const wobble = Math.sin(t * 3.2 + progress * 4.2) * ringPulseA + Math.cos(t * 5.3 + progress * 2.6) * ringPulseB;
-    const ex = x + Math.cos(t) * ringR * stretchX * (1.02 + wobble);
-    const ey = y + Math.sin(t) * ringR * (0.31 * stretchY) * (1.01 + wobble * 0.5);
-    const er = Math.max(8.4 * scale, ringR * (0.116 + (i % 5) * 0.011) * radiusBaseMul);
-    drawDustPuff(ctx, dustSprite, ex, ey, er, 0.26 * fade * opacityMul);
-  }
 
   const puffs = Array.isArray(e.dustPuffs) ? e.dustPuffs : [];
   for (let i = 0; i < puffs.length; i++) {
