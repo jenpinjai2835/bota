@@ -451,7 +451,7 @@ function updateProjectiles() {
   deathParts = deathParts.filter(part => {
     part.x += part.vx;
     part.y += part.vy;
-    part.vy += GRAVITY * 0.28;
+    part.vy += GRAVITY * (part.gravityScale ?? 0.28);
     part.angle += part.spin;
     spawnDeathPartTrail(part);
 
@@ -459,9 +459,9 @@ function updateProjectiles() {
     if (Number.isFinite(part.groundY)) {
       if (part.y + part.h * 0.5 >= part.groundY) {
         part.y = part.groundY - part.h * 0.5;
-        part.vy = Math.abs(part.vy) > 1.2 ? -Math.abs(part.vy) * 0.34 : 0;
-        part.vx *= 0.74;
-        part.spin *= -0.56;
+        part.vy = Math.abs(part.vy) > 1.2 ? -Math.abs(part.vy) * (part.bounceScale ?? 0.34) : 0;
+        part.vx *= part.groundFriction ?? 0.74;
+        part.spin *= part.spinBounceScale ?? -0.56;
         bounced = true;
       }
     } else {
@@ -473,9 +473,9 @@ function updateProjectiles() {
           part.y - part.h * 0.5 < plat.y + plat.h
         ) {
           part.y = plat.y - part.h * 0.5;
-          part.vy = -Math.abs(part.vy) * 0.42;
-          part.vx *= 0.72;
-          part.spin *= -0.62;
+          part.vy = -Math.abs(part.vy) * (part.bounceScale ?? 0.42);
+          part.vx *= part.groundFriction ?? 0.72;
+          part.spin *= part.spinBounceScale ?? -0.62;
           bounced = true;
         }
       });
@@ -485,7 +485,7 @@ function updateProjectiles() {
       part.vx *= -0.5;
       part.spin *= -0.8;
     }
-    part.vx *= 0.985;
+    part.vx *= part.airFriction ?? 0.985;
     part.life--;
     return part.life > 0;
   });
