@@ -4,7 +4,7 @@
 // ============================================================
 let lastFrame = 0;
 const TOWER_BREAK_CINEMATIC_MS = 950;
-const GAME_END_CINEMATIC_MS = 1700;
+const GAME_END_CINEMATIC_MS = 650;
 
 function isCinematicPauseActive() {
   return !!cinematicPause?.active;
@@ -52,9 +52,12 @@ function gameLoop(ts = 0) {
   const cinematic = isCinematicPauseActive();
 
   const canvas = document.getElementById('game-canvas');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  const targetW = window.innerWidth;
+  const targetH = window.innerHeight;
+  if (canvas.width !== targetW) canvas.width = targetW;
+  if (canvas.height !== targetH) canvas.height = targetH;
 
+  let shouldRender = true;
   if (!cinematic) {
     rememberMyPlayerBodyPosition();
     if (typeof applyTestModeRuntime === 'function') applyTestModeRuntime();
@@ -69,10 +72,13 @@ function gameLoop(ts = 0) {
     updateTowerShots();
   } else {
     cinematicPause.frame++;
-    if (cinematicPause.frame % 3 === 0) updateProjectiles();
+    shouldRender = cinematicPause.frame === 1 || cinematicPause.frame % 3 === 0;
+    if (shouldRender) updateProjectiles();
   }
-  updateCamera(canvas);
-  render(canvas);
+  if (shouldRender) {
+    updateCamera(canvas);
+    render(canvas);
+  }
   if (!cinematic) {
     updateHUD();
     updateSkillsBar();

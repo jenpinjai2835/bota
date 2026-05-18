@@ -415,14 +415,14 @@ function handleObjectiveDestroyed(msg) {
   objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0 } : entry);
   if (objective.type === 'tower') {
     spawnObjectiveDeathBurst(objective, msg.damage || 0);
+    if (typeof beginCinematicPause === 'function') beginCinematicPause('tower-break');
   } else {
     const foot = getUnitFoot(objective);
     const cx = foot.x;
     const cy = foot.y - (objective.h || 116) * 0.55;
-    spawnEffect(cx, cy, 'tower-break', objective.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 66);
-    spawnTowerCollapsePlumes(cx, cy, foot.y, objective.teamId, 2.8);
+    spawnEffect(cx, cy, 'tower-collapse-aura', objective.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 56);
+    spawnEffect(cx, cy + 16, 'tower-smoke', '#6F6860', 42);
   }
-  if (typeof beginCinematicPause === 'function') beginCinematicPause('tower-break');
 }
 
 function drawObjective(ctx, obj, sx, sy) {
