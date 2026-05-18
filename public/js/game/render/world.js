@@ -234,19 +234,13 @@ function drawEffect(ctx, e, sx, sy) {
 function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   const alpha = Math.max(0, Math.min(1, e.life / e.maxLife));
   const progress = 1 - alpha;
-  const elapsed = Math.max(0, (e.maxLife || 0) - (e.life || 0));
   const scale = Math.min(sx, sy);
   const x = e.x * sx;
   const y = e.y * sy;
   const base = e.radius * scale;
-  const burstFrames = 12; // ~200ms at 60fps
-  const burstT = Math.max(0, Math.min(1, elapsed / burstFrames));
-  const burstEase = 1 - Math.pow(1 - burstT, 5);
-  const tailT = Math.max(0, Math.min(1, (progress - burstFrames / Math.max(1, e.maxLife || 1)) / (1 - burstFrames / Math.max(1, e.maxLife || 1))));
-  const tailFastT = Math.max(0, Math.min(1, tailT * 2));
-  const tailEase = 1 - Math.pow(1 - tailFastT, 1.75);
-  const earlyRadius = 0.08 + burstEase * 1.024;
-  const ringScale = earlyRadius + tailEase * 0.52;
+  const burstTerm = 1.04 * (1 - Math.exp(-14 * progress)); // fast initial expansion, smoothly easing out
+  const driftTerm = 0.56 * progress; // keep expanding until duration ends
+  const ringScale = 0.08 + burstTerm + driftTerm;
   const ringR = base * ringScale;
   const fade = Math.pow(alpha, 0.75);
 
