@@ -304,7 +304,7 @@ function getObjectiveTextureDrawBox(obj, sx, sy) {
   const drawW = drawH * aspect;
   const cx = x + w / 2;
   const footY = y + h;
-  return { x: cx - drawW / 2, y: footY - drawH + 7 * sy, w: drawW, h: drawH, cx, footY, scale };
+  return { x: cx - drawW / 2, y: footY - drawH + drawH * 0.07 + 7 * sy, w: drawW, h: drawH, cx, footY, scale };
 }
 
 function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
