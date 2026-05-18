@@ -645,6 +645,29 @@ function setupWebSocket(server, rooms) {
         }
       }
     }
+
+    // Keep creeps from getting embedded into static objectives (tower/ancient).
+    const solids = (room.objectives || []).filter(obj => obj.hp > 0);
+    live.forEach(creep => {
+      const cf = unitFoot(creep);
+      solids.forEach(obj => {
+        const of = unitFoot(obj);
+        const dx = cf.x - of.x;
+        const dy = cf.y - of.y;
+        const minX = unitBlockRadiusX(creep) + unitBlockRadiusX(obj) + 1;
+        const minY = unitBlockRadiusY(creep) + unitBlockRadiusY(obj) + 1;
+        const overlapX = minX - Math.abs(dx);
+        const overlapY = minY - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) return;
+        if (overlapY < overlapX) {
+          const dirY = dy >= 0 ? 1 : -1;
+          creep.y = clampCreepY(creep.y + dirY * (overlapY + 0.8), creep.h);
+        } else {
+          const dirX = dx >= 0 ? 1 : -1;
+          creep.x = Math.max(0, Math.min(WORLD_W - unitWidth(creep), creep.x + dirX * (overlapX + 0.6)));
+        }
+      });
+    });
   }
 
   function getCreepMoveBlockers(room, creep, target = null) {
@@ -1232,6 +1255,8 @@ function setupWebSocket(server, rooms) {
         creep.state = 'idle';
       }
     });
+
+    resolveCreepSpacing(room);
 
     getLivingObjectives(room).forEach(obj => {
       if (obj.type !== 'tower' || (obj.attackAt || 0) > now) return;
