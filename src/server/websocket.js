@@ -108,8 +108,47 @@ function setupWebSocket(server, rooms) {
   function unitsBlockOverlap(a, b, padding = 0) {
     const af = unitFoot(a);
     const bf = unitFoot(b);
+    if (a?.type === 'tower' || b?.type === 'tower') return towerBlockOverlap(a, b, padding);
     return Math.abs(af.x - bf.x) < unitBlockRadiusX(a) + unitBlockRadiusX(b) + padding &&
       Math.abs(af.y - bf.y) < unitBlockRadiusY(a) + unitBlockRadiusY(b) + padding;
+  }
+
+  function towerBlockHalfWidthAt(tower, localY) {
+    const points = [
+      [-0.95, -0.08],
+      [-0.42, -0.74],
+      [0.42, -0.74],
+      [0.95, -0.08],
+      [0.56, 0.56],
+      [0.24, 0.82],
+      [-0.24, 0.82],
+      [-0.56, 0.56],
+    ];
+    const y = Math.max(-0.82, Math.min(0.82, localY));
+    let half = 0;
+    for (let i = 0; i < points.length; i++) {
+      const [x1, y1] = points[i];
+      const [x2, y2] = points[(i + 1) % points.length];
+      if ((y >= Math.min(y1, y2) && y <= Math.max(y1, y2)) && Math.abs(y2 - y1) > 0.0001) {
+        const t = (y - y1) / (y2 - y1);
+        half = Math.max(half, Math.abs(x1 + (x2 - x1) * t));
+      }
+    }
+    return Math.max(0.24, half) * unitBlockRadiusX(tower);
+  }
+
+  function towerBlockOverlap(a, b, padding = 0) {
+    const tower = a?.type === 'tower' ? a : b;
+    const other = tower === a ? b : a;
+    const tf = unitFoot(tower);
+    const of = unitFoot(other);
+    const dy = of.y - tf.y;
+    const towerRy = unitBlockRadiusY(tower);
+    const otherRy = unitBlockRadiusY(other);
+    if (Math.abs(dy) > towerRy * 0.82 + otherRy + padding) return false;
+    const localY = Math.max(-0.82, Math.min(0.82, dy / Math.max(1, towerRy)));
+    const halfWidth = towerBlockHalfWidthAt(tower, localY) + unitBlockRadiusX(other) + padding;
+    return Math.abs(of.x - tf.x) < halfWidth;
   }
 
   function distanceBetween(a, b) {
@@ -767,12 +806,7 @@ function setupWebSocket(server, rooms) {
     const candidate = { ...creep, x: nextX, y: nextY };
     return getCreepMoveBlockers(room, creep, target, options).find(unit => {
       if (isAllowedContactSlide(creep, candidate, unit, options)) return false;
-      const cf = unitFoot(candidate);
-      const uf = unitFoot(unit);
-      const dx = Math.abs(cf.x - uf.x);
-      const dy = Math.abs(cf.y - uf.y);
-      return dx < unitBlockRadiusX(candidate) + unitBlockRadiusX(unit) &&
-        dy < unitBlockRadiusY(candidate) + unitBlockRadiusY(unit);
+      return unitsBlockOverlap(candidate, unit, 0);
     });
   }
 

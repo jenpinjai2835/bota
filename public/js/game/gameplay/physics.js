@@ -228,13 +228,53 @@ function resolvePlayerBodyCollisions() {
 
 function isPlayerWorldBlockedAt(x, y, blockers) {
   const candidate = { ...myPlayer, x, y };
-  return blockers.some(unit => {
-    const pf = getUnitFoot(candidate);
-    const uf = getUnitFoot(unit);
-    const radiusX = getUnitFootRadiusX(candidate) + getUnitFootRadiusX(unit);
-    const radiusY = getUnitFootRadiusY(candidate) + getUnitFootRadiusY(unit);
-    return Math.abs(uf.x - pf.x) < radiusX && Math.abs(uf.y - pf.y) < radiusY;
-  });
+  return blockers.some(unit => unitsBlockOverlap(candidate, unit));
+}
+
+function getTowerBlockHalfWidthAt(unit, localY) {
+  const points = [
+    [-0.95, -0.08],
+    [-0.42, -0.74],
+    [0.42, -0.74],
+    [0.95, -0.08],
+    [0.56, 0.56],
+    [0.24, 0.82],
+    [-0.24, 0.82],
+    [-0.56, 0.56],
+  ];
+  const y = Math.max(-0.82, Math.min(0.82, localY));
+  let half = 0;
+  for (let i = 0; i < points.length; i++) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[(i + 1) % points.length];
+    if ((y >= Math.min(y1, y2) && y <= Math.max(y1, y2)) && Math.abs(y2 - y1) > 0.0001) {
+      const t = (y - y1) / (y2 - y1);
+      half = Math.max(half, Math.abs(x1 + (x2 - x1) * t));
+    }
+  }
+  return Math.max(0.24, half) * getUnitFootRadiusX(unit);
+}
+
+function towerBlockOverlap(a, b) {
+  const tower = a?.type === 'tower' ? a : b;
+  const other = tower === a ? b : a;
+  const tf = getUnitFoot(tower);
+  const of = getUnitFoot(other);
+  const dy = of.y - tf.y;
+  const towerRy = getUnitFootRadiusY(tower);
+  const otherRy = getUnitFootRadiusY(other);
+  if (Math.abs(dy) > towerRy * 0.82 + otherRy) return false;
+  const localY = Math.max(-0.82, Math.min(0.82, dy / Math.max(1, towerRy)));
+  const halfWidth = getTowerBlockHalfWidthAt(tower, localY) + getUnitFootRadiusX(other);
+  return Math.abs(of.x - tf.x) < halfWidth;
+}
+
+function unitsBlockOverlap(a, b) {
+  if (a?.type === 'tower' || b?.type === 'tower') return towerBlockOverlap(a, b);
+  const af = getUnitFoot(a);
+  const bf = getUnitFoot(b);
+  return Math.abs(bf.x - af.x) < getUnitFootRadiusX(a) + getUnitFootRadiusX(b) &&
+    Math.abs(bf.y - af.y) < getUnitFootRadiusY(a) + getUnitFootRadiusY(b);
 }
 
 function getPlayerBlockerProximity(x, y, unit) {
@@ -314,6 +354,7 @@ function resolvePlayerWorldBodyCollisions() {
     const uf = getUnitFoot(unit);
     const radiusX = getUnitFootRadiusX(myPlayer) + getUnitFootRadiusX(unit);
     const radiusY = getUnitFootRadiusY(myPlayer) + getUnitFootRadiusY(unit);
+    if (!unitsBlockOverlap(myPlayer, unit)) return;
     const dx = uf.x - pf.x;
     const dy = uf.y - pf.y;
     const overlapX = radiusX - Math.abs(dx);
