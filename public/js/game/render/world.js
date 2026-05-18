@@ -329,8 +329,9 @@ function drawBloodParticle(ctx, b, sx, sy) {
     const x = b.x * sx;
     const y = b.y * sy;
     const r = b.size * scale * (1.05 + (1 - alpha) * 0.95);
-    const tx = (b.x - (b.vx || 0) * 4.8) * sx;
-    const ty = (b.y - (b.vy || 0) * 4.8) * sy;
+    const trailScale = b.trailScale || 1;
+    const tx = (b.x - (b.vx || 0) * 4.8 * trailScale) * sx;
+    const ty = (b.y - (b.vy || 0) * 4.8 * trailScale) * sy;
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = withAlpha(color, 0.12 * alpha);
@@ -355,8 +356,9 @@ function drawBloodParticle(ctx, b, sx, sy) {
     const x = b.x * sx;
     const y = b.y * sy;
     const r = b.size * scale * (1.08 + (1 - alpha) * 0.32);
-    const tx = (b.x - (b.vx || 0) * 4) * sx;
-    const ty = (b.y - (b.vy || 0) * 4) * sy;
+    const trailScale = b.trailScale || 1;
+    const tx = (b.x - (b.vx || 0) * 4 * trailScale) * sx;
+    const ty = (b.y - (b.vy || 0) * 4 * trailScale) * sy;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = withAlpha(color, 0.26 * alpha);

@@ -340,7 +340,7 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
   const cy = groundY - (obj.h || 104) * 0.55;
   const dir = obj.teamId === 'sun' ? -1 : 1;
   const isAncient = obj.type === 'ancient' || options.ancient;
-  const partCount = options.partCount || (isAncient ? 26 : 22);
+  const partCount = options.partCount || (isAncient ? 26 : 40);
   const force = (isAncient ? 3.1 : 3.05) + Math.min(isAncient ? 5.4 : 5.6, Math.max(0, damage) * (isAncient ? 0.018 : 0.018));
   for (let i = 0; i < partCount; i++) {
     const col = i % 6;
@@ -371,10 +371,19 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
       groundFriction: isAncient ? 0.6 : 0.78,
       airFriction: isAncient ? 0.98 : 0.986,
       spinBounceScale: isAncient ? -0.34 : -0.36,
-      trail: isAncient ? i % 2 === 0 : i % 4 === 0,
+      trail: isAncient ? i % 2 === 0 : true,
       trailColor: obj.teamId === 'sun' ? '#33C7FF' : '#B46AFF',
-      life: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1)),
-      maxLife: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1)),
+      trailInterval: isAncient ? 4 : 5,
+      trailScale: isAncient ? 1 : 2.05,
+      trailScatter: isAncient ? 0.9 : 1.6,
+      trailSmokeSize: isAncient ? 8 : 9,
+      trailSmokeSizeRange: isAncient ? 10 : 15,
+      trailSmokeLife: isAncient ? 32 : 58,
+      trailSmokeLifeRange: isAncient ? 18 : 34,
+      trailSmokeMaxLife: isAncient ? 58 : 96,
+      trailFireChance: isAncient ? 0.18 : 0.26,
+      life: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
+      maxLife: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
     });
   }
   spawnEffect(cx, cy, 'tower-break', obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF', isAncient ? 112 : 66);

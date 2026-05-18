@@ -2,8 +2,8 @@
 // ============================================================
 //  COMBAT
 // ============================================================
-const MAX_BLOOD_PARTICLES = 220;
-const MAX_TOWER_TRAIL_PARTICLES = 110;
+const MAX_BLOOD_PARTICLES = 320;
+const MAX_TOWER_TRAIL_PARTICLES = 210;
 const TOWER_TRAIL_INTERVAL_TICKS = 5;
 
 function doMeleeHit(attacker, skill) {
@@ -179,23 +179,24 @@ function spawnDeathPartTrail(part) {
   if (speed < 0.45) return;
   const lifePct = part.life / Math.max(1, part.maxLife || part.life);
   part.trailTick = (part.trailTick || 0) + 1;
-  const interval = lifePct > 0.72 ? 4 : TOWER_TRAIL_INTERVAL_TICKS;
+  const interval = part.trailInterval || (lifePct > 0.72 ? 4 : TOWER_TRAIL_INTERVAL_TICKS);
   if (part.trailTick % interval !== 0) return;
   if (countTowerTrailParticles() >= MAX_TOWER_TRAIL_PARTICLES) return;
-  const tailX = part.x - part.vx * (0.8 + Math.random() * 0.9);
-  const tailY = part.y - part.vy * (0.8 + Math.random() * 0.9);
+  const tailX = part.x - part.vx * (0.8 + Math.random() * (part.trailScatter || 0.9));
+  const tailY = part.y - part.vy * (0.8 + Math.random() * (part.trailScatter || 0.9));
   bloodParticles.push({
     kind: 'smoke',
     x: tailX + (Math.random() - 0.5) * 10,
     y: tailY + (Math.random() - 0.5) * 8,
     vx: -(part.vx || 0) * (0.08 + Math.random() * 0.04) + (Math.random() - 0.5) * 0.45,
     vy: -0.75 - Math.random() * 1.05,
-    size: 8 + Math.random() * 10,
+    size: (part.trailSmokeSize || 8) + Math.random() * (part.trailSmokeSizeRange || 10),
     color: Math.random() < 0.24 ? '#7C736B' : '#4A4542',
-    life: 32 + Math.floor(Math.random() * 18),
-    maxLife: 58,
+    life: (part.trailSmokeLife || 32) + Math.floor(Math.random() * (part.trailSmokeLifeRange || 18)),
+    maxLife: part.trailSmokeMaxLife || 58,
+    trailScale: part.trailScale || 1,
   });
-  if (Math.random() < 0.18 * lifePct && countTowerTrailParticles() < MAX_TOWER_TRAIL_PARTICLES) {
+  if (Math.random() < (part.trailFireChance ?? 0.18) * lifePct && countTowerTrailParticles() < MAX_TOWER_TRAIL_PARTICLES) {
     bloodParticles.push({
       kind: 'fire',
       x: tailX + (Math.random() - 0.5) * 7,
@@ -206,6 +207,7 @@ function spawnDeathPartTrail(part) {
       color: Math.random() < 0.28 ? '#FFE28A' : '#FF7A24',
       life: 16 + Math.floor(Math.random() * 12),
       maxLife: 32,
+      trailScale: Math.max(1, (part.trailScale || 1) * 0.72),
     });
   }
 }
