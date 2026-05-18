@@ -340,8 +340,8 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
   const cy = groundY - (obj.h || 104) * 0.55;
   const dir = obj.teamId === 'sun' ? -1 : 1;
   const isAncient = obj.type === 'ancient' || options.ancient;
-  const partCount = options.partCount || (isAncient ? 26 : 10);
-  const force = (isAncient ? 3.1 : 2.35) + Math.min(isAncient ? 5.4 : 4.8, Math.max(0, damage) * (isAncient ? 0.018 : 0.016));
+  const partCount = options.partCount || (isAncient ? 26 : 22);
+  const force = (isAncient ? 3.1 : 3.05) + Math.min(isAncient ? 5.4 : 5.6, Math.max(0, damage) * (isAncient ? 0.018 : 0.018));
   for (let i = 0; i < partCount; i++) {
     const col = i % 6;
     const row = Math.floor(i / 6);
@@ -350,31 +350,31 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
     const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.18 + col * 0.105)));
     const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.13 + row * 0.16)));
     const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
-    const size = (isAncient ? 20 : 28) + (i % 4) * (isAncient ? 7 : 9);
+    const size = (isAncient ? 20 : 14) + (i % 5) * (isAncient ? 7 : 5);
     deathParts.push({
       img,
       sx,
       sy,
       sw,
       sh,
-      x: cx + spread * (isAncient ? 22 : 14),
-      y: cy + (Math.random() - 0.5) * (isAncient ? 42 : 22),
-      vx: dir * (force + Math.random() * (isAncient ? 2.2 : 1.8)) + spread * ((isAncient ? 4.6 : 3.2) + Math.random() * (isAncient ? 2.2 : 1.4)),
-      vy: (isAncient ? -4.3 : -2.6) - Math.random() * (isAncient ? 6.2 : 3.8),
+      x: cx + spread * (isAncient ? 22 : 24),
+      y: cy + (Math.random() - 0.5) * (isAncient ? 42 : 34),
+      vx: dir * (force + Math.random() * (isAncient ? 2.2 : 2.7)) + spread * ((isAncient ? 4.6 : 5.8) + Math.random() * (isAncient ? 2.2 : 2.8)),
+      vy: (isAncient ? -4.3 : -3.2) - Math.random() * (isAncient ? 6.2 : 5.8),
       w: size,
       h: size * (sh / sw),
       groundY,
       angle: (Math.random() - 0.5) * 1.8,
       spin: (Math.random() - 0.5) * 0.08 + spread * 0.02,
-      gravityScale: isAncient ? 0.38 : 0.52,
-      bounceScale: isAncient ? 0.24 : 0.16,
-      groundFriction: isAncient ? 0.6 : 0.54,
-      airFriction: isAncient ? 0.98 : 0.972,
-      spinBounceScale: isAncient ? -0.34 : -0.26,
-      trail: isAncient ? i % 2 === 0 : i % 3 === 0,
+      gravityScale: isAncient ? 0.38 : 0.46,
+      bounceScale: isAncient ? 0.24 : 0.23,
+      groundFriction: isAncient ? 0.6 : 0.78,
+      airFriction: isAncient ? 0.98 : 0.986,
+      spinBounceScale: isAncient ? -0.34 : -0.36,
+      trail: isAncient ? i % 2 === 0 : i % 4 === 0,
       trailColor: obj.teamId === 'sun' ? '#33C7FF' : '#B46AFF',
-      life: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 0.82)),
-      maxLife: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 0.82)),
+      life: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1)),
+      maxLife: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1)),
     });
   }
   spawnEffect(cx, cy, 'tower-break', obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF', isAncient ? 112 : 66);
