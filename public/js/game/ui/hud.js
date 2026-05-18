@@ -46,6 +46,7 @@ function buildTestModePanel() {
       <button type="button" class="test-mode-btn" onclick="testLevelUp()">LEVEL UP</button>
       <button type="button" class="test-mode-btn" onclick="testMaxLevel()">MAX LEVEL</button>
       <button type="button" class="test-mode-btn toggle" id="test-immortal-btn" onclick="toggleTestImmortal()">IMMORTAL</button>
+      <button type="button" class="test-mode-btn" onclick="testRestartMatch()">RESTART</button>
     </div>
     <div class="test-mode-status" id="test-mode-status"></div>
   `;
@@ -82,6 +83,11 @@ function testMaxLevel() {
   updateSkillsBar();
   updateTestModePanel();
   sendInput();
+}
+
+function testRestartMatch() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  send({ type: 'test_restart_match' });
 }
 
 function toggleTestImmortal() {

@@ -45,7 +45,7 @@ let reconnecting = false;
 let reconnectAttempt = 0;
 let reconnectTimer = null;
 let testModeState = {
-  immortal: false,
+  immortal: true,
 };
 let cinematicPause = {
   active: false,

@@ -1345,6 +1345,17 @@ function setupWebSocket(server, rooms) {
         break;
       }
 
+      case 'test_restart_match': {
+        const roomId = ws.roomId;
+        const room = rooms.get(roomId);
+        if (!room || !['playing', 'finished'].includes(room.status)) break;
+        rooms.startGame(roomId);
+        const state = rooms.getState(roomId);
+        room.players.forEach(pid => sendTo(pid, { type: 'game_start', state, restarted: true }));
+        startWorldLoop(roomId);
+        break;
+      }
+
       case 'player_hit': {
         const roomId = ws.roomId;
         const room = rooms.get(roomId);

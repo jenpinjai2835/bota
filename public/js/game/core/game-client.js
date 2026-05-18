@@ -143,6 +143,9 @@ function startGameClient(state) {
   if (myPlayer) {
     const ch = myPlayer.charData;
     ch.skills.forEach(sk => { skillCooldowns[sk.id] = 0; });
+    ensurePlayerSystems(myPlayer);
+    grantPlayerTestLevel(myPlayer, LEVEL_CONFIG.maxLevel - (myPlayer.progression?.level || 1));
+    testModeState.immortal = true;
   }
 
   buildHUD(state);

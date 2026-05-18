@@ -93,7 +93,7 @@ function createPlayer(playerId, { name, character, teamId, sessionToken, isAI = 
     deaths: 0,
     recentAttackers: {},
     lastRespawnIndex: index % RESPAWN_POINTS.length,
-    testImmortal: false,
+    testImmortal: true,
   };
 }
 
@@ -350,6 +350,7 @@ class RoomStore {
       player.y = spawn.y;
       player.teamId = normalizeTeamId(player.teamId, i);
       player.hp = player.maxHp;
+      player.testImmortal = true;
       player.state = 'idle';
       player.lastRespawnIndex = i % RESPAWN_POINTS.length;
       player.kills = 0;
