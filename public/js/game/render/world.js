@@ -262,17 +262,21 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   ctx.ellipse(x, y, ringR * 1.12, ringR * 0.36, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = `rgba(202, 178, 151, ${0.68 * fade})`;
-  ctx.lineWidth = Math.max(2, 4.4 * scale * (1 - ringScale * 0.1));
-  ctx.beginPath();
-  ctx.ellipse(x, y + ringR * 0.02, ringR * 1.05, ringR * 0.31, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.strokeStyle = `rgba(114, 101, 90, ${0.45 * fade})`;
-  ctx.lineWidth = Math.max(1.2, 2.4 * scale);
-  ctx.beginPath();
-  ctx.ellipse(x, y + ringR * 0.05, ringR * 1.24, ringR * 0.38, 0, 0, Math.PI * 2);
-  ctx.stroke();
+  const ringPuffCount = 64;
+  for (let i = 0; i < ringPuffCount; i++) {
+    const t = (i / ringPuffCount) * Math.PI * 2 + progress * 0.42;
+    const ex = x + Math.cos(t) * ringR * (1.04 + (i % 4) * 0.02);
+    const ey = y + Math.sin(t) * ringR * (0.31 + (i % 3) * 0.02);
+    const er = Math.max(2.1 * scale, ringR * (0.03 + (i % 5) * 0.003));
+    const edgePuff = ctx.createRadialGradient(ex, ey, er * 0.2, ex, ey, er);
+    edgePuff.addColorStop(0, `rgba(202, 178, 151, ${0.52 * fade})`);
+    edgePuff.addColorStop(0.62, `rgba(124, 112, 101, ${0.3 * fade})`);
+    edgePuff.addColorStop(1, 'rgba(70, 62, 55, 0)');
+    ctx.fillStyle = edgePuff;
+    ctx.beginPath();
+    ctx.arc(ex, ey, er, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   const puffs = Array.isArray(e.dustPuffs) ? e.dustPuffs : [];
   for (let i = 0; i < puffs.length; i++) {
