@@ -599,7 +599,7 @@ function drawObjective(ctx, obj, sx, sy) {
     ctx.shadowBlur = (13 + pulse * 8) * scale;
     ctx.drawImage(towerTexture, drawX, drawY, drawW, drawH);
     drawTowerLivingEffects(ctx, towerTexture, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t);
-    drawTowerDamageFractures(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy);
+    drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t);
     ctx.shadowBlur = 0;
     if (!obj.collapseHideHealth) {
       drawUnitHealthBar(ctx, obj, cx, footY - drawH + 2 * sy, Math.max(58, drawW * 0.42), sx, sy);
@@ -645,47 +645,45 @@ function drawTowerLivingEffects(ctx, img, obj, drawX, drawY, drawW, drawH, teamC
 
 }
 
-function drawTowerDamageFractures(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy) {
+function drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t) {
   const hpPct = Math.max(0, Math.min(1, (obj.hp || 0) / Math.max(1, obj.maxHp || 1)));
   const damagePct = 1 - hpPct;
-  if (damagePct < 0.08) return;
+  if (damagePct < 0.12) return;
   const scale = Math.min(sx, sy);
-  const fragmentCount = Math.min(14, Math.max(2, Math.ceil(damagePct * 15)));
-  const lineAlpha = 0.18 + damagePct * 0.42;
+  const burnCount = Math.min(12, Math.max(2, Math.ceil(damagePct * 13)));
   ctx.save();
   ctx.beginPath();
   ctx.rect(drawX, drawY, drawW, drawH);
   ctx.clip();
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  for (let i = 0; i < fragmentCount; i++) {
-    const col = i % 5;
-    const row = Math.floor(i / 5);
-    const centerX = drawX + drawW * (0.2 + col * 0.15 + (debrisRand(i, 51) - 0.5) * 0.035);
-    const centerY = drawY + drawH * (0.18 + row * 0.22 + (debrisRand(i, 59) - 0.5) * 0.055);
-    const pieceW = drawW * (0.13 + debrisRand(i, 63) * 0.045);
-    const pieceH = drawH * (0.1 + debrisRand(i, 67) * 0.035);
-    const polygon = createDebrisPolygon(i + 100, 5 + (i % 4));
-    ctx.strokeStyle = `rgba(15, 12, 10, ${lineAlpha})`;
-    ctx.lineWidth = Math.max(0.8, 1.15 * scale);
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < burnCount; i++) {
+    const flicker = 0.78 + Math.sin(t * (3.4 + i * 0.17) + i * 2.11) * 0.22;
+    const centerX = drawX + drawW * (0.36 + debrisRand(i, 71) * 0.28);
+    const centerY = drawY + drawH * (0.24 + debrisRand(i, 79) * 0.52);
+    const r = drawW * (0.035 + debrisRand(i, 83) * 0.045) * (0.72 + damagePct * 0.8) * flicker;
+    const flameH = drawH * (0.055 + debrisRand(i, 89) * 0.075) * (0.6 + damagePct);
+    const aura = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(3, r * 2.6));
+    aura.addColorStop(0, `rgba(255, 238, 150, ${0.22 + damagePct * 0.18})`);
+    aura.addColorStop(0.38, `rgba(255, 111, 34, ${0.18 + damagePct * 0.2})`);
+    aura.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura;
     ctx.beginPath();
-    polygon.forEach((point, index) => {
-      const x = centerX + point.x * pieceW;
-      const y = centerY + point.y * pieceH;
-      if (index === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.closePath();
-    ctx.stroke();
+    ctx.ellipse(centerX, centerY, r * 2.4, flameH * 1.25, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    ctx.strokeStyle = withAlpha(teamColor, 0.08 + damagePct * 0.16);
-    ctx.lineWidth = Math.max(0.6, 0.8 * scale);
-    createDebrisCracks(i + 200, damagePct > 0.5 ? 2 : 1).forEach(crack => {
-      ctx.beginPath();
-      ctx.moveTo(centerX + crack.x1 * pieceW, centerY + crack.y1 * pieceH);
-      ctx.lineTo(centerX + crack.x2 * pieceW, centerY + crack.y2 * pieceH);
-      ctx.stroke();
-    });
+    ctx.fillStyle = `rgba(255, 118, 36, ${0.28 + damagePct * 0.34})`;
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY - flameH * 1.2);
+    ctx.bezierCurveTo(centerX + r * 1.15, centerY - flameH * 0.35, centerX + r * 0.8, centerY + flameH * 0.6, centerX, centerY + flameH * 0.72);
+    ctx.bezierCurveTo(centerX - r * 0.9, centerY + flameH * 0.2, centerX - r * 0.95, centerY - flameH * 0.45, centerX, centerY - flameH * 1.2);
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(20, 12, 8, ${0.18 + damagePct * 0.26})`;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY + flameH * 0.42, r * 1.35, flameH * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';
   }
   ctx.restore();
 }
