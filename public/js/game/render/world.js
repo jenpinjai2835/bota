@@ -248,12 +248,21 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   ctx.globalCompositeOperation = 'source-over';
 
   const dust = ctx.createRadialGradient(x, y, ringR * 0.12, x, y, ringR);
-  dust.addColorStop(0, `rgba(176, 157, 136, ${0.55 * fade})`);
-  dust.addColorStop(0.55, `rgba(122, 109, 96, ${0.38 * fade})`);
+  dust.addColorStop(0, `rgba(176, 157, 136, ${0.48 * fade})`);
+  dust.addColorStop(0.5, `rgba(122, 109, 96, ${0.3 * fade})`);
+  dust.addColorStop(0.82, `rgba(96, 84, 74, ${0.09 * fade})`);
   dust.addColorStop(1, 'rgba(70, 62, 55, 0)');
   ctx.fillStyle = dust;
   ctx.beginPath();
   ctx.ellipse(x, y, ringR * 1.12, ringR * 0.36, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const rimFade = ctx.createRadialGradient(x, y, ringR * 0.76, x, y, ringR * 1.18);
+  rimFade.addColorStop(0, 'rgba(0,0,0,0)');
+  rimFade.addColorStop(0.78, `rgba(122, 109, 96, ${0.08 * fade})`);
+  rimFade.addColorStop(1, 'rgba(70, 62, 55, 0)');
+  ctx.fillStyle = rimFade;
+  ctx.beginPath();
+  ctx.ellipse(x, y, ringR * 1.15, ringR * 0.39, 0, 0, Math.PI * 2);
   ctx.fill();
 
   const ringPuffCount = Math.max(20, Math.round(44 - progress * 16));

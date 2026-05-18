@@ -106,12 +106,12 @@ function spawnEffect(x, y, id, color, radius = 40, options = {}) {
       const angle = (i / puffCount) * Math.PI * 2;
       const dirX = Math.cos(angle);
       const dirY = Math.sin(angle) * 0.22;
-      const speed = 0.4 + Math.random() * 0.95;
+      const speed = 1.1 + Math.random() * 1.9;
       return {
         ox: dirX * ringRadius,
         oy: dirY * ringRadius,
         vx: dirX * speed,
-        vy: -0.08 - Math.random() * 0.2,
+        vy: -0.14 - Math.random() * 0.28,
         radiusScale: 0.8 + Math.random() * 0.38,
         yBase: baseY + Math.sin(angle) * 2,
       };
@@ -464,9 +464,9 @@ function updateProjectiles() {
       e.dustPuffs.forEach(puff => {
         puff.ox += puff.vx;
         puff.oy += puff.vy;
-        puff.vx *= 0.988;
+        puff.vx *= 0.994;
         puff.vy += 0.006;
-        puff.vy *= 0.985;
+        puff.vy *= 0.99;
       });
     }
     e.life--;
