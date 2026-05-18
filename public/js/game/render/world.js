@@ -240,7 +240,7 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   const base = e.radius * scale;
   const burstTerm = 1.04 * (1 - Math.exp(-14 * progress)); // fast initial expansion, smoothly easing out
   const driftTerm = 0.56 * progress; // keep expanding until duration ends
-  const ringScale = 0.08 + burstTerm + driftTerm;
+  const ringScale = 0.104 + burstTerm + driftTerm;
   const ringR = base * ringScale;
   const fade = Math.pow(alpha, 0.75);
 
