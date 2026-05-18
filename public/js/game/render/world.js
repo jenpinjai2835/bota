@@ -235,7 +235,8 @@ function drawTowerWarpEffect(ctx, e, sx, sy) {
   const y = e.y * sy;
   const baseRadius = e.radius * scale;
   const ease = 1 - Math.pow(1 - progress, 3);
-  const flashAlpha = Math.min(0.9, 0.9 * Math.sin(Math.max(0.08, progress) * Math.PI));
+  const fadeOut = Math.max(0, Math.min(1, alpha / 0.42));
+  const flashAlpha = Math.min(0.96, 0.96 * Math.min(1, progress / 0.28) * fadeOut);
   const radius = baseRadius * ease;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
