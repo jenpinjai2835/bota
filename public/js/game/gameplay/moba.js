@@ -97,7 +97,18 @@ function applyWorldState(msg) {
       targetY: creep.y,
     };
   });
-  objectives = (msg.objectives || []).map(obj => ({ ...objectives.find(entry => entry.id === obj.id), ...obj }));
+  const now = Date.now();
+  objectives = (msg.objectives || []).map(obj => {
+    const existing = objectives.find(entry => entry.id === obj.id);
+    if (existing?.state === 'collapsing' && now < (existing.collapsingUntil || 0)) {
+      return {
+        ...obj,
+        ...existing,
+        serverHp: obj.hp,
+      };
+    }
+    return { ...existing, ...obj };
+  });
   creepProjectiles = (msg.creepProjectiles || []).map(shot => {
     const existing = creepProjectiles.find(entry => entry.id === shot.id);
     return {
