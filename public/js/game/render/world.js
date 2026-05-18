@@ -238,7 +238,8 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   const x = e.x * sx;
   const y = e.y * sy;
   const base = e.radius * scale;
-  const ringR = base * (0.08 + progress * 1.12);
+  const shockEase = 1 - Math.pow(1 - progress, 4);
+  const ringR = base * (0.08 + shockEase * 1.12);
   const fade = Math.pow(alpha, 0.75);
 
   ctx.save();
@@ -254,7 +255,7 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   ctx.fill();
 
   ctx.strokeStyle = `rgba(202, 178, 151, ${0.68 * fade})`;
-  ctx.lineWidth = Math.max(2, 4.4 * scale * (1 - progress * 0.2));
+  ctx.lineWidth = Math.max(2, 4.4 * scale * (1 - shockEase * 0.2));
   ctx.beginPath();
   ctx.ellipse(x, y + ringR * 0.02, ringR * 1.05, ringR * 0.31, 0, 0, Math.PI * 2);
   ctx.stroke();

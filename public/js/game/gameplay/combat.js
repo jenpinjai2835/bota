@@ -99,8 +99,8 @@ function spawnEffect(x, y, id, color, radius = 40, options = {}) {
   const maxLife = id === 'level-up' ? 72 : 30;
   const effect = { x, y, color: color || '#fff', radius, maxRadius: radius, life: maxLife, maxLife, id, ...options };
   if (id === 'tower-ground-dust') {
-    const puffCount = 14;
-    const ringRadius = radius * 0.1;
+    const puffCount = 30;
+    const ringRadius = radius * 0.14;
     const baseY = Number.isFinite(effect.groundY) ? effect.groundY - 7 : y;
     effect.dustPuffs = Array.from({ length: puffCount }, (_, i) => {
       const angle = (i / puffCount) * Math.PI * 2;
