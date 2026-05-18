@@ -527,6 +527,7 @@ function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3, options = 
   spawnEffect(cx, cy + 12, 'tower-fire', '#FF8A2A', 48 * Math.min(1.8, intensity));
   spawnEffect(cx, cy - 10, 'tower-smoke', '#6F6860', 62 * Math.min(1.7, intensity));
   spawnEffect(cx, cy + 4, 'tower-collapse-aura', teamColor, 68 * Math.min(1.8, intensity));
+  spawnEffect(cx, groundY - 8, 'tower-ground-dust', '#6F6860', 92 * Math.min(1.9, intensity), { life: 34, maxLife: 34 });
 
   const particleCount = Math.round(16 * intensity);
   const fireCount = Math.round(6 * intensity);

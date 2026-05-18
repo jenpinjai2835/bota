@@ -208,6 +208,10 @@ function drawEffect(ctx, e, sx, sy) {
     drawTowerWarpEffect(ctx, e, sx, sy);
     return;
   }
+  if (e.id === 'tower-ground-dust') {
+    drawTowerGroundDustEffect(ctx, e, sx, sy);
+    return;
+  }
   const alpha = e.life / e.maxLife;
   const r = e.radius * (1 - alpha * 0.35) * Math.min(sx, sy);
   const x = e.x * sx;
@@ -225,6 +229,43 @@ function drawEffect(ctx, e, sx, sy) {
   ctx.beginPath();
   ctx.arc(x, y, r * 0.82, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+function drawTowerGroundDustEffect(ctx, e, sx, sy) {
+  const alpha = Math.max(0, Math.min(1, e.life / e.maxLife));
+  const progress = 1 - alpha;
+  const scale = Math.min(sx, sy);
+  const x = e.x * sx;
+  const y = e.y * sy;
+  const base = e.radius * scale;
+  const ringR = base * (0.08 + progress * 1.12);
+  const fade = Math.pow(alpha, 0.75);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+
+  const dust = ctx.createRadialGradient(x, y, ringR * 0.12, x, y, ringR);
+  dust.addColorStop(0, `rgba(176, 157, 136, ${0.55 * fade})`);
+  dust.addColorStop(0.55, `rgba(122, 109, 96, ${0.38 * fade})`);
+  dust.addColorStop(1, 'rgba(70, 62, 55, 0)');
+  ctx.fillStyle = dust;
+  ctx.beginPath();
+  ctx.ellipse(x, y, ringR * 1.12, ringR * 0.36, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = `rgba(202, 178, 151, ${0.68 * fade})`;
+  ctx.lineWidth = Math.max(2, 4.4 * scale * (1 - progress * 0.2));
+  ctx.beginPath();
+  ctx.ellipse(x, y + ringR * 0.02, ringR * 1.05, ringR * 0.31, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = `rgba(114, 101, 90, ${0.45 * fade})`;
+  ctx.lineWidth = Math.max(1.2, 2.4 * scale);
+  ctx.beginPath();
+  ctx.ellipse(x, y + ringR * 0.05, ringR * 1.24, ringR * 0.38, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 function drawTowerWarpEffect(ctx, e, sx, sy) {
