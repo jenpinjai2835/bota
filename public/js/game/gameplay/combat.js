@@ -259,6 +259,12 @@ function startDeathMotion(target, dir = 1, damage = 0, skillId = null) {
 
 function dealDamage(target, damage, skillId, hitDir = 1) {
   if (!isAlive && target === myPlayer) return;
+  if (target === myPlayer && typeof isTestImmortalActive === 'function' && isTestImmortalActive()) {
+    myPlayer.hp = myPlayer.maxHp;
+    myPlayer.mana = myPlayer.maxMana;
+    spawnEffect(target.x + target.width/2, target.y + target.height/2, 'guard_rune', '#F5E182', 34);
+    return;
+  }
   if (myPlayer && target !== myPlayer && !arePlayersHostile(myPlayer, target)) return;
   const sourceSkill = myPlayer?.charData?.skills?.find(skill => skill.id === skillId);
   const damageType = sourceSkill?.damageType || (sourceSkill?.type === 'projectile' || sourceSkill?.type === 'aoe' ? 'magic' : 'physical');
@@ -285,6 +291,13 @@ function dealDamage(target, damage, skillId, hitDir = 1) {
 function handleHitEffect(msg) {
   const target = msg.targetId === myPlayerId ? myPlayer : remotePlayers[msg.targetId];
   if (target) {
+    if (msg.targetId === myPlayerId && typeof isTestImmortalActive === 'function' && isTestImmortalActive()) {
+      target.hp = target.maxHp;
+      target.mana = target.maxMana;
+      isAlive = true;
+      spawnEffect(target.x + target.width/2, target.y + target.height/2, 'guard_rune', '#F5E182', 34);
+      return;
+    }
     const alreadyShown = consumePredictedHit(msg);
     target.hp = msg.hp;
     const hitDir = msg.hitDir || (target.facing ? -target.facing : 1);

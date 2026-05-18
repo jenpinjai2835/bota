@@ -13,8 +13,10 @@ function gameLoop(ts = 0) {
   canvas.height = window.innerHeight;
 
   rememberMyPlayerBodyPosition();
+  if (typeof applyTestModeRuntime === 'function') applyTestModeRuntime();
   handleInput();
   if (myPlayer) updatePlayer(myPlayer, dt);
+  if (typeof applyTestModeRuntime === 'function') applyTestModeRuntime();
   Object.values(remotePlayers).forEach(p => updatePlayer(p, dt));
   resolvePlayerBodyCollisions();
   resolvePlayerWorldBodyCollisions();

@@ -128,6 +128,8 @@ function startGameClient(state) {
   buildHUD(state);
   buildSkillsBar();
   focusPlayer(myPlayer?.id || null);
+  if (typeof syncTestModeToServer === 'function') syncTestModeToServer();
+  if (typeof applyTestModeRuntime === 'function') applyTestModeRuntime();
   document.getElementById('hud').classList.add('visible');
   document.getElementById('skills-bar').classList.add('visible');
   document.getElementById('controls-hint').classList.add('visible');

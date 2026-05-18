@@ -44,6 +44,9 @@ let lobbyAssetPreloadKey = '';
 let reconnecting = false;
 let reconnectAttempt = 0;
 let reconnectTimer = null;
+let testModeState = {
+  immortal: false,
+};
 const mutedChatPlayerIds = new Set();
 const recentCreepDeathBursts = new Map();
 const assetLoadCache = new Map();

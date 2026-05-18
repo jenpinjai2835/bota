@@ -25,7 +25,7 @@ const CHARACTER_IDENTITIES = {
 };
 
 const LEVEL_CONFIG = {
-  maxLevel: 25,
+  maxLevel: 30,
   baseXpToNext: 100,
   xpGrowth: 55,
   skillLevelEvery: 3,

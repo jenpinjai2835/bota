@@ -380,18 +380,20 @@ function trySkill(skillIndex) {
   const skill = getScaledSkill(myPlayer, ch.skills[skillIndex]);
   if (!skill) return;
   const now = Date.now();
-  if (skillCooldowns[skill.id] > now) return;
+  const freeCast = typeof isTestImmortalActive === 'function' && isTestImmortalActive();
+  if (!freeCast && skillCooldowns[skill.id] > now) return;
   const manaCost = getSkillManaCost(skill);
   const cooldown = skill.basicAttack ? getBasicAttackCooldown(myPlayer, skill) : skill.cooldown;
-  if (skill.basicAttack && basicAttackReadyAt > now) return;
-  if ((myPlayer.mana || 0) < manaCost) {
+  if (!freeCast && skill.basicAttack && basicAttackReadyAt > now) return;
+  if (!freeCast && (myPlayer.mana || 0) < manaCost) {
     spawnEffect(myPlayer.x + myPlayer.width/2, myPlayer.y + myPlayer.height/2, 'no-mana', '#4AA3FF', 34);
     return;
   }
 
-  skillCooldowns[skill.id] = now + cooldown;
-  if (skill.basicAttack) basicAttackReadyAt = now + cooldown;
-  myPlayer.mana = Math.max(0, (myPlayer.mana || 0) - manaCost);
+  skillCooldowns[skill.id] = freeCast ? 0 : now + cooldown;
+  if (skill.basicAttack) basicAttackReadyAt = freeCast ? 0 : now + cooldown;
+  if (!freeCast) myPlayer.mana = Math.max(0, (myPlayer.mana || 0) - manaCost);
+  else myPlayer.mana = myPlayer.maxMana;
   setPlayerAction(myPlayer, skill.id);
 
   // Self heal

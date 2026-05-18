@@ -23,7 +23,88 @@ function buildHUD() {
     <div class="mana-bar"><div class="mana-fill" id="focus-mana" style="width:100%"></div></div>
   `;
   container.appendChild(div);
+  buildTestModePanel();
   updateCombatStatsPanel();
+}
+
+function isTestImmortalActive() {
+  return !!testModeState?.immortal;
+}
+
+function buildTestModePanel() {
+  const hud = document.getElementById('hud');
+  if (!hud) return;
+  let panel = document.getElementById('test-mode-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'test-mode-panel';
+    hud.appendChild(panel);
+  }
+  panel.innerHTML = `
+    <div class="test-mode-title">TEST MODE</div>
+    <div class="test-mode-row">
+      <button type="button" class="test-mode-btn" onclick="testLevelUp()">LEVEL UP</button>
+      <button type="button" class="test-mode-btn toggle" id="test-immortal-btn" onclick="toggleTestImmortal()">IMMORTAL</button>
+    </div>
+    <div class="test-mode-status" id="test-mode-status"></div>
+  `;
+  updateTestModePanel();
+}
+
+function updateTestModePanel() {
+  const panel = document.getElementById('test-mode-panel');
+  if (!panel) return;
+  const level = myPlayer?.progression?.level || 1;
+  const immortal = isTestImmortalActive();
+  const immortalBtn = document.getElementById('test-immortal-btn');
+  const status = document.getElementById('test-mode-status');
+  if (immortalBtn) immortalBtn.classList.toggle('active', immortal);
+  if (status) {
+    status.textContent = `LV ${level}/${LEVEL_CONFIG.maxLevel} | ${immortal ? 'IMMORTAL ON' : 'IMMORTAL OFF'}`;
+  }
+}
+
+function testLevelUp() {
+  if (!myPlayer) return;
+  if (!grantPlayerTestLevel(myPlayer, 1)) return;
+  updateHUD();
+  updateSkillsBar();
+  updateTestModePanel();
+  sendInput();
+}
+
+function toggleTestImmortal() {
+  setTestImmortal(!isTestImmortalActive());
+}
+
+function setTestImmortal(enabled) {
+  testModeState.immortal = !!enabled;
+  applyTestModeRuntime();
+  updateTestModePanel();
+  syncTestModeToServer();
+}
+
+function syncTestModeToServer() {
+  if (!myPlayer || !ws || ws.readyState !== WebSocket.OPEN) return;
+  send({ type: 'test_mode', immortal: isTestImmortalActive() });
+}
+
+function applyTestModeRuntime() {
+  if (!myPlayer || !isTestImmortalActive()) return;
+  ensurePlayerSystems(myPlayer);
+  myPlayer.hp = myPlayer.maxHp;
+  myPlayer.mana = myPlayer.maxMana;
+  isAlive = true;
+  myPlayer.state = myPlayer.state === 'dead' ? 'idle' : myPlayer.state;
+  myPlayer.deathUntil = 0;
+  myPlayer.deathStartedAt = 0;
+  myPlayer.deathFadeStartedAt = 0;
+  myPlayer.bodyShattered = false;
+  Object.keys(skillCooldowns).forEach(skillId => {
+    skillCooldowns[skillId] = 0;
+  });
+  basicAttackReadyAt = 0;
+  document.getElementById('death-overlay')?.classList.remove('visible');
 }
 
 function buildHpTicks(maxHp) {
@@ -99,6 +180,7 @@ function updateHUD() {
 
   updateMiniMap();
   updateCombatStatsPanel();
+  updateTestModePanel();
 }
 
 function getScoreRecord(playerId) {
@@ -409,13 +491,16 @@ function buildSkillsBar() {
 function updateSkillsBar() {
   if (!myPlayer) return;
   ensurePlayerSystems(myPlayer);
+  applyTestModeRuntime();
   const xp = Math.max(0, Math.floor(myPlayer.progression?.xp || 0));
-  const xpToNext = Math.max(1, Math.floor(myPlayer.progression?.xpToNext || getXpToNextLevel(myPlayer.progression?.level || 1)));
-  const xpPct = Math.max(0, Math.min(100, (xp / xpToNext) * 100));
+  const level = myPlayer.progression?.level || 1;
+  const xpToNext = Math.max(1, Math.floor(myPlayer.progression?.xpToNext || getXpToNextLevel(level)));
+  const xpPct = level >= LEVEL_CONFIG.maxLevel ? 100 : Math.max(0, Math.min(100, (xp / xpToNext) * 100));
   const expFillEl = document.getElementById('skill-exp-fill');
   if (expFillEl) expFillEl.style.width = `${xpPct}%`;
 
   const now = Date.now();
+  const freeCast = isTestImmortalActive();
   myPlayer.charData.skills.forEach(sk => {
     const slot = document.getElementById(`skill-${sk.id}`);
     const cdEl = document.getElementById(`scd-${sk.id}`);
@@ -423,8 +508,8 @@ function updateSkillsBar() {
     const skillLevelEl = document.getElementById(`skill-level-${sk.id}`);
     if (!slot || !cdEl) return;
     const scaledSkill = getScaledSkill(myPlayer, sk);
-    const remaining = skillCooldowns[sk.id] - now;
-    const hasMana = (myPlayer.mana || 0) >= getSkillManaCost(scaledSkill);
+    const remaining = freeCast ? 0 : skillCooldowns[sk.id] - now;
+    const hasMana = freeCast || (myPlayer.mana || 0) >= getSkillManaCost(scaledSkill);
     if (manaCostEl) manaCostEl.textContent = getSkillManaCost(scaledSkill);
     if (skillLevelEl) skillLevelEl.textContent = scaledSkill.skillLevel;
     slot.classList.toggle('no-mana', !hasMana && remaining <= 0);

@@ -269,6 +269,14 @@ function handleMessage(msg) {
     case 'item_spawned':
       handleMatchItemSpawned(msg.item);
       break;
+    case 'test_mode':
+      testModeState.immortal = !!msg.immortal;
+      if (myPlayer && msg.immortal) {
+        myPlayer.hp = myPlayer.maxHp;
+        myPlayer.mana = myPlayer.maxMana;
+      }
+      updateTestModePanel();
+      break;
     case 'chat':
       if (msg.fromId && mutedChatPlayerIds.has(msg.fromId)) break;
       addChat(msg.from, msg.msg);

@@ -522,6 +522,62 @@
     background: rgba(84,16,20,0.82);
   }
 
+  #test-mode-panel {
+    position: fixed;
+    top: 58px;
+    right: 18px;
+    width: 238px;
+    pointer-events: all;
+    z-index: 59;
+    padding: 10px;
+    border: 1px solid rgba(245,225,130,0.28);
+    border-radius: 7px;
+    background:
+      linear-gradient(145deg, rgba(245,225,130,0.08), transparent 48%),
+      rgba(8,5,7,0.8);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+    color: rgba(232,213,176,0.86);
+  }
+  .test-mode-title {
+    color: var(--gold-light);
+    font: 900 11px/1 'Cinzel', serif;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .test-mode-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-top: 8px;
+  }
+  .test-mode-btn {
+    height: 30px;
+    border: 1px solid rgba(245,225,130,0.32);
+    border-radius: 6px;
+    background: rgba(212,175,55,0.08);
+    color: var(--gold-light);
+    cursor: pointer;
+    font: 900 10px/1 'Cinzel', serif;
+    letter-spacing: 0.06em;
+  }
+  .test-mode-btn:hover {
+    border-color: rgba(245,225,130,0.62);
+    background: rgba(212,175,55,0.16);
+  }
+  .test-mode-btn.active {
+    border-color: rgba(76,232,128,0.72);
+    color: #B8FFD0;
+    background: rgba(31,158,85,0.2);
+    box-shadow: 0 0 16px rgba(76,232,128,0.14);
+  }
+  .test-mode-status {
+    margin-top: 8px;
+    color: rgba(232,213,176,0.58);
+    font: 700 9px/1.2 'Cinzel', serif;
+    letter-spacing: 0.06em;
+  }
+
   .hud-bottom-cluster {
     position: fixed;
     left: 18px;
@@ -823,6 +879,12 @@
     #mini-map {
       width: 118px;
       height: 70px;
+    }
+    #test-mode-panel {
+      top: 54px;
+      right: 12px;
+      width: 210px;
+      padding: 8px;
     }
     .combat-stats-panel,
     .combat-stats-panel.collapsed {

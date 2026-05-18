@@ -93,6 +93,7 @@ function createPlayer(playerId, { name, character, teamId, sessionToken, isAI = 
     deaths: 0,
     recentAttackers: {},
     lastRespawnIndex: index % RESPAWN_POINTS.length,
+    testImmortal: false,
   };
 }
 

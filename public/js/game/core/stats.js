@@ -167,6 +167,12 @@ function grantPlayerXp(player, amount) {
   if (!player || amount <= 0) return;
   ensurePlayerSystems(player);
   const progress = player.progression;
+  if (progress.level >= LEVEL_CONFIG.maxLevel) {
+    progress.level = LEVEL_CONFIG.maxLevel;
+    progress.xp = 0;
+    progress.xpToNext = getXpToNextLevel(LEVEL_CONFIG.maxLevel);
+    return;
+  }
   progress.xp += amount;
   let leveled = false;
   while (progress.level < LEVEL_CONFIG.maxLevel && progress.xp >= progress.xpToNext) {
@@ -175,6 +181,11 @@ function grantPlayerXp(player, amount) {
     progress.skillPoints++;
     progress.xpToNext = getXpToNextLevel(progress.level);
     leveled = true;
+  }
+  if (progress.level >= LEVEL_CONFIG.maxLevel) {
+    progress.level = LEVEL_CONFIG.maxLevel;
+    progress.xp = 0;
+    progress.xpToNext = getXpToNextLevel(LEVEL_CONFIG.maxLevel);
   }
   if (leveled) {
     syncPlayerStats(player);
@@ -187,6 +198,32 @@ function grantPlayerXp(player, amount) {
       { followPlayerId: player.id, followYOffsetRatio: 0.35 }
     );
   }
+}
+
+function grantPlayerTestLevel(player, amount = 1) {
+  if (!player || amount <= 0) return false;
+  ensurePlayerSystems(player);
+  const progress = player.progression;
+  const oldLevel = progress.level || 1;
+  const nextLevel = Math.max(1, Math.min(LEVEL_CONFIG.maxLevel, oldLevel + amount));
+  if (nextLevel === oldLevel) return false;
+
+  progress.level = nextLevel;
+  progress.xp = 0;
+  progress.xpToNext = getXpToNextLevel(nextLevel);
+  progress.skillPoints = (progress.skillPoints || 0) + (nextLevel - oldLevel);
+  syncPlayerStats(player);
+  player.hp = Math.min(player.maxHp, (player.hp || 0) + Math.max(0, player.maxHp * 0.25));
+  player.mana = player.maxMana;
+  spawnEffect(
+    player.x + player.width / 2,
+    player.y + player.height * 0.35,
+    'level-up',
+    '#C783FF',
+    46,
+    { followPlayerId: player.id, followYOffsetRatio: 0.35 }
+  );
+  return true;
 }
 
 function applyMatchItemToPlayer(player, item) {

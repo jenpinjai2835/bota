@@ -445,6 +445,10 @@ function setupWebSocket(server, rooms) {
 
   function damagePlayer(room, roomId, target, amount, attackerId = null, skillId = 'hit', hitDir = 1) {
     if (!room || !target || target.hp <= 0) return false;
+    if (target.testImmortal) {
+      target.hp = target.maxHp;
+      return false;
+    }
     const damage = Math.max(1, Math.min(500, Number(amount) || 0));
     const attacker = attackerId ? room.playerData?.[attackerId] || getUnitById(room, attackerId) : null;
     target.hp = Math.max(0, target.hp - damage);
@@ -1284,7 +1288,8 @@ function setupWebSocket(server, rooms) {
 
         const { x, y, hp, vx, vy, onGround, facing, state: pstate, action } = msg;
         Object.assign(player, { x, y, vx, vy, onGround, facing, state: pstate });
-        if (hp !== undefined) player.hp = hp;
+        if (player.testImmortal) player.hp = player.maxHp;
+        else if (hp !== undefined) player.hp = hp;
         if (player.hp <= 0 && player.teamId && room.creepAggro?.[player.teamId]?.targetId === player.id) {
           delete room.creepAggro[player.teamId];
         }
@@ -1300,9 +1305,28 @@ function setupWebSocket(server, rooms) {
           onGround,
           facing,
           state: pstate,
-          hp,
+          hp: player.hp,
           action,
         }, playerId);
+        break;
+      }
+
+      case 'test_mode': {
+        const roomId = ws.roomId;
+        const room = rooms.get(roomId);
+        if (!room || room.status !== 'playing') break;
+        const player = room.playerData[playerId];
+        if (!player) break;
+        player.testImmortal = !!msg.immortal;
+        if (player.testImmortal) {
+          player.hp = player.maxHp;
+          player.state = player.state === 'dead' ? 'idle' : player.state;
+        }
+        sendTo(playerId, {
+          type: 'test_mode',
+          immortal: player.testImmortal,
+          hp: player.hp,
+        });
         break;
       }
 
