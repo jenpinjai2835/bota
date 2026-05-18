@@ -6,6 +6,19 @@ let lastFrame = 0;
 const TOWER_BREAK_CINEMATIC_MS = 950;
 const GAME_END_CINEMATIC_MS = 5000;
 
+function stopGameLoop() {
+  if (gameLoopFrameId !== null) cancelAnimationFrame(gameLoopFrameId);
+  gameLoopFrameId = null;
+  gameLoopToken++;
+  lastFrame = 0;
+}
+
+function startGameLoop() {
+  stopGameLoop();
+  const token = gameLoopToken;
+  gameLoopFrameId = requestAnimationFrame(ts => gameLoop(ts, token));
+}
+
 function isCinematicPauseActive() {
   return !!cinematicPause?.active;
 }
@@ -50,7 +63,8 @@ function finishCinematicPause() {
   }
 }
 
-function gameLoop(ts = 0) {
+function gameLoop(ts = 0, token = gameLoopToken) {
+  if (token !== gameLoopToken) return;
   if (!gameRunning && !isCinematicPauseActive()) return;
   const dt = ts - lastFrame;
   lastFrame = ts;
@@ -97,5 +111,9 @@ function gameLoop(ts = 0) {
     finishCinematicPause();
   }
 
-  if (gameRunning || isCinematicPauseActive()) requestAnimationFrame(gameLoop);
+  if (gameRunning || isCinematicPauseActive()) {
+    gameLoopFrameId = requestAnimationFrame(nextTs => gameLoop(nextTs, token));
+  } else {
+    gameLoopFrameId = null;
+  }
 }

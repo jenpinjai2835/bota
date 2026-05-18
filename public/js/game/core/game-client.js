@@ -4,6 +4,7 @@
 // ============================================================
 function leaveGame() {
   if (typeof stopReconnectFlow === 'function') stopReconnectFlow();
+  if (typeof stopGameLoop === 'function') stopGameLoop();
   gameRunning = false;
   isAlive = true;
   isHost = false;
@@ -179,5 +180,5 @@ function startGameClient(state) {
   });
   updateCombatStatsPanel();
 
-  gameLoop();
+  startGameLoop();
 }
