@@ -737,9 +737,33 @@ function setupWebSocket(server, rooms) {
     ];
   }
 
+  function getBlockOverlap(a, b) {
+    const af = unitFoot(a);
+    const bf = unitFoot(b);
+    return {
+      dx: af.x - bf.x,
+      dy: af.y - bf.y,
+      overlapX: unitBlockRadiusX(a) + unitBlockRadiusX(b) - Math.abs(af.x - bf.x),
+      overlapY: unitBlockRadiusY(a) + unitBlockRadiusY(b) - Math.abs(af.y - bf.y),
+    };
+  }
+
+  function isAllowedContactSlide(creep, candidate, blocker, options = {}) {
+    if (!options.slideBlockerId || blocker.id !== options.slideBlockerId) return false;
+    const current = getBlockOverlap(creep, blocker);
+    const next = getBlockOverlap(candidate, blocker);
+    if (current.overlapX <= 0 || current.overlapY <= 0 || next.overlapX <= 0 || next.overlapY <= 0) return false;
+    const movedY = unitFoot(candidate).y - unitFoot(creep).y;
+    const movingAwayByDepth = Math.abs(movedY) > 0.05 && Math.sign(movedY) === Math.sign(current.dy || movedY);
+    const depthImproves = next.overlapY < current.overlapY - 0.05;
+    const xDoesNotDigIn = next.overlapX <= current.overlapX + 0.35;
+    return movingAwayByDepth && depthImproves && xDoesNotDigIn;
+  }
+
   function getCreepBlockingUnit(room, creep, nextX, nextY, target = null, options = {}) {
     const candidate = { ...creep, x: nextX, y: nextY };
     return getCreepMoveBlockers(room, creep, target, options).find(unit => {
+      if (isAllowedContactSlide(creep, candidate, unit, options)) return false;
       const cf = unitFoot(candidate);
       const uf = unitFoot(unit);
       const dx = Math.abs(cf.x - uf.x);
@@ -815,7 +839,7 @@ function setupWebSocket(server, rooms) {
 
   function trySideContactSlide(room, creep, blocker, goalX, goalY, target, stepX, stepY, mode = 'side-contact') {
     if (!blocker) return false;
-    const softCrowd = { ignoreAlliedCreeps: true };
+    const softCrowd = { ignoreAlliedCreeps: true, slideBlockerId: blocker.id };
     const speed = creep.speed || 1.8;
     const moveLen = Math.hypot(stepX, stepY) || 1;
     const forwardX = stepX / moveLen;
@@ -1299,17 +1323,18 @@ function setupWebSocket(server, rooms) {
     const nx = creep.x + vx;
     const ny = clampCreepY(creep.y + vy, creep.h);
     const path = [{ x: goalX, y: goalY }];
-    if (applyCreepStep(room, creep, nx, ny, target, 'group-steer', goalX, goalY, path, flowDir.x, flowDir.y, softCrowd)) {
+    const stepOptions = forwardBlocker ? { ...softCrowd, slideBlockerId: forwardBlocker.id } : softCrowd;
+    if (applyCreepStep(room, creep, nx, ny, target, 'group-steer', goalX, goalY, path, flowDir.x, flowDir.y, stepOptions)) {
       return true;
     }
 
     const slideY = clampCreepY(creep.y + vy, creep.h);
-    if (applyCreepStep(room, creep, creep.x, slideY, target, 'group-slide-y', goalX, goalY, path, flowDir.x, flowDir.y, softCrowd)) {
+    if (applyCreepStep(room, creep, creep.x, slideY, target, 'group-slide-y', goalX, goalY, path, flowDir.x, flowDir.y, stepOptions)) {
       creep.stuckTicks = (creep.stuckTicks || 0) + 1;
       return true;
     }
     const slideX = creep.x + vx;
-    if (applyCreepStep(room, creep, slideX, creep.y, target, 'group-slide-x', goalX, goalY, path, flowDir.x, flowDir.y, softCrowd)) {
+    if (applyCreepStep(room, creep, slideX, creep.y, target, 'group-slide-x', goalX, goalY, path, flowDir.x, flowDir.y, stepOptions)) {
       creep.stuckTicks = (creep.stuckTicks || 0) + 1;
       return true;
     }
