@@ -349,7 +349,7 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
   const groundY = foot.y;
   const cx = foot.x;
   const cy = groundY - (obj.h || 104) * 0.55;
-  const dir = obj.teamId === 'sun' ? -1 : 1;
+  const dir = Math.sign(options.hitDir || obj.lastHitDir || 0) || (obj.teamId === 'sun' ? -1 : 1);
   const isAncient = obj.type === 'ancient' || options.ancient;
   const partCount = options.partCount || (isAncient ? 26 : 22);
   const force = (isAncient ? 3.1 : 3.05) + Math.min(isAncient ? 5.4 : 5.6, Math.max(0, damage) * (isAncient ? 0.018 : 0.018));
@@ -558,6 +558,7 @@ function handleObjectiveDestroyed(msg) {
     const collapsingObjective = {
       ...objective,
       hp: collapsingHp,
+      lastHitDir: msg.hitDir || objective.lastHitDir,
       state: 'collapsing',
       collapseHideHealth: true,
       collapsingUntil: Date.now() + 300,
@@ -565,6 +566,7 @@ function handleObjectiveDestroyed(msg) {
     objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...collapsingObjective } : entry);
     spawnObjectiveDeathBurst(collapsingObjective, msg.damage || 0, {
       delayPartsMs: 300,
+      hitDir: msg.hitDir || objective.lastHitDir || collapsingObjective.lastHitDir,
       onBurst: () => {
         objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0, state: 'dead' } : entry);
       },
@@ -574,7 +576,7 @@ function handleObjectiveDestroyed(msg) {
     const foot = getUnitFoot(objective);
     const cx = foot.x;
     const cy = foot.y - (objective.h || 116) * 0.55;
-    spawnObjectiveDeathBurst(objective, msg.damage || 0, { ancient: true, partCount: 30 });
+    spawnObjectiveDeathBurst(objective, msg.damage || 0, { ancient: true, partCount: 30, hitDir: msg.hitDir || objective.lastHitDir });
     if (typeof beginCinematicPause === 'function') {
       beginCinematicPause('ancient-break', null, { focusX: cx, focusY: foot.y });
     }
