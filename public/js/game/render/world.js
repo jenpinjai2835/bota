@@ -204,6 +204,10 @@ function drawEffect(ctx, e, sx, sy) {
     drawLevelUpEffect(ctx, e, sx, sy);
     return;
   }
+  if (e.id === 'tower-warp') {
+    drawTowerWarpEffect(ctx, e, sx, sy);
+    return;
+  }
   const alpha = e.life / e.maxLife;
   const r = e.radius * (1 - alpha * 0.35) * Math.min(sx, sy);
   const x = e.x * sx;
@@ -221,6 +225,47 @@ function drawEffect(ctx, e, sx, sy) {
   ctx.beginPath();
   ctx.arc(x, y, r * 0.82, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+function drawTowerWarpEffect(ctx, e, sx, sy) {
+  const alpha = Math.max(0, Math.min(1, e.life / e.maxLife));
+  const progress = 1 - alpha;
+  const scale = Math.min(sx, sy);
+  const x = e.x * sx;
+  const y = e.y * sy;
+  const baseRadius = e.radius * scale;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const core = ctx.createRadialGradient(x, y, 0, x, y, baseRadius * (0.55 + progress * 0.45));
+  core.addColorStop(0, `rgba(255, 248, 202, ${0.78 * alpha})`);
+  core.addColorStop(0.34, withAlpha(e.color, 0.52 * alpha));
+  core.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(x, y, baseRadius * (0.62 + progress * 0.36), 0, Math.PI * 2);
+  ctx.fill();
+
+  for (let i = 0; i < 3; i++) {
+    const ringRadius = baseRadius * (0.28 + progress * 0.72 + i * 0.18);
+    ctx.strokeStyle = i === 1 ? `rgba(255, 154, 55, ${0.5 * alpha})` : withAlpha(e.color, (0.72 - i * 0.14) * alpha);
+    ctx.lineWidth = Math.max(1.2, (4 - i) * scale);
+    ctx.beginPath();
+    ctx.ellipse(x, y + baseRadius * 0.18, ringRadius, ringRadius * (0.25 + i * 0.04), progress * Math.PI * 1.6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 + progress * Math.PI * 2.4;
+    const inner = baseRadius * (0.14 + progress * 0.16);
+    const outer = baseRadius * (0.48 + progress * 0.64);
+    ctx.strokeStyle = i % 3 === 0 ? `rgba(255, 120, 35, ${0.58 * alpha})` : withAlpha(e.color, 0.5 * alpha);
+    ctx.lineWidth = Math.max(0.9, 1.35 * scale);
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(angle) * inner, y + Math.sin(angle) * inner * 0.6);
+    ctx.lineTo(x + Math.cos(angle) * outer, y + Math.sin(angle) * outer * 0.6);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawLevelUpEffect(ctx, e, sx, sy) {

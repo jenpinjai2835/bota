@@ -340,8 +340,21 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
   const cy = groundY - (obj.h || 104) * 0.55;
   const dir = obj.teamId === 'sun' ? -1 : 1;
   const isAncient = obj.type === 'ancient' || options.ancient;
-  const partCount = options.partCount || (isAncient ? 26 : 40);
+  const partCount = options.partCount || (isAncient ? 26 : 22);
   const force = (isAncient ? 3.1 : 3.05) + Math.min(isAncient ? 5.4 : 5.6, Math.max(0, damage) * (isAncient ? 0.018 : 0.018));
+  const teamColor = obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF';
+  if (!isAncient) {
+    spawnEffect(cx, cy, 'tower-warp', teamColor, 82, { life: 18, maxLife: 18 });
+  }
+  const burst = () => spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, partCount, force, teamColor });
+  if (options.delayPartsMs > 0) {
+    setTimeout(burst, options.delayPartsMs);
+  } else {
+    burst();
+  }
+}
+
+function spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, partCount, force, teamColor }) {
   if (!isAncient) spawnTowerRuinBase(img, cx, groundY, obj.teamId);
   for (let i = 0; i < partCount; i++) {
     const col = i % 6;
@@ -388,14 +401,14 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
       trailFireLife: isAncient ? 34 : 76,
       trailFireLifeRange: isAncient ? 28 : 52,
       trailFireMaxLife: isAncient ? 84 : 142,
-      tint: isAncient ? 'rgba(205, 199, 190, 0.24)' : 'rgba(210, 204, 194, 0.3)',
+      tint: obj.teamId === 'sun' ? 'rgba(91, 179, 210, 0.13)' : 'rgba(165, 103, 224, 0.14)',
       cracks: createDebrisCracks(i, isAncient ? 2 : 3),
       polygon: createDebrisPolygon(i, 5 + (i % 4)),
       life: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
       maxLife: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
     });
   }
-  spawnEffect(cx, cy, 'tower-break', obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF', isAncient ? 112 : 66);
+  spawnEffect(cx, cy, 'tower-break', teamColor, isAncient ? 112 : 66);
   spawnTowerCollapsePlumes(cx, cy, groundY, obj.teamId, force, { intensity: isAncient ? 2.4 : 1.5 });
 }
 
@@ -527,7 +540,7 @@ function handleObjectiveDestroyed(msg) {
   const objective = { ...existing, ...msg.objective };
   objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0 } : entry);
   if (objective.type === 'tower') {
-    spawnObjectiveDeathBurst(objective, msg.damage || 0);
+    spawnObjectiveDeathBurst(objective, msg.damage || 0, { delayPartsMs: 300 });
   } else {
     const foot = getUnitFoot(objective);
     const cx = foot.x;
@@ -557,6 +570,7 @@ function drawObjective(ctx, obj, sx, sy) {
     ctx.shadowBlur = (13 + pulse * 8) * scale;
     ctx.drawImage(towerTexture, drawX, drawY, drawW, drawH);
     drawTowerLivingEffects(ctx, towerTexture, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t);
+    drawTowerDamageFractures(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy);
     ctx.shadowBlur = 0;
     drawUnitHealthBar(ctx, obj, cx, footY - drawH + 2 * sy, Math.max(58, drawW * 0.42), sx, sy);
     ctx.restore();
@@ -598,6 +612,51 @@ function drawTowerLivingEffects(ctx, img, obj, drawX, drawY, drawW, drawH, teamC
   ctx.fill();
   ctx.restore();
 
+}
+
+function drawTowerDamageFractures(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy) {
+  const hpPct = Math.max(0, Math.min(1, (obj.hp || 0) / Math.max(1, obj.maxHp || 1)));
+  const damagePct = 1 - hpPct;
+  if (damagePct < 0.08) return;
+  const scale = Math.min(sx, sy);
+  const fragmentCount = Math.min(14, Math.max(2, Math.ceil(damagePct * 15)));
+  const lineAlpha = 0.18 + damagePct * 0.42;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(drawX, drawY, drawW, drawH);
+  ctx.clip();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  for (let i = 0; i < fragmentCount; i++) {
+    const col = i % 5;
+    const row = Math.floor(i / 5);
+    const centerX = drawX + drawW * (0.2 + col * 0.15 + (debrisRand(i, 51) - 0.5) * 0.035);
+    const centerY = drawY + drawH * (0.18 + row * 0.22 + (debrisRand(i, 59) - 0.5) * 0.055);
+    const pieceW = drawW * (0.13 + debrisRand(i, 63) * 0.045);
+    const pieceH = drawH * (0.1 + debrisRand(i, 67) * 0.035);
+    const polygon = createDebrisPolygon(i + 100, 5 + (i % 4));
+    ctx.strokeStyle = `rgba(15, 12, 10, ${lineAlpha})`;
+    ctx.lineWidth = Math.max(0.8, 1.15 * scale);
+    ctx.beginPath();
+    polygon.forEach((point, index) => {
+      const x = centerX + point.x * pieceW;
+      const y = centerY + point.y * pieceH;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.strokeStyle = withAlpha(teamColor, 0.08 + damagePct * 0.16);
+    ctx.lineWidth = Math.max(0.6, 0.8 * scale);
+    createDebrisCracks(i + 200, damagePct > 0.5 ? 2 : 1).forEach(crack => {
+      ctx.beginPath();
+      ctx.moveTo(centerX + crack.x1 * pieceW, centerY + crack.y1 * pieceH);
+      ctx.lineTo(centerX + crack.x2 * pieceW, centerY + crack.y2 * pieceH);
+      ctx.stroke();
+    });
+  }
+  ctx.restore();
 }
 
 function drawCreep(ctx, creep, sx, sy) {
