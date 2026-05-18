@@ -1219,7 +1219,7 @@
       rgba(8,5,7,0.94);
     color: #F5E182;
     display: none;
-    font-family: 'Cinzel Decorative', cursive;
+    font-family: 'Cinzel', serif;
     font-size: clamp(16px, 2.2vw, 28px);
     font-weight: 900;
     letter-spacing: 0.08em;
