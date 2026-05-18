@@ -54,6 +54,8 @@ let cinematicPause = {
   frame: 0,
   pendingWorldState: null,
   pendingWinner: null,
+  focusX: null,
+  focusY: null,
 };
 const mutedChatPlayerIds = new Set();
 const recentCreepDeathBursts = new Map();

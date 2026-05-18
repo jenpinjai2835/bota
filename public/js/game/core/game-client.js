@@ -29,6 +29,8 @@ function leaveGame() {
     frame: 0,
     pendingWorldState: null,
     pendingWinner: null,
+    focusX: null,
+    focusY: null,
   };
   nextMatchItemSpawnAt = 0;
   scores = {};
@@ -94,6 +96,8 @@ function startGameClient(state) {
     frame: 0,
     pendingWorldState: null,
     pendingWinner: null,
+    focusX: null,
+    focusY: null,
   };
   hideGameSummary();
 

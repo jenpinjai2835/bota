@@ -9,6 +9,12 @@ function render(canvas) {
   ctx.clearRect(0, 0, W, H);
   drawBackground(ctx, stage, W, H, W / getViewportWorldWidth(), scaleY);
   ctx.save();
+  const zoom = CAM.zoom || 1;
+  if (zoom !== 1) {
+    ctx.translate(W / 2, H * 0.5);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-W / 2, -H * 0.5);
+  }
   ctx.translate(-CAM.x * scaleX, -CAM.y * scaleY);
   drawBattlefieldFloor(ctx, stage, scaleX, scaleY);
   stage.pillars.forEach(pl => drawPillar(ctx, pl, stage, scaleX, scaleY));

@@ -2,8 +2,8 @@
 // ============================================================
 //  COMBAT
 // ============================================================
-const MAX_BLOOD_PARTICLES = 150;
-const MAX_TOWER_TRAIL_PARTICLES = 42;
+const MAX_BLOOD_PARTICLES = 220;
+const MAX_TOWER_TRAIL_PARTICLES = 110;
 const TOWER_TRAIL_INTERVAL_TICKS = 5;
 
 function doMeleeHit(attacker, skill) {

@@ -178,7 +178,7 @@ function handleMessage(msg) {
         msg.scores.forEach(s => { scores[s.id] = s; });
       }
       showKillBanner({ name: msg.winner === myPlayer?.teamId ? 'YOUR TEAM' : 'ENEMY TEAM' }, { name: 'ANCIENT' });
-      if (typeof beginCinematicPause === 'function') beginCinematicPause('game-end', msg.winner);
+      if (typeof beginCinematicPause === 'function') beginCinematicPause('game-end', msg.winner, {});
       else showGameSummary(msg.winner);
       break;
     case 'player_state':
