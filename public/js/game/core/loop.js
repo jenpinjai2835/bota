@@ -69,7 +69,7 @@ function gameLoop(ts = 0) {
     updateTowerShots();
   } else {
     cinematicPause.frame++;
-    if (cinematicPause.frame % 2 === 0) updateProjectiles();
+    if (cinematicPause.frame % 3 === 0) updateProjectiles();
   }
   updateCamera(canvas);
   render(canvas);

@@ -2,9 +2,9 @@
 // ============================================================
 //  COMBAT
 // ============================================================
-const MAX_BLOOD_PARTICLES = 220;
-const MAX_TOWER_TRAIL_PARTICLES = 90;
-const TOWER_TRAIL_INTERVAL_TICKS = 3;
+const MAX_BLOOD_PARTICLES = 150;
+const MAX_TOWER_TRAIL_PARTICLES = 42;
+const TOWER_TRAIL_INTERVAL_TICKS = 5;
 
 function doMeleeHit(attacker, skill) {
   const all = attacker === myPlayer ? Object.values(remotePlayers) : (myPlayer ? [myPlayer] : []);
@@ -179,7 +179,7 @@ function spawnDeathPartTrail(part) {
   if (speed < 0.45) return;
   const lifePct = part.life / Math.max(1, part.maxLife || part.life);
   part.trailTick = (part.trailTick || 0) + 1;
-  const interval = lifePct > 0.72 ? 2 : TOWER_TRAIL_INTERVAL_TICKS;
+  const interval = lifePct > 0.72 ? 4 : TOWER_TRAIL_INTERVAL_TICKS;
   if (part.trailTick % interval !== 0) return;
   if (countTowerTrailParticles() >= MAX_TOWER_TRAIL_PARTICLES) return;
   const tailX = part.x - part.vx * (0.8 + Math.random() * 0.9);
@@ -190,12 +190,12 @@ function spawnDeathPartTrail(part) {
     y: tailY + (Math.random() - 0.5) * 8,
     vx: -(part.vx || 0) * (0.08 + Math.random() * 0.04) + (Math.random() - 0.5) * 0.45,
     vy: -0.75 - Math.random() * 1.05,
-    size: 9 + Math.random() * 13,
+    size: 8 + Math.random() * 10,
     color: Math.random() < 0.24 ? '#7C736B' : '#4A4542',
-    life: 44 + Math.floor(Math.random() * 30),
-    maxLife: 78,
+    life: 32 + Math.floor(Math.random() * 18),
+    maxLife: 58,
   });
-  if (Math.random() < 0.32 * lifePct && countTowerTrailParticles() < MAX_TOWER_TRAIL_PARTICLES) {
+  if (Math.random() < 0.18 * lifePct && countTowerTrailParticles() < MAX_TOWER_TRAIL_PARTICLES) {
     bloodParticles.push({
       kind: 'fire',
       x: tailX + (Math.random() - 0.5) * 7,
@@ -204,8 +204,8 @@ function spawnDeathPartTrail(part) {
       vy: -(part.vy || 0) * 0.08 - 0.5 - Math.random() * 1.2,
       size: 4 + Math.random() * 6,
       color: Math.random() < 0.28 ? '#FFE28A' : '#FF7A24',
-      life: 20 + Math.floor(Math.random() * 16),
-      maxLife: 40,
+      life: 16 + Math.floor(Math.random() * 12),
+      maxLife: 32,
     });
   }
 }

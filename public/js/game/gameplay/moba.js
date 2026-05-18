@@ -340,15 +340,15 @@ function spawnObjectiveDeathBurst(obj, damage = 0) {
   const cy = groundY - (obj.h || 104) * 0.55;
   const dir = obj.teamId === 'sun' ? -1 : 1;
   const force = 2.4 + Math.min(5, Math.max(0, damage) * 0.02);
-  for (let i = 0; i < 18; i++) {
-    const col = i % 6;
-    const row = Math.floor(i / 6);
+  for (let i = 0; i < 10; i++) {
+    const col = i % 5;
+    const row = Math.floor(i / 5);
     const sw = img.naturalWidth * (0.12 + (i % 3) * 0.025);
     const sh = img.naturalHeight * (0.095 + (i % 4) * 0.018);
     const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.24 + col * 0.095)));
     const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.18 + row * 0.21)));
-    const spread = (i / 17 - 0.5) * 2;
-    const size = 20 + (i % 4) * 8;
+    const spread = (i / 9 - 0.5) * 2;
+    const size = 22 + (i % 3) * 8;
     deathParts.push({
       img,
       sx,
@@ -364,28 +364,28 @@ function spawnObjectiveDeathBurst(obj, damage = 0) {
       groundY,
       angle: (Math.random() - 0.5) * 1.8,
       spin: (Math.random() - 0.5) * 0.22 + spread * 0.05,
-      trail: true,
+      trail: i % 2 === 0,
       trailColor: obj.teamId === 'sun' ? '#33C7FF' : '#B46AFF',
-      life: Math.round(DEATH_PART_LIFE * 0.96),
-      maxLife: Math.round(DEATH_PART_LIFE * 0.96),
+      life: Math.round(DEATH_PART_LIFE * 0.68),
+      maxLife: Math.round(DEATH_PART_LIFE * 0.68),
     });
   }
-  spawnEffect(cx, cy, 'tower-break', obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 92);
+  spawnEffect(cx, cy, 'tower-break', obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 80);
   spawnTowerCollapsePlumes(cx, cy, groundY, obj.teamId, force);
 }
 
 function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3) {
   const teamColor = teamId === 'sun' ? '#23B8FF' : '#9D55FF';
-  spawnEffect(cx, cy + 12, 'tower-fire', '#FF8A2A', 78);
-  spawnEffect(cx, cy - 10, 'tower-smoke', '#6F6860', 112);
-  spawnEffect(cx, cy + 4, 'tower-collapse-aura', teamColor, 120);
+  spawnEffect(cx, cy + 12, 'tower-fire', '#FF8A2A', 66);
+  spawnEffect(cx, cy - 10, 'tower-smoke', '#6F6860', 88);
+  spawnEffect(cx, cy + 4, 'tower-collapse-aura', teamColor, 96);
 
-  for (let i = 0; i < 36; i++) {
+  for (let i = 0; i < 22; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 0.8 + Math.random() * (2.8 + force * 0.25);
     const lift = 1.6 + Math.random() * 3.4;
-    const isFire = i < 14;
-    const size = isFire ? 3.4 + Math.random() * 5.4 : 7 + Math.random() * 12;
+    const isFire = i < 8;
+    const size = isFire ? 3 + Math.random() * 4.8 : 7 + Math.random() * 9;
     const spreadX = Math.cos(angle) * (isFire ? 18 : 28);
     const spreadY = Math.sin(angle) * (isFire ? 8 : 14);
     bloodParticles.push({
@@ -397,8 +397,8 @@ function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3) {
       size,
       color: isFire ? (i % 3 === 0 ? '#FFE28A' : '#FF7A24') : (i % 2 === 0 ? '#6F6860' : '#4A4542'),
       groundY,
-      life: isFire ? 24 + Math.floor(Math.random() * 16) : 48 + Math.floor(Math.random() * 28),
-      maxLife: isFire ? 42 : 88,
+      life: isFire ? 18 + Math.floor(Math.random() * 12) : 36 + Math.floor(Math.random() * 20),
+      maxLife: isFire ? 34 : 64,
     });
   }
 }
@@ -414,8 +414,8 @@ function handleObjectiveDestroyed(msg) {
     const foot = getUnitFoot(objective);
     const cx = foot.x;
     const cy = foot.y - (objective.h || 116) * 0.55;
-    spawnEffect(cx, cy, 'tower-break', objective.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 104);
-    spawnTowerCollapsePlumes(cx, cy, foot.y, objective.teamId, 4.2);
+    spawnEffect(cx, cy, 'tower-break', objective.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 88);
+    spawnTowerCollapsePlumes(cx, cy, foot.y, objective.teamId, 3.4);
   }
   if (typeof beginCinematicPause === 'function') beginCinematicPause('tower-break');
 }
