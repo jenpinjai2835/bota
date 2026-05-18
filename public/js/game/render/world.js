@@ -401,6 +401,8 @@ function drawDeathPart(ctx, part, sx, sy) {
   ctx.globalAlpha = alpha;
   ctx.translate(part.x * sx, part.y * sy);
   ctx.rotate(part.angle || 0);
+  const dw = part.w * sx;
+  const dh = part.h * sy;
   if (Number.isFinite(part.sx) && Number.isFinite(part.sy) && Number.isFinite(part.sw) && Number.isFinite(part.sh)) {
     ctx.drawImage(
       part.img,
@@ -408,19 +410,42 @@ function drawDeathPart(ctx, part, sx, sy) {
       part.sy,
       part.sw,
       part.sh,
-      -part.w * sx / 2,
-      -part.h * sy / 2,
-      part.w * sx,
-      part.h * sy
+      -dw / 2,
+      -dh / 2,
+      dw,
+      dh
     );
   } else {
     ctx.drawImage(
       part.img,
-      -part.w * sx / 2,
-      -part.h * sy / 2,
-      part.w * sx,
-      part.h * sy
+      -dw / 2,
+      -dh / 2,
+      dw,
+      dh
     );
+  }
+  if (part.tint) {
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = part.tint;
+    ctx.fillRect(-dw / 2, -dh / 2, dw, dh);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  if (part.cracks?.length) {
+    ctx.strokeStyle = `rgba(18, 14, 12, ${0.42 * alpha})`;
+    ctx.lineWidth = Math.max(0.7, Math.min(sx, sy) * 1.2);
+    ctx.lineCap = 'round';
+    part.cracks.forEach(crack => {
+      ctx.beginPath();
+      ctx.moveTo(crack.x1 * dw, crack.y1 * dh);
+      ctx.lineTo(crack.x2 * dw, crack.y2 * dh);
+      ctx.stroke();
+      const midX = (crack.x1 + crack.x2) * 0.5 * dw;
+      const midY = (crack.y1 + crack.y2) * 0.5 * dh;
+      ctx.beginPath();
+      ctx.moveTo(midX, midY);
+      ctx.lineTo(midX + (crack.y2 - crack.y1) * dw * 0.12, midY + (crack.x1 - crack.x2) * dh * 0.12);
+      ctx.stroke();
+    });
   }
   ctx.restore();
 }

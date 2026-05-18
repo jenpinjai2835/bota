@@ -32,7 +32,7 @@ function setupWebSocket(server, rooms) {
   const TEAM_DIR = { sun: 1, moon: -1 };
   const WORLD_W = 2520;
   const BATTLEFIELD_TOP_Y = 300;
-  const BATTLEFIELD_BOTTOM_Y = 540;
+  const BATTLEFIELD_BOTTOM_Y = 506;
   const CREEP_SPAWN = {
     sun: { x: 360, y: 378 },
     moon: { x: 2118, y: 378 },

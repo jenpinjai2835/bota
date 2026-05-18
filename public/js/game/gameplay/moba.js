@@ -342,6 +342,7 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
   const isAncient = obj.type === 'ancient' || options.ancient;
   const partCount = options.partCount || (isAncient ? 26 : 40);
   const force = (isAncient ? 3.1 : 3.05) + Math.min(isAncient ? 5.4 : 5.6, Math.max(0, damage) * (isAncient ? 0.018 : 0.018));
+  if (!isAncient) spawnTowerRuinBase(img, cx, groundY, obj.teamId);
   for (let i = 0; i < partCount; i++) {
     const col = i % 6;
     const row = Math.floor(i / 6);
@@ -360,16 +361,16 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
       x: cx + spread * (isAncient ? 22 : 24),
       y: cy + (Math.random() - 0.5) * (isAncient ? 42 : 34),
       vx: dir * (force + Math.random() * (isAncient ? 2.2 : 2.7)) + spread * ((isAncient ? 4.6 : 5.8) + Math.random() * (isAncient ? 2.2 : 2.8)),
-      vy: (isAncient ? -4.3 : -3.2) - Math.random() * (isAncient ? 6.2 : 5.8),
+      vy: (isAncient ? -4.3 : -5.8) - Math.random() * (isAncient ? 6.2 : 8.4),
       w: size,
       h: size * (sh / sw),
       groundY,
       angle: (Math.random() - 0.5) * 1.8,
       spin: (Math.random() - 0.5) * 0.08 + spread * 0.02,
-      gravityScale: isAncient ? 0.38 : 0.46,
-      bounceScale: isAncient ? 0.24 : 0.23,
-      groundFriction: isAncient ? 0.6 : 0.78,
-      airFriction: isAncient ? 0.98 : 0.986,
+      gravityScale: isAncient ? 0.38 : 0.22,
+      bounceScale: isAncient ? 0.24 : 0.2,
+      groundFriction: isAncient ? 0.6 : 0.74,
+      airFriction: isAncient ? 0.98 : 0.992,
       spinBounceScale: isAncient ? -0.34 : -0.36,
       trail: isAncient ? i % 2 === 0 : true,
       trailColor: obj.teamId === 'sun' ? '#33C7FF' : '#B46AFF',
@@ -378,16 +379,75 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
       trailScatter: isAncient ? 0.9 : 1.6,
       trailSmokeSize: isAncient ? 8 : 9,
       trailSmokeSizeRange: isAncient ? 10 : 15,
-      trailSmokeLife: isAncient ? 32 : 58,
-      trailSmokeLifeRange: isAncient ? 18 : 34,
-      trailSmokeMaxLife: isAncient ? 58 : 96,
-      trailFireChance: isAncient ? 0.18 : 0.26,
+      trailSmokeLife: isAncient ? 32 : 68,
+      trailSmokeLifeRange: isAncient ? 18 : 42,
+      trailSmokeMaxLife: isAncient ? 58 : 128,
+      trailFireChance: isAncient ? 0.18 : 0.38,
+      trailFireSize: isAncient ? 4 : 6,
+      trailFireSizeRange: isAncient ? 6 : 8,
+      trailFireLife: isAncient ? 34 : 76,
+      trailFireLifeRange: isAncient ? 28 : 52,
+      trailFireMaxLife: isAncient ? 84 : 142,
+      tint: isAncient ? 'rgba(205, 199, 190, 0.24)' : 'rgba(210, 204, 194, 0.3)',
+      cracks: createDebrisCracks(i, isAncient ? 2 : 3),
       life: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
       maxLife: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
     });
   }
   spawnEffect(cx, cy, 'tower-break', obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF', isAncient ? 112 : 66);
   spawnTowerCollapsePlumes(cx, cy, groundY, obj.teamId, force, { intensity: isAncient ? 2.4 : 1.5 });
+}
+
+function createDebrisCracks(seed = 0, count = 3) {
+  const cracks = [];
+  for (let i = 0; i < count; i++) {
+    const a = Math.sin((seed + 1) * (i + 2) * 12.9898) * 43758.5453;
+    const b = Math.sin((seed + 4) * (i + 3) * 78.233) * 24634.6345;
+    const r1 = a - Math.floor(a);
+    const r2 = b - Math.floor(b);
+    cracks.push({
+      x1: -0.34 + r1 * 0.34,
+      y1: -0.32 + r2 * 0.64,
+      x2: 0.08 + ((r1 * 1.73) % 1) * 0.36,
+      y2: -0.28 + ((r2 * 1.41) % 1) * 0.56,
+    });
+  }
+  return cracks;
+}
+
+function spawnTowerRuinBase(img, cx, groundY, teamId) {
+  const sw = img.naturalWidth * 0.56;
+  const sh = img.naturalHeight * 0.22;
+  const sx = img.naturalWidth * 0.22;
+  const sy = img.naturalHeight * 0.72;
+  const w = 86;
+  const h = w * (sh / sw);
+  deathParts.push({
+    img,
+    sx,
+    sy,
+    sw,
+    sh,
+    x: cx,
+    y: groundY - h * 0.5,
+    vx: 0,
+    vy: 0,
+    w,
+    h,
+    groundY,
+    angle: (Math.random() - 0.5) * 0.08,
+    spin: 0,
+    gravityScale: 0,
+    bounceScale: 0,
+    groundFriction: 1,
+    airFriction: 1,
+    spinBounceScale: 0,
+    trail: false,
+    tint: teamId === 'sun' ? 'rgba(194, 216, 218, 0.32)' : 'rgba(218, 204, 228, 0.32)',
+    cracks: createDebrisCracks(31, 7),
+    life: Math.round(DEATH_PART_LIFE * 1.6),
+    maxLife: Math.round(DEATH_PART_LIFE * 1.6),
+  });
 }
 
 function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3, options = {}) {
@@ -416,6 +476,8 @@ function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3, options = 
       size,
       color: isFire ? (i % 3 === 0 ? '#FFE28A' : '#FF7A24') : (i % 2 === 0 ? '#6F6860' : '#4A4542'),
       groundY,
+      gravity: isFire ? 0.03 : 0.04,
+      groundDamping: isFire ? 0.08 : 0.04,
       life: isFire ? 14 + Math.floor(Math.random() * 10 * intensity) : 28 + Math.floor(Math.random() * 16 * intensity),
       maxLife: isFire ? 28 * Math.min(1.5, intensity) : 52 * Math.min(1.6, intensity),
     });

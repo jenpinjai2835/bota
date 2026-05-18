@@ -5,27 +5,27 @@ const TEAM_NAMES = { sun: 'Team 1', moon: 'Team 2' };
 const MATCH_ITEM_TYPES = ['healing_orb', 'mana_orb', 'power_rune', 'guard_rune', 'haste_rune'];
 const LOCKED_CHARACTER_ID = 'dragonfist';
 const ITEM_SPAWN_POINTS = [
-  { x: 430, y: 486 },
+  { x: 430, y: 456 },
   { x: 840, y: 392 },
-  { x: 1260, y: 486 },
+  { x: 1260, y: 456 },
   { x: 1680, y: 392 },
-  { x: 2090, y: 486 },
+  { x: 2090, y: 456 },
 ];
 
 const SPAWN_POINTS = [
-  { x: 178, y: 474, teamId: 'sun' },
-  { x: 246, y: 414, teamId: 'sun' },
+  { x: 178, y: 440, teamId: 'sun' },
+  { x: 246, y: 394, teamId: 'sun' },
   { x: 314, y: 352, teamId: 'sun' },
-  { x: 2298, y: 474, teamId: 'moon' },
-  { x: 2230, y: 414, teamId: 'moon' },
+  { x: 2298, y: 440, teamId: 'moon' },
+  { x: 2230, y: 394, teamId: 'moon' },
   { x: 2162, y: 352, teamId: 'moon' },
 ];
 
 const RESPAWN_POINTS = [
-  { x: 178, y: 474, teamId: 'sun' },
-  { x: 246, y: 414, teamId: 'sun' },
-  { x: 2298, y: 474, teamId: 'moon' },
-  { x: 2230, y: 414, teamId: 'moon' },
+  { x: 178, y: 440, teamId: 'sun' },
+  { x: 246, y: 394, teamId: 'sun' },
+  { x: 2298, y: 440, teamId: 'moon' },
+  { x: 2230, y: 394, teamId: 'moon' },
 ];
 
 const OBJECTIVE_BLUEPRINTS = [

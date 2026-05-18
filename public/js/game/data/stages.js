@@ -7,7 +7,7 @@ const STAGES = [
     id: 1, name: "Temple of Ruins",
     bg: ['#1a0a06', '#3d1a0a', '#1a0a06'],
     platforms: [
-      { x: 0, y: 540, w: 2520, h: 80, color: '#4a2800' },
+      { x: 0, y: 506, w: 2520, h: 114, color: '#4a2800' },
     ],
     fountains: [
       { x: 24, y: 298, w: 110, h: 122, teamId: 'sun' },

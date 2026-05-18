@@ -184,29 +184,39 @@ function spawnDeathPartTrail(part) {
   if (countTowerTrailParticles() >= MAX_TOWER_TRAIL_PARTICLES) return;
   const tailX = part.x - part.vx * (0.8 + Math.random() * (part.trailScatter || 0.9));
   const tailY = part.y - part.vy * (0.8 + Math.random() * (part.trailScatter || 0.9));
+  const smokeSize = (part.trailSmokeSize || 8) + Math.random() * (part.trailSmokeSizeRange || 10);
+  const smokeY = tailY + (Math.random() - 0.5) * 8;
   bloodParticles.push({
     kind: 'smoke',
     x: tailX + (Math.random() - 0.5) * 10,
-    y: tailY + (Math.random() - 0.5) * 8,
+    y: Number.isFinite(part.groundY) ? Math.min(smokeY, part.groundY - smokeSize) : smokeY,
     vx: -(part.vx || 0) * (0.08 + Math.random() * 0.04) + (Math.random() - 0.5) * 0.45,
     vy: -0.75 - Math.random() * 1.05,
-    size: (part.trailSmokeSize || 8) + Math.random() * (part.trailSmokeSizeRange || 10),
+    size: smokeSize,
     color: Math.random() < 0.24 ? '#7C736B' : '#4A4542',
+    groundY: part.groundY,
+    gravity: 0.035,
+    groundDamping: 0.04,
     life: (part.trailSmokeLife || 32) + Math.floor(Math.random() * (part.trailSmokeLifeRange || 18)),
     maxLife: part.trailSmokeMaxLife || 58,
     trailScale: part.trailScale || 1,
   });
   if (Math.random() < (part.trailFireChance ?? 0.18) * lifePct && countTowerTrailParticles() < MAX_TOWER_TRAIL_PARTICLES) {
+    const fireSize = (part.trailFireSize || 4) + Math.random() * (part.trailFireSizeRange || 6);
+    const fireY = tailY + (Math.random() - 0.5) * 6;
     bloodParticles.push({
       kind: 'fire',
       x: tailX + (Math.random() - 0.5) * 7,
-      y: tailY + (Math.random() - 0.5) * 6,
+      y: Number.isFinite(part.groundY) ? Math.min(fireY, part.groundY - fireSize) : fireY,
       vx: -(part.vx || 0) * 0.16 + (Math.random() - 0.5) * 0.7,
       vy: -(part.vy || 0) * 0.08 - 0.5 - Math.random() * 1.2,
-      size: 4 + Math.random() * 6,
+      size: fireSize,
       color: Math.random() < 0.28 ? '#FFE28A' : '#FF7A24',
-      life: 16 + Math.floor(Math.random() * 12),
-      maxLife: 32,
+      groundY: part.groundY,
+      gravity: 0.025,
+      groundDamping: 0.06,
+      life: (part.trailFireLife || 34) + Math.floor(Math.random() * (part.trailFireLifeRange || 28)),
+      maxLife: part.trailFireMaxLife || 84,
       trailScale: Math.max(1, (part.trailScale || 1) * 0.72),
     });
   }
@@ -437,13 +447,16 @@ function updateProjectiles() {
   bloodParticles = bloodParticles.filter(b => {
     b.x += b.vx;
     b.y += b.vy;
-    b.vy += 0.22;
+    b.vy += b.gravity ?? 0.22;
     if (Number.isFinite(b.groundY) && b.y + b.size >= b.groundY) {
       b.y = b.groundY - b.size;
-      b.vy = -Math.abs(b.vy) * 0.18;
+      b.vy = -Math.abs(b.vy) * (b.groundDamping ?? 0.18);
       b.vx *= 0.72;
     }
     b.vx *= 0.94;
+    if (Number.isFinite(b.groundY) && b.y + b.size > b.groundY) {
+      b.y = b.groundY - b.size;
+    }
     b.life--;
     return b.life > 0;
   });
