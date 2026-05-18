@@ -265,6 +265,23 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   ctx.ellipse(x, y + ringR * 0.05, ringR * 1.24, ringR * 0.38, 0, 0, Math.PI * 2);
   ctx.stroke();
 
+  const puffCount = 14;
+  for (let i = 0; i < puffCount; i++) {
+    const a = (i / puffCount) * Math.PI * 2 + progress * 0.55;
+    const rr = ringR * (0.9 + (i % 3) * 0.12);
+    const px = x + Math.cos(a) * rr;
+    const py = y + Math.sin(a) * rr * 0.33;
+    const pr = Math.max(2.2 * scale, ringR * (0.06 + (i % 4) * 0.01));
+    const puff = ctx.createRadialGradient(px, py, pr * 0.2, px, py, pr);
+    puff.addColorStop(0, `rgba(192, 170, 146, ${0.44 * fade})`);
+    puff.addColorStop(0.6, `rgba(124, 112, 101, ${0.28 * fade})`);
+    puff.addColorStop(1, 'rgba(70, 62, 55, 0)');
+    ctx.fillStyle = puff;
+    ctx.beginPath();
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.restore();
 }
 
