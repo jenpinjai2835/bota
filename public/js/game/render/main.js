@@ -47,7 +47,7 @@ function render(canvas) {
   damageNumbers.forEach(n => drawDamageNumber(ctx, n, scaleX, scaleY));
   towerShots.forEach(shot => drawTowerShot(ctx, shot, scaleX, scaleY));
   effects.filter(e => e.id === 'tower-warp').forEach(e => drawEffect(ctx, e, scaleX, scaleY));
-  drawDebugBlockPolygons(ctx, scaleX, scaleY);
+  if (testModeState.showColliders) drawDebugBlockPolygons(ctx, scaleX, scaleY);
   ctx.restore();
 
   const vignette = ctx.createRadialGradient(W / 2, H * 0.45, W * 0.18, W / 2, H * 0.5, W * 0.7);

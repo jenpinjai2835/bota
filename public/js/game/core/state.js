@@ -48,6 +48,7 @@ let reconnectAttempt = 0;
 let reconnectTimer = null;
 let testModeState = {
   immortal: true,
+  showColliders: true,
 };
 let cinematicPause = {
   active: false,

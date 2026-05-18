@@ -46,6 +46,7 @@ function buildTestModePanel() {
       <button type="button" class="test-mode-btn" onclick="testLevelUp()">LEVEL UP</button>
       <button type="button" class="test-mode-btn" onclick="testMaxLevel()">MAX LEVEL</button>
       <button type="button" class="test-mode-btn toggle" id="test-immortal-btn" onclick="toggleTestImmortal()">IMMORTAL</button>
+      <button type="button" class="test-mode-btn toggle" id="test-colliders-btn" onclick="toggleTestColliders()">COLLIDERS</button>
       <button type="button" class="test-mode-btn" onclick="testRestartMatch()">RESTART</button>
     </div>
     <div class="test-mode-status" id="test-mode-status"></div>
@@ -59,10 +60,12 @@ function updateTestModePanel() {
   const level = myPlayer?.progression?.level || 1;
   const immortal = isTestImmortalActive();
   const immortalBtn = document.getElementById('test-immortal-btn');
+  const collidersBtn = document.getElementById('test-colliders-btn');
   const status = document.getElementById('test-mode-status');
   if (immortalBtn) immortalBtn.classList.toggle('active', immortal);
+  if (collidersBtn) collidersBtn.classList.toggle('active', !!testModeState.showColliders);
   if (status) {
-    status.textContent = `LV ${level}/${LEVEL_CONFIG.maxLevel} | ${immortal ? 'IMMORTAL ON' : 'IMMORTAL OFF'}`;
+    status.textContent = `LV ${level}/${LEVEL_CONFIG.maxLevel} | ${immortal ? 'IMMORTAL ON' : 'IMMORTAL OFF'} | COLLIDERS ${testModeState.showColliders ? 'ON' : 'OFF'}`;
   }
 }
 
@@ -92,6 +95,11 @@ function testRestartMatch() {
 
 function toggleTestImmortal() {
   setTestImmortal(!isTestImmortalActive());
+}
+
+function toggleTestColliders() {
+  testModeState.showColliders = !testModeState.showColliders;
+  updateTestModePanel();
 }
 
 function setTestImmortal(enabled) {
