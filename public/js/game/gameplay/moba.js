@@ -358,14 +358,22 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
     spawnEffect(cx, cy - (obj.h || 104) * 0.08, 'tower-warp', teamColor, 132, { life: 20, maxLife: 20 });
   }
   const burst = () => spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, partCount, force, teamColor });
+  const finishBurst = () => {
+    if (typeof options.onBurst !== 'function') return;
+    if (options.textureHoldAfterBurstMs > 0) {
+      setTimeout(options.onBurst, options.textureHoldAfterBurstMs);
+    } else {
+      options.onBurst();
+    }
+  };
   if (options.delayPartsMs > 0) {
     setTimeout(() => {
       burst();
-      if (typeof options.onBurst === 'function') options.onBurst();
+      finishBurst();
     }, options.delayPartsMs);
   } else {
     burst();
-    if (typeof options.onBurst === 'function') options.onBurst();
+    finishBurst();
   }
 }
 
@@ -561,11 +569,12 @@ function handleObjectiveDestroyed(msg) {
       lastHitDir: msg.hitDir || objective.lastHitDir,
       state: 'collapsing',
       collapseHideHealth: true,
-      collapsingUntil: Date.now() + 300,
+      collapsingUntil: Date.now() + 430,
     };
     objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...collapsingObjective } : entry);
     spawnObjectiveDeathBurst(collapsingObjective, msg.damage || 0, {
       delayPartsMs: 300,
+      textureHoldAfterBurstMs: 130,
       hitDir: msg.hitDir || objective.lastHitDir || collapsingObjective.lastHitDir,
       onBurst: () => {
         objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0, state: 'dead' } : entry);
