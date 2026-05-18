@@ -547,7 +547,7 @@
   }
   .test-mode-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
     margin-top: 8px;
   }
@@ -558,7 +558,7 @@
     background: rgba(212,175,55,0.08);
     color: var(--gold-light);
     cursor: pointer;
-    font: 900 10px/1 'Cinzel', serif;
+    font: 900 9px/1 'Cinzel', serif;
     letter-spacing: 0.06em;
   }
   .test-mode-btn:hover {

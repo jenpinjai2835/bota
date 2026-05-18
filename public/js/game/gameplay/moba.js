@@ -415,7 +415,6 @@ function handleObjectiveDestroyed(msg) {
   objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0 } : entry);
   if (objective.type === 'tower') {
     spawnObjectiveDeathBurst(objective, msg.damage || 0);
-    if (typeof beginCinematicPause === 'function') beginCinematicPause('tower-break');
   } else {
     const foot = getUnitFoot(objective);
     const cx = foot.x;

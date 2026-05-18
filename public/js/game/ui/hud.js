@@ -44,6 +44,7 @@ function buildTestModePanel() {
     <div class="test-mode-title">TEST MODE</div>
     <div class="test-mode-row">
       <button type="button" class="test-mode-btn" onclick="testLevelUp()">LEVEL UP</button>
+      <button type="button" class="test-mode-btn" onclick="testMaxLevel()">MAX LEVEL</button>
       <button type="button" class="test-mode-btn toggle" id="test-immortal-btn" onclick="toggleTestImmortal()">IMMORTAL</button>
     </div>
     <div class="test-mode-status" id="test-mode-status"></div>
@@ -67,6 +68,16 @@ function updateTestModePanel() {
 function testLevelUp() {
   if (!myPlayer) return;
   if (!grantPlayerTestLevel(myPlayer, 1)) return;
+  updateHUD();
+  updateSkillsBar();
+  updateTestModePanel();
+  sendInput();
+}
+
+function testMaxLevel() {
+  if (!myPlayer) return;
+  const level = myPlayer.progression?.level || 1;
+  if (!grantPlayerTestLevel(myPlayer, LEVEL_CONFIG.maxLevel - level)) return;
   updateHUD();
   updateSkillsBar();
   updateTestModePanel();
