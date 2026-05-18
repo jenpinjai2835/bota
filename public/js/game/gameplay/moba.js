@@ -348,9 +348,13 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
   }
   const burst = () => spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, partCount, force, teamColor });
   if (options.delayPartsMs > 0) {
-    setTimeout(burst, options.delayPartsMs);
+    setTimeout(() => {
+      burst();
+      if (typeof options.onBurst === 'function') options.onBurst();
+    }, options.delayPartsMs);
   } else {
     burst();
+    if (typeof options.onBurst === 'function') options.onBurst();
   }
 }
 
@@ -538,10 +542,24 @@ function handleObjectiveDestroyed(msg) {
   if (!msg?.objective || !['tower', 'ancient'].includes(msg.objective.type)) return;
   const existing = objectives.find(entry => entry.id === msg.objective.id);
   const objective = { ...existing, ...msg.objective };
-  objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0 } : entry);
   if (objective.type === 'tower') {
-    spawnObjectiveDeathBurst(objective, msg.damage || 0, { delayPartsMs: 300 });
+    const collapsingHp = Math.max(1, existing?.hp || objective.maxHp || 1);
+    const collapsingObjective = {
+      ...objective,
+      hp: collapsingHp,
+      state: 'collapsing',
+      collapseHideHealth: true,
+      collapsingUntil: Date.now() + 300,
+    };
+    objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...collapsingObjective } : entry);
+    spawnObjectiveDeathBurst(collapsingObjective, msg.damage || 0, {
+      delayPartsMs: 300,
+      onBurst: () => {
+        objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0, state: 'dead' } : entry);
+      },
+    });
   } else {
+    objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0 } : entry);
     const foot = getUnitFoot(objective);
     const cx = foot.x;
     const cy = foot.y - (objective.h || 116) * 0.55;
@@ -572,7 +590,9 @@ function drawObjective(ctx, obj, sx, sy) {
     drawTowerLivingEffects(ctx, towerTexture, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy, t);
     drawTowerDamageFractures(ctx, obj, drawX, drawY, drawW, drawH, teamColor, sx, sy);
     ctx.shadowBlur = 0;
-    drawUnitHealthBar(ctx, obj, cx, footY - drawH + 2 * sy, Math.max(58, drawW * 0.42), sx, sy);
+    if (!obj.collapseHideHealth) {
+      drawUnitHealthBar(ctx, obj, cx, footY - drawH + 2 * sy, Math.max(58, drawW * 0.42), sx, sy);
+    }
     ctx.restore();
     return;
   }
