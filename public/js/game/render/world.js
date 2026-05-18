@@ -252,20 +252,21 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   const ringPulseB = profile.ringPulseB || 0.025;
   const radiusBaseMul = profile.radiusBaseMul || 1;
   const opacityMul = profile.opacityMul || 1;
-  const countBias = profile.countBias || 0;
 
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
 
-  const ringPuffCount = Math.max(20, Math.round(44 - progress * 16 + countBias));
-  for (let i = 0; i < ringPuffCount; i++) {
-    const t = (i / ringPuffCount) * Math.PI * 2 + angleOffset;
+  const outerPuffs = Array.isArray(e.outerDustPuffs) ? e.outerDustPuffs : [];
+  for (let i = 0; i < outerPuffs.length; i++) {
+    const outer = outerPuffs[i];
+    const t = (outer.t || 0) + angleOffset;
     // Keep profile variety, but remove time-based phase so it does not appear to rotate.
     const wobble = Math.sin(t * 3.2) * ringPulseA + Math.cos(t * 5.3) * ringPulseB;
-    const ex = x + Math.cos(t) * ringR * stretchX * (1.02 + wobble);
-    const ey = y + Math.sin(t) * ringR * (0.31 * stretchY) * (1.01 + wobble * 0.5);
-    const er = Math.max(8.4 * scale, ringR * (0.116 + (i % 5) * 0.011) * radiusBaseMul);
-    drawDustPuff(ctx, dustSprite, ex, ey, er, 0.26 * fade * opacityMul);
+    const ringMul = outer.radiusMul || 1;
+    const ex = x + Math.cos(t) * ringR * stretchX * ringMul * (1.01 + wobble);
+    const ey = y + Math.sin(t) * ringR * (0.31 * stretchY) * ringMul * (1.0 + wobble * 0.45);
+    const er = Math.max(8.4 * scale, ringR * 0.122 * (outer.sizeMul || 1) * radiusBaseMul);
+    drawDustPuff(ctx, dustSprite, ex, ey, er, 0.25 * fade * opacityMul * (outer.alphaMul || 1));
   }
 
   const puffs = Array.isArray(e.dustPuffs) ? e.dustPuffs : [];

@@ -114,6 +114,16 @@ function spawnEffect(x, y, id, color, radius = 40, options = {}) {
       countBias: Math.round((Math.random() - 0.5) * 6),
       seed: variantSeed,
     };
+    const outerCount = Math.max(22, 32 + (effect.dustProfile.countBias || 0));
+    effect.outerDustPuffs = Array.from({ length: outerCount }, (_, i) => {
+      const t = (i / outerCount) * Math.PI * 2;
+      return {
+        t,
+        radiusMul: 0.92 + Math.random() * 0.2,
+        sizeMul: 0.9 + Math.random() * 0.24,
+        alphaMul: 0.86 + Math.random() * 0.24,
+      };
+    });
     effect.dustPuffs = Array.from({ length: puffCount }, (_, i) => {
       const angle = (i / puffCount) * Math.PI * 2;
       const dirX = Math.cos(angle);
