@@ -355,7 +355,7 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
   const force = (isAncient ? 3.1 : 3.05) + Math.min(isAncient ? 5.4 : 5.6, Math.max(0, damage) * (isAncient ? 0.018 : 0.018));
   const teamColor = obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF';
   if (!isAncient) {
-    spawnEffect(cx, cy, 'tower-warp', teamColor, 82, { life: 18, maxLife: 18 });
+    spawnEffect(cx, cy - (obj.h || 104) * 0.08, 'tower-warp', teamColor, 132, { life: 20, maxLife: 20 });
   }
   const burst = () => spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, partCount, force, teamColor });
   if (options.delayPartsMs > 0) {
