@@ -105,6 +105,13 @@ function setupWebSocket(server, rooms) {
     return Math.max(9, unitHeight(unit) * 0.16);
   }
 
+  function unitsBlockOverlap(a, b, padding = 0) {
+    const af = unitFoot(a);
+    const bf = unitFoot(b);
+    return Math.abs(af.x - bf.x) < unitBlockRadiusX(a) + unitBlockRadiusX(b) + padding &&
+      Math.abs(af.y - bf.y) < unitBlockRadiusY(a) + unitBlockRadiusY(b) + padding;
+  }
+
   function distanceBetween(a, b) {
     const af = unitFoot(a);
     const bf = unitFoot(b);
@@ -655,24 +662,15 @@ function setupWebSocket(server, rooms) {
         const overlapX = unitBlockRadiusX(a) + unitBlockRadiusX(b) - Math.abs(dx);
         const overlapY = unitBlockRadiusY(a) + unitBlockRadiusY(b) - Math.abs(dy);
         if (overlapX <= 0 || overlapY <= 0) continue;
-        const separateByDepth = overlapY < overlapX * 0.55 && Math.abs(dy) > 3;
-        if (separateByDepth) {
-          const push = Math.min(1.15, (overlapY + 2) * 0.5);
-          const dir = dy >= 0 ? 1 : -1;
-          a.y = clampCreepY(a.y - dir * push, a.h);
-          b.y = clampCreepY(b.y + dir * push, b.h);
-        } else {
-          const push = (overlapX + 1) * 0.5;
-          const dir = dx >= 0 ? 1 : -1;
-          a.x = Math.max(0, Math.min(WORLD_W - unitWidth(a), a.x - dir * push));
-          b.x = Math.max(0, Math.min(WORLD_W - unitWidth(b), b.x + dir * push));
-        }
+        const push = Math.min(0.55, (overlapX + 1) * 0.18);
+        const dir = dx >= 0 ? 1 : -1;
+        a.x = Math.max(0, Math.min(WORLD_W - unitWidth(a), a.x - dir * push));
+        b.x = Math.max(0, Math.min(WORLD_W - unitWidth(b), b.x + dir * push));
       }
     }
 
     // Keep creeps from getting embedded into static objectives (tower/ancient).
     const solids = (room.objectives || []).filter(obj => obj.hp > 0);
-    const heroes = Object.values(room.playerData || {}).filter(player => player && player.hp > 0);
     live.forEach(creep => {
       solids.forEach(obj => {
         const cf = unitFoot(creep);
@@ -693,28 +691,7 @@ function setupWebSocket(server, rooms) {
         }
       });
 
-      // Unstick creep from heroes without pushing heroes.
-      heroes.forEach(hero => {
-        const cf = unitFoot(creep);
-        const hf = unitFoot(hero);
-        const dx = cf.x - hf.x;
-        const dy = cf.y - hf.y;
-        const minX = unitBlockRadiusX(creep) + unitBlockRadiusX(hero) + 2;
-        const minY = unitBlockRadiusY(creep) + unitBlockRadiusY(hero) + 2;
-        const overlapX = minX - Math.abs(dx);
-        const overlapY = minY - Math.abs(dy);
-        if (overlapX <= 0 || overlapY <= 0) return;
-        if (overlapY < overlapX) {
-          const dirX = Math.sign(dx) || Math.sign(creep.lastStepX || creep.facing || TEAM_DIR[creep.teamId] || 1) || 1;
-          const push = Math.min(1.8, Math.max(0.45, overlapX * 0.22));
-          creep.x = Math.max(0, Math.min(WORLD_W - unitWidth(creep), creep.x + dirX * push));
-        } else {
-          const dirX = dx >= 0 ? 1 : -1;
-          const lateral = (creep.avoidSide || creep.individualSide || 1) * Math.min(0.65, Math.max(0.12, overlapX * 0.08));
-          creep.x = Math.max(0, Math.min(WORLD_W - unitWidth(creep), creep.x + dirX * (overlapX + 0.9)));
-          creep.y = clampCreepY(creep.y + lateral, creep.h);
-        }
-      });
+      // Heroes are authoritative blockers. Normal walking must not push creeps around.
     });
   }
 
@@ -746,6 +723,32 @@ function setupWebSocket(server, rooms) {
       overlapX: unitBlockRadiusX(a) + unitBlockRadiusX(b) - Math.abs(af.x - bf.x),
       overlapY: unitBlockRadiusY(a) + unitBlockRadiusY(b) - Math.abs(af.y - bf.y),
     };
+  }
+
+  function isMovingOutOfOverlap(currentUnit, candidateUnit, blocker) {
+    const current = getBlockOverlap(currentUnit, blocker);
+    const next = getBlockOverlap(candidateUnit, blocker);
+    if (current.overlapX <= 0 || current.overlapY <= 0) return false;
+    if (next.overlapX <= 0 || next.overlapY <= 0) return true;
+    const currentArea = current.overlapX * current.overlapY;
+    const nextArea = next.overlapX * next.overlapY;
+    return nextArea < currentArea - 0.2;
+  }
+
+  function getPlayerMoveBlockers(room, player) {
+    return [
+      ...(room.creeps || []).filter(unit => unit.hp > 0),
+      ...(room.objectives || []).filter(unit => unit.hp > 0),
+      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.id !== player.id),
+    ];
+  }
+
+  function isPlayerMoveBlocked(room, player, nextX, nextY) {
+    const candidate = { ...player, x: nextX, y: nextY };
+    return getPlayerMoveBlockers(room, player).some(unit => {
+      if (!unitsBlockOverlap(candidate, unit, 0)) return false;
+      return !isMovingOutOfOverlap(player, candidate, unit);
+    });
   }
 
   function isAllowedContactSlide(creep, candidate, blocker, options = {}) {
@@ -1305,6 +1308,9 @@ function setupWebSocket(server, rooms) {
       const forward = Math.sign(goalX - cf.x) || creep.facing || TEAM_DIR[creep.teamId] || 1;
       const side = getCreepSideSlideSign(creep, unit);
       const ahead = (uf.x - cf.x) * forward > -unitBlockRadiusX(unit) * 0.55;
+      const overlappingBlock = Math.abs(uf.x - cf.x) < unitBlockRadiusX(creep) + unitBlockRadiusX(unit) + 1 &&
+        Math.abs(uf.y - cf.y) < unitBlockRadiusY(creep) + unitBlockRadiusY(unit) + 1;
+      if (isHero && !ahead && !overlappingBlock) continue;
       vx += (dx / dist) * t * (isHero ? 0.9 : 1.15);
       vy += (dy / dist) * t * (isHero ? 0.52 : 0.75);
       if (ahead && (isHero || isObjective)) vy += side * t * (isHero ? 1.15 : 0.95);
@@ -2067,7 +2073,20 @@ function setupWebSocket(server, rooms) {
         if (!player) break;
 
         const { x, y, hp, vx, vy, onGround, facing, state: pstate, action } = msg;
-        Object.assign(player, { x, y, vx, vy, onGround, facing, state: pstate });
+        const nextX = Number.isFinite(Number(x)) ? Number(x) : player.x;
+        const nextY = Number.isFinite(Number(y)) ? Number(y) : player.y;
+        const blockedByUnit = isPlayerMoveBlocked(room, player, nextX, nextY);
+        const acceptedX = blockedByUnit ? player.x : nextX;
+        const acceptedY = blockedByUnit ? player.y : nextY;
+        Object.assign(player, {
+          x: acceptedX,
+          y: acceptedY,
+          vx: blockedByUnit ? 0 : vx,
+          vy: blockedByUnit ? 0 : vy,
+          onGround,
+          facing,
+          state: blockedByUnit ? 'idle' : pstate,
+        });
         if (player.testImmortal) player.hp = player.maxHp;
         else if (hp !== undefined) player.hp = hp;
         if (player.hp <= 0 && player.teamId && room.creepAggro?.[player.teamId]?.targetId === player.id) {
@@ -2078,16 +2097,31 @@ function setupWebSocket(server, rooms) {
         broadcast(roomId, {
           type: 'player_state',
           playerId,
-          x,
-          y,
-          vx,
-          vy,
+          x: player.x,
+          y: player.y,
+          vx: player.vx,
+          vy: player.vy,
           onGround,
           facing,
-          state: pstate,
+          state: player.state,
           hp: player.hp,
           action,
         }, playerId);
+        if (blockedByUnit) {
+          sendTo(playerId, {
+            type: 'player_state',
+            playerId,
+            x: player.x,
+            y: player.y,
+            vx: player.vx,
+            vy: player.vy,
+            onGround,
+            facing,
+            state: player.state,
+            hp: player.hp,
+            action,
+          });
+        }
         break;
       }
 
