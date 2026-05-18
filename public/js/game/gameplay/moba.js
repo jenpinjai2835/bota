@@ -390,6 +390,7 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
       trailFireMaxLife: isAncient ? 84 : 142,
       tint: isAncient ? 'rgba(205, 199, 190, 0.24)' : 'rgba(210, 204, 194, 0.3)',
       cracks: createDebrisCracks(i, isAncient ? 2 : 3),
+      polygon: createDebrisPolygon(i, 5 + (i % 4)),
       life: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
       maxLife: Math.round(DEATH_PART_LIFE * (isAncient ? 1.05 : 1.6)),
     });
@@ -415,6 +416,39 @@ function createDebrisCracks(seed = 0, count = 3) {
   return cracks;
 }
 
+function debrisRand(seed, salt = 1) {
+  const value = Math.sin((seed + 1) * (salt + 3) * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function createDebrisPolygon(seed = 0, pointCount = 6) {
+  const count = Math.max(5, Math.min(8, Math.round(pointCount)));
+  const points = [];
+  const angleOffset = debrisRand(seed, 17) * Math.PI * 2;
+  for (let i = 0; i < count; i++) {
+    const angle = angleOffset + (i / count) * Math.PI * 2 + (debrisRand(seed, i + 29) - 0.5) * 0.34;
+    const radius = 0.72 + debrisRand(seed, i + 41) * 0.3;
+    points.push({
+      x: Math.cos(angle) * 0.5 * radius,
+      y: Math.sin(angle) * 0.5 * radius,
+    });
+  }
+  return points;
+}
+
+function createRuinBasePolygon() {
+  return [
+    { x: -0.5, y: 0.28 },
+    { x: -0.43, y: -0.08 },
+    { x: -0.28, y: -0.25 },
+    { x: -0.08, y: -0.18 },
+    { x: 0.08, y: -0.31 },
+    { x: 0.3, y: -0.16 },
+    { x: 0.45, y: -0.02 },
+    { x: 0.5, y: 0.3 },
+  ];
+}
+
 function spawnTowerRuinBase(img, cx, groundY, teamId) {
   const sw = img.naturalWidth * 0.56;
   const sh = img.naturalHeight * 0.22;
@@ -422,6 +456,8 @@ function spawnTowerRuinBase(img, cx, groundY, teamId) {
   const sy = img.naturalHeight * 0.72;
   const w = 86;
   const h = w * (sh / sw);
+  const polygon = createRuinBasePolygon();
+  const bottom = polygon.reduce((max, point) => Math.max(max, point.y), -0.5);
   deathParts.push({
     img,
     sx,
@@ -429,7 +465,7 @@ function spawnTowerRuinBase(img, cx, groundY, teamId) {
     sw,
     sh,
     x: cx,
-    y: groundY - h * 0.5,
+    y: groundY - h * bottom,
     vx: 0,
     vy: 0,
     w,
@@ -445,6 +481,7 @@ function spawnTowerRuinBase(img, cx, groundY, teamId) {
     trail: false,
     tint: teamId === 'sun' ? 'rgba(194, 216, 218, 0.32)' : 'rgba(218, 204, 228, 0.32)',
     cracks: createDebrisCracks(31, 7),
+    polygon,
     life: Math.round(DEATH_PART_LIFE * 1.6),
     maxLife: Math.round(DEATH_PART_LIFE * 1.6),
   });

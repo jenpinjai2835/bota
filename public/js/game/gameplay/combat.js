@@ -222,6 +222,12 @@ function spawnDeathPartTrail(part) {
   }
 }
 
+function getDeathPartBottomOffset(part) {
+  if (!part?.polygon?.length) return (part?.h || 0) * 0.5;
+  const bottom = part.polygon.reduce((max, point) => Math.max(max, Number.isFinite(point.y) ? point.y : -0.5), -0.5);
+  return (part.h || 0) * bottom;
+}
+
 function applyHitReaction(target, dir = 1, skillId = null) {
   if (!target) return;
   if (!shouldApplyHitReaction(skillId)) {
@@ -471,9 +477,10 @@ function updateProjectiles() {
     spawnDeathPartTrail(part);
 
     let bounced = false;
+    const bottomOffset = getDeathPartBottomOffset(part);
     if (Number.isFinite(part.groundY)) {
-      if (part.y + part.h * 0.5 >= part.groundY) {
-        part.y = part.groundY - part.h * 0.5;
+      if (part.y + bottomOffset >= part.groundY) {
+        part.y = part.groundY - bottomOffset;
         part.vy = Math.abs(part.vy) > 1.2 ? -Math.abs(part.vy) * (part.bounceScale ?? 0.34) : 0;
         part.vx *= part.groundFriction ?? 0.74;
         part.spin *= part.spinBounceScale ?? -0.56;
@@ -484,10 +491,10 @@ function updateProjectiles() {
         if (
           part.x > plat.x &&
           part.x < plat.x + plat.w &&
-          part.y + part.h * 0.5 > plat.y &&
+          part.y + bottomOffset > plat.y &&
           part.y - part.h * 0.5 < plat.y + plat.h
         ) {
-          part.y = plat.y - part.h * 0.5;
+          part.y = plat.y - bottomOffset;
           part.vy = -Math.abs(part.vy) * (part.bounceScale ?? 0.42);
           part.vx *= part.groundFriction ?? 0.72;
           part.spin *= part.spinBounceScale ?? -0.62;

@@ -403,6 +403,18 @@ function drawDeathPart(ctx, part, sx, sy) {
   ctx.rotate(part.angle || 0);
   const dw = part.w * sx;
   const dh = part.h * sy;
+  const hasPolygon = part.polygon?.length >= 3;
+  if (hasPolygon) {
+    ctx.beginPath();
+    part.polygon.forEach((point, index) => {
+      const x = point.x * dw;
+      const y = point.y * dh;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.clip();
+  }
   if (Number.isFinite(part.sx) && Number.isFinite(part.sy) && Number.isFinite(part.sw) && Number.isFinite(part.sh)) {
     ctx.drawImage(
       part.img,
@@ -446,6 +458,20 @@ function drawDeathPart(ctx, part, sx, sy) {
       ctx.lineTo(midX + (crack.y2 - crack.y1) * dw * 0.12, midY + (crack.x1 - crack.x2) * dh * 0.12);
       ctx.stroke();
     });
+  }
+  if (hasPolygon) {
+    ctx.strokeStyle = `rgba(12, 10, 9, ${0.28 * alpha})`;
+    ctx.lineWidth = Math.max(0.8, Math.min(sx, sy) * 1.1);
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    part.polygon.forEach((point, index) => {
+      const x = point.x * dw;
+      const y = point.y * dh;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.stroke();
   }
   ctx.restore();
 }
