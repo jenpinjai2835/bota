@@ -256,17 +256,13 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   ctx.ellipse(x, y, ringR * 1.12, ringR * 0.36, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  const ringPuffCount = 64;
+  const ringPuffCount = Math.max(20, Math.round(44 - progress * 16));
   for (let i = 0; i < ringPuffCount; i++) {
     const t = (i / ringPuffCount) * Math.PI * 2;
     const ex = x + Math.cos(t) * ringR * (1.04 + (i % 4) * 0.02);
     const ey = y + Math.sin(t) * ringR * (0.31 + (i % 3) * 0.02);
     const er = Math.max(8.4 * scale, ringR * (0.12 + (i % 5) * 0.012));
-    const edgePuff = ctx.createRadialGradient(ex, ey, er * 0.2, ex, ey, er);
-    edgePuff.addColorStop(0, `rgba(202, 178, 151, ${0.52 * fade})`);
-    edgePuff.addColorStop(0.62, `rgba(124, 112, 101, ${0.3 * fade})`);
-    edgePuff.addColorStop(1, 'rgba(70, 62, 55, 0)');
-    ctx.fillStyle = edgePuff;
+    ctx.fillStyle = `rgba(148, 130, 113, ${0.26 * fade})`;
     ctx.beginPath();
     ctx.arc(ex, ey, er, 0, Math.PI * 2);
     ctx.fill();
@@ -279,11 +275,7 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
     const px = x + Math.cos(puffState.wobble) * rr * 0.06 + puffState.ox;
     const py = puffState.yBase * sy + Math.sin(puffState.wobble) * 1.2 + puffState.oy;
     const pr = Math.max(8.8 * scale, ringR * 0.24 * (puffState.radiusScale || 1));
-    const puff = ctx.createRadialGradient(px, py, pr * 0.2, px, py, pr);
-    puff.addColorStop(0, `rgba(192, 170, 146, ${0.44 * fade})`);
-    puff.addColorStop(0.6, `rgba(124, 112, 101, ${0.28 * fade})`);
-    puff.addColorStop(1, 'rgba(70, 62, 55, 0)');
-    ctx.fillStyle = puff;
+    ctx.fillStyle = `rgba(164, 146, 126, ${0.24 * fade})`;
     ctx.beginPath();
     ctx.arc(px, py, pr, 0, Math.PI * 2);
     ctx.fill();
