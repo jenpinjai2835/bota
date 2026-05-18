@@ -974,23 +974,162 @@ function setupWebSocket(server, rooms) {
     return true;
   }
 
+  const FLOW_CELL_SIZE = 44;
+  const FLOW_NEIGHBORS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+  function getFlowField(room, teamId, goalX, goalY) {
+    room._flowFields = room._flowFields || {};
+    const cols = Math.max(8, Math.ceil(WORLD_W / FLOW_CELL_SIZE));
+    const rows = Math.max(4, Math.ceil((BATTLEFIELD_BOTTOM_Y - BATTLEFIELD_TOP_Y) / FLOW_CELL_SIZE));
+    const objectiveSignature = (room.objectives || [])
+      .filter(obj => obj.hp > 0)
+      .map(obj => `${obj.id}:${Math.round(obj.x)}:${Math.round(obj.y)}:${obj.hp}`)
+      .join('|');
+    const key = `${teamId}:${Math.round(goalX / 18)}:${Math.round(goalY / 18)}:${objectiveSignature}`;
+    const cached = room._flowFields[key];
+    if (cached) return cached;
+
+    const blocked = Array.from({ length: rows }, () => Array(cols).fill(false));
+    const field = Array.from({ length: rows }, () => Array(cols).fill(Infinity));
+    const toCell = (x, y) => {
+      const cx = Math.max(0, Math.min(cols - 1, Math.floor(x / FLOW_CELL_SIZE)));
+      const cy = Math.max(0, Math.min(rows - 1, Math.floor((y - BATTLEFIELD_TOP_Y) / FLOW_CELL_SIZE)));
+      return { cx, cy };
+    };
+
+    (room.objectives || []).forEach(obj => {
+      if (obj.hp <= 0) return;
+      const f = unitFoot(obj);
+      const rX = Math.max(20, unitBlockRadiusX(obj) + 10);
+      const rY = Math.max(14, unitBlockRadiusY(obj) + 10);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const px = x * FLOW_CELL_SIZE + FLOW_CELL_SIZE * 0.5;
+          const py = BATTLEFIELD_TOP_Y + y * FLOW_CELL_SIZE + FLOW_CELL_SIZE * 0.5;
+          const dx = Math.abs(px - f.x);
+          const dy = Math.abs(py - f.y);
+          if (dx < rX && dy < rY) blocked[y][x] = true;
+        }
+      }
+    });
+
+    const { cx: gcx, cy: gcy } = toCell(goalX, goalY);
+    blocked[gcy][gcx] = false;
+    field[gcy][gcx] = 0;
+    const queue = [{ x: gcx, y: gcy }];
+    let qIdx = 0;
+    while (qIdx < queue.length) {
+      const cur = queue[qIdx++];
+      const base = field[cur.y][cur.x];
+      FLOW_NEIGHBORS.forEach(([nx, ny]) => {
+        const x = cur.x + nx;
+        const y = cur.y + ny;
+        if (x < 0 || y < 0 || x >= cols || y >= rows || blocked[y][x]) return;
+        const cost = base + (nx !== 0 && ny !== 0 ? 1.4 : 1);
+        if (cost + 0.0001 < field[y][x]) {
+          field[y][x] = cost;
+          queue.push({ x, y });
+        }
+      });
+    }
+
+    const out = { cols, rows, field, blocked };
+    room._flowFields = { [key]: out };
+    return out;
+  }
+
+  function getFlowDirection(flow, x, y) {
+    if (!flow) return { x: 0, y: 0 };
+    const cx = Math.max(0, Math.min(flow.cols - 1, Math.floor(x / FLOW_CELL_SIZE)));
+    const cy = Math.max(0, Math.min(flow.rows - 1, Math.floor((y - BATTLEFIELD_TOP_Y) / FLOW_CELL_SIZE)));
+    let best = flow.field[cy][cx];
+    let bx = 0;
+    let by = 0;
+    FLOW_NEIGHBORS.forEach(([dx, dy]) => {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= flow.cols || ny >= flow.rows) return;
+      const v = flow.field[ny][nx];
+      if (v < best) {
+        best = v;
+        bx = dx;
+        by = dy;
+      }
+    });
+    return { x: bx, y: by };
+  }
+
+  function trySteerMoveCreep(room, creep, goalX, goalY, target = null) {
+    const speed = creep.speed || 1.8;
+    const cf = unitFoot(creep);
+    const flow = getFlowField(room, creep.teamId, goalX, goalY);
+    const flowDir = getFlowDirection(flow, cf.x, cf.y);
+    let vx = flowDir.x;
+    let vy = flowDir.y * CREEP_DEPTH_SPEED_MULTIPLIER;
+
+    const blockers = getCreepMoveBlockers(room, creep, target);
+    for (let i = 0; i < blockers.length; i++) {
+      const unit = blockers[i];
+      const uf = unitFoot(unit);
+      const dx = cf.x - uf.x;
+      const dy = (cf.y - uf.y) * 1.25;
+      const dist = Math.hypot(dx, dy) || 0.0001;
+      const repelRange = unitBlockRadiusX(creep) + unitBlockRadiusX(unit) + 42;
+      if (dist > repelRange) continue;
+      const t = 1 - dist / repelRange;
+      vx += (dx / dist) * t * 1.2;
+      vy += (dy / dist) * t * 0.8;
+    }
+
+    const forwardBlocker = getForwardBlockingUnit(room, creep, goalX, goalY, target);
+    if (forwardBlocker) {
+      const side = creep.avoidSide || creep.individualSide || 1;
+      vy += side * (0.65 + Math.min(0.7, (creep.stuckTicks || 0) * 0.08));
+    }
+
+    const len = Math.hypot(vx, vy) || 1;
+    vx = (vx / len) * speed;
+    vy = (vy / len) * Math.max(0.85, speed * CREEP_DEPTH_SPEED_MULTIPLIER);
+
+    const nx = creep.x + vx;
+    const ny = clampCreepY(creep.y + vy, creep.h);
+    if (!isCreepMoveBlocked(room, creep, nx, ny, target)) {
+      creep.lastStepX = vx;
+      creep.lastStepY = vy;
+      creep.x = nx;
+      creep.y = ny;
+      creep.stuckTicks = Math.max(0, (creep.stuckTicks || 0) - 1);
+      return true;
+    }
+
+    const slideY = clampCreepY(creep.y + vy, creep.h);
+    if (!isCreepMoveBlocked(room, creep, creep.x, slideY, target)) {
+      creep.lastStepX = 0;
+      creep.lastStepY = vy;
+      creep.y = slideY;
+      creep.stuckTicks = (creep.stuckTicks || 0) + 1;
+      return true;
+    }
+    const slideX = creep.x + vx;
+    if (!isCreepMoveBlocked(room, creep, slideX, creep.y, target)) {
+      creep.lastStepX = vx;
+      creep.lastStepY = 0;
+      creep.x = slideX;
+      creep.stuckTicks = (creep.stuckTicks || 0) + 1;
+      return true;
+    }
+
+    creep.stuckTicks = (creep.stuckTicks || 0) + 1;
+    if ((creep.stuckTicks || 0) % 4 === 0) creep.avoidSide = -getCreepAvoidSign(creep);
+    return false;
+  }
+
   function moveCreepTowardLane(room, creep, dir) {
     const speed = creep.speed || 1.8;
     const desiredY = typeof creep.laneY === 'number' ? creep.laneY : creep.y;
-    const laneStep = Math.sign(desiredY - creep.y) * Math.min(1.8 * CREEP_DEPTH_SPEED_MULTIPLIER, Math.abs(desiredY - creep.y));
-    const avoidSign = getCreepAvoidSign(creep);
-    const sideSteps = rotateList([0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2], creep.slotPhase || 0);
-    const xSteps = [1, 0.75, 0.45, -0.25];
-    const candidates = [];
-    xSteps.forEach(xMult => {
-      sideSteps.forEach(side => {
-        candidates.push([
-          creep.x + dir * speed * xMult,
-          creep.y + laneStep + side * Math.max(1.1, speed * CREEP_DEPTH_SPEED_MULTIPLIER * (creep.stuckTicks > 2 ? 1.55 : 0.72)),
-        ]);
-      });
-    });
-    if (!tryMoveCreep(room, creep, candidates, creep.x + dir * speed * 6, desiredY + unitHeight(creep))) creep.state = 'idle';
+    const goalX = creep.x + dir * speed * 20 + unitWidth(creep) * 0.5;
+    const goalY = desiredY + unitHeight(creep);
+    if (!trySteerMoveCreep(room, creep, goalX, goalY, null)) creep.state = 'idle';
   }
 
   function isChaseTarget(room, target) {
@@ -1054,24 +1193,7 @@ function setupWebSocket(server, rooms) {
     const goalFootX = targetFoot.x - approachDir * preferredGap;
     const attackSlotGoal = getCreepAttackSlotGoal(room, creep, target, approachDir, goalFootX, targetFoot.y);
     const navigationGoal = getCreepNavigationGoal(room, creep, target, attackSlotGoal.x, attackSlotGoal.y);
-    const navTopX = navigationGoal.x - unitWidth(creep) / 2;
-    const goalDx = navTopX - creep.x;
-    const stepX = Math.sign(goalDx) * Math.min(Math.abs(goalDx), speed);
-    const navDepthDelta = navigationGoal.y - creepFoot.y;
-    const stepY = Math.sign(navDepthDelta) * Math.min(Math.abs(navDepthDelta), Math.max(0.85, speed * CREEP_DEPTH_SPEED_MULTIPLIER));
-    const avoidSign = getCreepAvoidSign(creep);
-    const sideSteps = rotateList([0, avoidSign, -avoidSign, avoidSign * 2, -avoidSign * 2, avoidSign * 3, -avoidSign * 3], creep.slotPhase || 0);
-    const xSteps = rotateList([1, 0, 0.6, -0.35, 1.25], creep.slotPhase || 0);
-    const candidates = [];
-    xSteps.forEach(xMult => {
-      sideSteps.forEach(side => {
-        candidates.push([
-          creep.x + stepX * xMult,
-          creep.y + stepY + side * Math.max(1.1, speed * CREEP_DEPTH_SPEED_MULTIPLIER * (creep.stuckTicks > 2 ? 1.85 : 0.72)),
-        ]);
-      });
-    });
-    if (!tryMoveCreep(room, creep, candidates, navigationGoal.x, navigationGoal.y, target)) creep.state = 'idle';
+    if (!trySteerMoveCreep(room, creep, navigationGoal.x, navigationGoal.y, target)) creep.state = 'idle';
   }
 
   function tickWorld(roomId) {
