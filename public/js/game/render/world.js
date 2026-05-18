@@ -262,7 +262,11 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
     const ex = x + Math.cos(t) * ringR * (1.04 + (i % 4) * 0.02);
     const ey = y + Math.sin(t) * ringR * (0.31 + (i % 3) * 0.02);
     const er = Math.max(8.4 * scale, ringR * (0.12 + (i % 5) * 0.012));
-    ctx.fillStyle = `rgba(148, 130, 113, ${0.26 * fade})`;
+    const edgeGrad = ctx.createRadialGradient(ex, ey, er * 0.2, ex, ey, er);
+    edgeGrad.addColorStop(0, `rgba(164, 146, 126, ${0.26 * fade})`);
+    edgeGrad.addColorStop(0.68, `rgba(128, 112, 98, ${0.14 * fade})`);
+    edgeGrad.addColorStop(1, 'rgba(98, 86, 76, 0)');
+    ctx.fillStyle = edgeGrad;
     ctx.beginPath();
     ctx.arc(ex, ey, er, 0, Math.PI * 2);
     ctx.fill();
@@ -274,7 +278,11 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
     const px = x + puffState.ox;
     const py = puffState.yBase * sy + puffState.oy;
     const pr = Math.max(8.8 * scale, ringR * 0.24 * (puffState.radiusScale || 1));
-    ctx.fillStyle = `rgba(164, 146, 126, ${0.24 * fade})`;
+    const puffGrad = ctx.createRadialGradient(px, py, pr * 0.22, px, py, pr);
+    puffGrad.addColorStop(0, `rgba(182, 164, 142, ${0.24 * fade})`);
+    puffGrad.addColorStop(0.64, `rgba(138, 122, 106, ${0.13 * fade})`);
+    puffGrad.addColorStop(1, 'rgba(96, 84, 74, 0)');
+    ctx.fillStyle = puffGrad;
     ctx.beginPath();
     ctx.arc(px, py, pr, 0, Math.PI * 2);
     ctx.fill();
