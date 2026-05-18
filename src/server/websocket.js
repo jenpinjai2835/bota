@@ -303,7 +303,7 @@ function setupWebSocket(server, rooms) {
       hp: isRanged ? 95 : 135,
       maxHp: isRanged ? 95 : 135,
       damage: isRanged ? 14 : 17,
-      speed: isRanged ? 1.95 : 2.2,
+      speed: isRanged ? 2.925 : 3.3,
       range: isRanged ? 210 : 38,
       attackSpeed,
       attackCooldown: Math.round(1000 / attackSpeed),
