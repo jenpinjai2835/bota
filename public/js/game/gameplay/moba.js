@@ -553,6 +553,29 @@ function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3, options = 
       maxLife: isFire ? 28 * Math.min(1.5, intensity) : 52 * Math.min(1.6, intensity),
     });
   }
+
+  // Ground shock-dust: heavy horizontal burst along the floor right at detonation time.
+  const groundDustCount = Math.round(22 * intensity);
+  for (let i = 0; i < groundDustCount; i++) {
+    const dir = i % 2 === 0 ? -1 : 1;
+    const lateral = (0.9 + Math.random() * 2.6 + force * 0.18) * dir;
+    const upward = 0.08 + Math.random() * 0.42;
+    const size = 7 + Math.random() * 11 * Math.min(1.6, intensity);
+    bloodParticles.push({
+      kind: 'smoke',
+      x: cx + (Math.random() - 0.5) * 26,
+      y: groundY - (2 + Math.random() * 8),
+      vx: lateral,
+      vy: -upward,
+      size,
+      color: i % 3 === 0 ? '#8A8074' : (i % 2 === 0 ? '#6C6359' : '#534C46'),
+      groundY,
+      gravity: 0.018,
+      groundDamping: 0.02,
+      life: 36 + Math.floor(Math.random() * 24 * intensity),
+      maxLife: 84 * Math.min(1.8, intensity),
+    });
+  }
 }
 
 function handleObjectiveDestroyed(msg) {
