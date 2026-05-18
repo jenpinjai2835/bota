@@ -173,17 +173,13 @@ function handleMessage(msg) {
       break;
     case 'game_over':
       gameWinner = msg.winner;
-      gameRunning = false;
-      isAlive = false;
-      if (respawnTimer) {
-        clearInterval(respawnTimer);
-        respawnTimer = null;
+      if (Array.isArray(msg.scores)) {
+        scores = {};
+        msg.scores.forEach(s => { scores[s.id] = s; });
       }
-      document.getElementById('controls-hint')?.classList.remove('visible');
-      document.getElementById('death-overlay')?.classList.remove('visible');
-      document.getElementById('scoreboard')?.classList.remove('visible');
       showKillBanner({ name: msg.winner === myPlayer?.teamId ? 'YOUR TEAM' : 'ENEMY TEAM' }, { name: 'ANCIENT' });
-      showGameSummary(msg.winner);
+      if (typeof beginCinematicPause === 'function') beginCinematicPause('game-end', msg.winner);
+      else showGameSummary(msg.winner);
       break;
     case 'player_state':
       if (remotePlayers[msg.playerId]) {

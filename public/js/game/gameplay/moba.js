@@ -68,6 +68,15 @@ function preloadMonsterVectorAssets() {
 }
 
 function syncWorldState(msg) {
+  if (typeof isCinematicPauseActive === 'function' && isCinematicPauseActive()) {
+    cinematicPause.pendingWorldState = msg;
+    gameWinner = msg.winner || gameWinner;
+    return;
+  }
+  applyWorldState(msg);
+}
+
+function applyWorldState(msg) {
   const incoming = msg.creeps || [];
   const incomingIds = new Set(incoming.map(creep => creep.id));
   creeps
@@ -395,9 +404,20 @@ function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3) {
 }
 
 function handleObjectiveDestroyed(msg) {
-  if (!msg?.objective || msg.objective.type !== 'tower') return;
+  if (!msg?.objective || !['tower', 'ancient'].includes(msg.objective.type)) return;
   const existing = objectives.find(entry => entry.id === msg.objective.id);
-  spawnObjectiveDeathBurst({ ...existing, ...msg.objective }, msg.damage || 0);
+  const objective = { ...existing, ...msg.objective };
+  objectives = objectives.map(entry => entry.id === objective.id ? { ...entry, ...objective, hp: 0 } : entry);
+  if (objective.type === 'tower') {
+    spawnObjectiveDeathBurst(objective, msg.damage || 0);
+  } else {
+    const foot = getUnitFoot(objective);
+    const cx = foot.x;
+    const cy = foot.y - (objective.h || 116) * 0.55;
+    spawnEffect(cx, cy, 'tower-break', objective.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 104);
+    spawnTowerCollapsePlumes(cx, cy, foot.y, objective.teamId, 4.2);
+  }
+  if (typeof beginCinematicPause === 'function') beginCinematicPause('tower-break');
 }
 
 function drawObjective(ctx, obj, sx, sy) {

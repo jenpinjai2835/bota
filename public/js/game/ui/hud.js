@@ -194,6 +194,7 @@ function getScoreRecord(playerId) {
     kills: score.kills ?? Math.floor((score.score || 0) / 100),
     deaths: score.deaths || 0,
     assists: score.assists || 0,
+    score: score.score || 0,
   };
 }
 
@@ -294,26 +295,49 @@ function showGameSummary(winnerTeamId) {
   const winnerTeam = TEAM_DEFINITIONS.find(team => team.id === winnerTeamId);
   const rows = getCombatStatRows().sort((a, b) => {
     if (a.teamId !== b.teamId) return a.teamId === winnerTeamId ? -1 : 1;
-    return (b.kills - a.kills) || (a.deaths - b.deaths) || a.name.localeCompare(b.name);
+    return (b.score - a.score) || (b.kills - a.kills) || (a.deaths - b.deaths) || a.name.localeCompare(b.name);
   });
+  const myRow = rows.find(row => row.id === myPlayerId);
+  const teamTotals = rows.reduce((acc, row) => {
+    const key = row.teamId || 'unknown';
+    acc[key] = acc[key] || { kills: 0, deaths: 0, assists: 0, score: 0 };
+    acc[key].kills += row.kills || 0;
+    acc[key].deaths += row.deaths || 0;
+    acc[key].assists += row.assists || 0;
+    acc[key].score += row.score || 0;
+    return acc;
+  }, {});
 
   if (title) {
     title.textContent = won ? 'VICTORY' : 'DEFEAT';
     title.classList.toggle('defeat', !won);
   }
   if (subtitle) {
-    subtitle.textContent = `${winnerTeam?.name || winnerTeamId || 'A team'} destroyed the Ancient`;
+    const mySummary = myRow ? `${myRow.kills}/${myRow.deaths}/${myRow.assists} K/D/A | ${myRow.score || 0} PTS` : 'Match complete';
+    const winningTotals = teamTotals[winnerTeamId] || { kills: 0, deaths: 0, assists: 0, score: 0 };
+    subtitle.innerHTML = `
+      <div>${winnerTeam?.name || winnerTeamId || 'A team'} destroyed the Ancient</div>
+      <div class="game-summary-headline">YOU: ${mySummary}</div>
+      <div class="game-summary-teamline">TEAM TOTAL: ${winningTotals.kills}/${winningTotals.deaths}/${winningTotals.assists} K/D/A | ${winningTotals.score} PTS</div>
+    `;
   }
   if (list) {
-    list.innerHTML = rows.map(row => `
+    list.innerHTML = `
+      <div class="game-summary-header">
+        <span>PLAYER</span>
+        <span>K / D / A</span>
+        <span>POINTS</span>
+      </div>
+      ${rows.map(row => `
       <div class="game-summary-row">
         <div>
           <div class="game-summary-name">${escapeHtml(row.name)}${row.id === myPlayerId ? ' (YOU)' : ''}</div>
           <div class="game-summary-char">${escapeHtml(getCharacterNameById(row.character))}</div>
         </div>
         <div class="game-summary-kda">${row.kills} / ${row.deaths} / ${row.assists}</div>
+        <div class="game-summary-points">${row.score || 0}</div>
       </div>
-    `).join('');
+    `).join('')}`;
   }
   overlay.classList.add('visible');
 }

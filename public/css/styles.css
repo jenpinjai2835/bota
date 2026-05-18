@@ -1330,10 +1330,39 @@
     margin: 6px 0 18px;
     font-size: 13px;
   }
+  .game-summary-headline {
+    margin-top: 8px;
+    color: #F7E8B7;
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+  }
+  .game-summary-teamline {
+    margin-top: 4px;
+    color: rgba(245,225,130,0.78);
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+  .game-summary-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px 72px;
+    gap: 14px;
+    align-items: center;
+    padding: 8px 0;
+    border-top: 1px solid rgba(212,175,55,0.28);
+    border-bottom: 1px solid rgba(212,175,55,0.18);
+    color: rgba(245,225,130,0.78);
+    font: 800 10px/1 'Cinzel', serif;
+    letter-spacing: 0.08em;
+  }
+  .game-summary-header span:nth-child(n + 2) {
+    text-align: right;
+  }
   .game-summary-row {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) 92px 72px;
+    gap: 14px;
     align-items: center;
     border-top: 1px solid rgba(212,175,55,0.13);
     padding: 10px 0;
@@ -1351,6 +1380,13 @@
   .game-summary-kda {
     color: var(--gold);
     font-family: 'Cinzel', serif;
+    white-space: nowrap;
+    text-align: right;
+  }
+  .game-summary-points {
+    color: #F7E8B7;
+    font-family: 'Cinzel', serif;
+    text-align: right;
     white-space: nowrap;
   }
   .game-summary-button {

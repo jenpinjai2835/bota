@@ -47,6 +47,14 @@ let reconnectTimer = null;
 let testModeState = {
   immortal: false,
 };
+let cinematicPause = {
+  active: false,
+  mode: null,
+  until: 0,
+  frame: 0,
+  pendingWorldState: null,
+  pendingWinner: null,
+};
 const mutedChatPlayerIds = new Set();
 const recentCreepDeathBursts = new Map();
 const assetLoadCache = new Map();

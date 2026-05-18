@@ -426,14 +426,23 @@ function setupWebSocket(server, rooms) {
     return true;
   }
 
-  function damageObjective(room, objective, amount, attackerTeamId = null, roomId = null) {
+  function damageObjective(room, objective, amount, attackerTeamId = null, roomId = null, attacker = null) {
     if (!objective || objective.hp <= 0 || !canDamageObjective(room, attackerTeamId, objective)) return false;
-    objective.hp = Math.max(0, objective.hp - amount);
+    const damage = Math.max(1, Math.min(500, Number(amount) || 0));
+    const oldHp = objective.hp;
+    objective.hp = Math.max(0, objective.hp - damage);
+    const actualDamage = Math.max(0, oldHp - objective.hp);
+    if (attacker?.id && room.playerData?.[attacker.id]) {
+      attacker.score = (attacker.score || 0) + Math.max(1, Math.floor(actualDamage / 5));
+      if (objective.hp <= 0) {
+        attacker.score += objective.type === 'ancient' ? 300 : 150;
+      }
+    }
     if (objective.hp <= 0 && roomId) {
       room.players.forEach(pid => sendTo(pid, {
         type: 'objective_destroyed',
         objective,
-        damage: amount,
+        damage,
         attackerTeamId,
       }));
     }
@@ -1076,8 +1085,9 @@ function setupWebSocket(server, rooms) {
     }));
     if (room.winner) {
       room.status = 'finished';
+      const scores = rooms.getScores(roomId);
       sendScores(roomId);
-      room.players.forEach(pid => sendTo(pid, { type: 'game_over', winner: room.winner }));
+      room.players.forEach(pid => sendTo(pid, { type: 'game_over', winner: room.winner, scores }));
       stopWorldLoop(roomId);
     }
   }
@@ -1392,7 +1402,8 @@ function setupWebSocket(server, rooms) {
         }
         const objective = (room.objectives || []).find(entry => entry.id === unitId);
         if (objective && objective.teamId !== attacker.teamId) {
-          damageObjective(room, objective, damage, attacker.teamId, roomId);
+          damageObjective(room, objective, damage, attacker.teamId, roomId, attacker);
+          sendScores(roomId, attacker.id);
         }
         break;
       }

@@ -22,6 +22,14 @@ function leaveGame() {
   objectives = [];
   towerShots = [];
   gameWinner = null;
+  cinematicPause = {
+    active: false,
+    mode: null,
+    until: 0,
+    frame: 0,
+    pendingWorldState: null,
+    pendingWinner: null,
+  };
   nextMatchItemSpawnAt = 0;
   scores = {};
   skillCooldowns = {};
@@ -79,6 +87,14 @@ function startGameClient(state) {
   showScreen('');
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   gameRunning = true;
+  cinematicPause = {
+    active: false,
+    mode: null,
+    until: 0,
+    frame: 0,
+    pendingWorldState: null,
+    pendingWinner: null,
+  };
   hideGameSummary();
 
   currentStage = STAGES.find(s => s.id === state.stage) || STAGES[0];
