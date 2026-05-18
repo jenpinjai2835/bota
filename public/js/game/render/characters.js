@@ -173,7 +173,7 @@ function drawCharacterDetails(ctx, ch, w, h, color, run) {
 function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   const nameW = Math.max(78, plateW * 0.88);
   const level = p.progression?.level || 1;
-  const label = `${level} ${getPlayerClassLabel(p)}`;
+  const label = getPlayerClassLabel(p);
   if (p.hp <= 0 && p.deathUntil) {
     const remaining = Math.max(0, Math.ceil((p.deathUntil - Date.now()) / 1000));
     const countdownY = topY - 36 * sy;
@@ -198,16 +198,7 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   ctx.lineWidth = Math.max(1, 1.35 * Math.min(sx, sy));
   ctx.stroke();
 
-  let nameFontSize = Math.max(8, 10 * Math.min(sx, sy));
-  ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
-  while (nameFontSize > 7 && ctx.measureText(label).width > nameW - 10) {
-    nameFontSize -= 0.5;
-    ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
-  }
-  ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(label, centerX, topY - 8 * sy);
+  drawPlayerPlateLabel(ctx, label, level, centerX, topY - 8 * sy, nameW, sx, sy, isMe);
 
   const bw = nameW - 8;
   const bh = Math.max(3, 3.5 * sy);
@@ -221,6 +212,44 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   ctx.fillStyle = hpPct > 0.6 ? '#39D36A' : hpPct > 0.3 ? '#FFB02E' : '#FF3D46';
   ctx.fill();
   drawHealthSegmentTicks(ctx, bx, by, bw, bh, p.maxHp || 100);
+}
+
+function drawPlayerPlateLabel(ctx, label, level, centerX, baselineY, nameW, sx, sy, isMe) {
+  const scale = Math.min(sx, sy);
+  const badgeR = Math.max(5.5, 6.5 * scale);
+  const badgeX = centerX - nameW / 2 + badgeR + 6 * scale;
+  const badgeY = baselineY - 5.5 * scale;
+  const textLeft = badgeX + badgeR + 5 * scale;
+  const textRight = centerX + nameW / 2 - 5 * scale;
+  const textCenter = (textLeft + textRight) / 2;
+  const maxTextW = Math.max(22, textRight - textLeft);
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(6,5,8,0.82)';
+  ctx.strokeStyle = isMe ? 'rgba(212,255,224,0.9)' : 'rgba(255,230,230,0.86)';
+  ctx.lineWidth = Math.max(1, 1.05 * scale);
+  ctx.beginPath();
+  ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `400 ${Math.max(7, 8.5 * scale)}px Cinzel, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(level), badgeX, badgeY + 0.15 * scale);
+
+  let nameFontSize = Math.max(8, 10 * scale);
+  ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
+  while (nameFontSize > 7 && ctx.measureText(label).width > maxTextW) {
+    nameFontSize -= 0.5;
+    ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
+  }
+  ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(label, textCenter, baselineY);
+  ctx.restore();
 }
 
 function drawHealthSegmentTicks(ctx, x, y, w, h, maxHp) {
@@ -964,7 +993,7 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
 
   const nameY = y - 11 * sy;
   const nameW = Math.max(58, w * 1.68);
-  const plateLabel = `${p.progression?.level || 1} ${label}`;
+  const level = p.progression?.level || 1;
   drawRoundRect(ctx, x + w / 2 - nameW / 2, nameY - 22 * sy, nameW, 17 * sy, 4);
   ctx.fillStyle = 'rgba(7,5,6,0.72)';
   ctx.fill();
@@ -972,16 +1001,7 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   ctx.lineWidth = Math.max(1, 1.35 * Math.min(sx, sy));
   ctx.stroke();
 
-  let nameFontSize = Math.max(8, 10 * Math.min(sx, sy));
-  ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
-  while (nameFontSize > 7 && ctx.measureText(plateLabel).width > nameW - 10) {
-    nameFontSize -= 0.5;
-    ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
-  }
-  ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(plateLabel, x + w / 2, nameY - 8 * sy);
+  drawPlayerPlateLabel(ctx, label, level, x + w / 2, nameY - 8 * sy, nameW, sx, sy, isMe);
 
   const bw = nameW - 8;
   const bh = Math.max(3, 3.5 * sy);

@@ -360,6 +360,36 @@ function spawnObjectiveDeathBurst(obj, damage = 0) {
     });
   }
   spawnEffect(cx, cy, 'tower-break', obj.teamId === 'sun' ? '#23B8FF' : '#9D55FF', 92);
+  spawnTowerCollapsePlumes(cx, cy, groundY, obj.teamId, force);
+}
+
+function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3) {
+  const teamColor = teamId === 'sun' ? '#23B8FF' : '#9D55FF';
+  spawnEffect(cx, cy + 12, 'tower-fire', '#FF8A2A', 78);
+  spawnEffect(cx, cy - 10, 'tower-smoke', '#6F6860', 112);
+  spawnEffect(cx, cy + 4, 'tower-collapse-aura', teamColor, 120);
+
+  for (let i = 0; i < 34; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.8 + Math.random() * (2.8 + force * 0.25);
+    const lift = 1.6 + Math.random() * 3.4;
+    const isFire = i < 16;
+    const size = isFire ? 3.4 + Math.random() * 5.4 : 7 + Math.random() * 12;
+    const spreadX = Math.cos(angle) * (isFire ? 18 : 28);
+    const spreadY = Math.sin(angle) * (isFire ? 8 : 14);
+    bloodParticles.push({
+      kind: isFire ? 'fire' : 'smoke',
+      x: cx + spreadX,
+      y: cy + spreadY + (isFire ? 18 : -2),
+      vx: Math.cos(angle) * speed * (isFire ? 0.9 : 0.42),
+      vy: -lift - (isFire ? Math.random() * 2.2 : Math.random() * 1.3),
+      size,
+      color: isFire ? (i % 3 === 0 ? '#FFE28A' : '#FF7A24') : (i % 2 === 0 ? '#6F6860' : '#4A4542'),
+      groundY,
+      life: isFire ? 22 + Math.floor(Math.random() * 18) : 54 + Math.floor(Math.random() * 34),
+      maxLife: isFire ? 42 : 88,
+    });
+  }
 }
 
 function handleObjectiveDestroyed(msg) {

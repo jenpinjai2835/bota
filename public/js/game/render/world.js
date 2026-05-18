@@ -325,6 +325,40 @@ function drawBloodParticle(ctx, b, sx, sy) {
   const alpha = Math.max(0, b.life / b.maxLife);
   const scale = Math.min(sx, sy);
   const color = b.color || '#D91F2A';
+  if (b.kind === 'smoke') {
+    const x = b.x * sx;
+    const y = b.y * sy;
+    const r = b.size * scale * (1.4 + (1 - alpha) * 1.8);
+    const smoke = ctx.createRadialGradient(x, y, 0, x, y, r);
+    smoke.addColorStop(0, withAlpha(color, 0.34 * alpha));
+    smoke.addColorStop(0.56, withAlpha(color, 0.18 * alpha));
+    smoke.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = smoke;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+  if (b.kind === 'fire') {
+    const x = b.x * sx;
+    const y = b.y * sy;
+    const r = b.size * scale * (1.5 + (1 - alpha) * 0.65);
+    const flame = ctx.createRadialGradient(x, y, 0, x, y, r);
+    flame.addColorStop(0, `rgba(255, 241, 166, ${0.88 * alpha})`);
+    flame.addColorStop(0.38, withAlpha(color, 0.72 * alpha));
+    flame.addColorStop(1, 'rgba(255,74,18,0)');
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = flame;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.strokeStyle = b.color ? withAlpha(color, 0.75) : 'rgba(185, 12, 22, 0.75)';
