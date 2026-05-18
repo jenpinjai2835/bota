@@ -649,7 +649,7 @@ function drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH, teamColor, s
   const hpPct = Math.max(0, Math.min(1, (obj.hp || 0) / Math.max(1, obj.maxHp || 1)));
   const damagePct = 1 - hpPct;
   if (damagePct < 0.12) return;
-  const scale = Math.min(sx, sy);
+  const burnImg = effectImages?.towerBurn;
   const burnCount = Math.min(12, Math.max(2, Math.ceil(damagePct * 13)));
   ctx.save();
   ctx.beginPath();
@@ -660,28 +660,27 @@ function drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH, teamColor, s
     const flicker = 0.78 + Math.sin(t * (3.4 + i * 0.17) + i * 2.11) * 0.22;
     const centerX = drawX + drawW * (0.36 + debrisRand(i, 71) * 0.28);
     const centerY = drawY + drawH * (0.24 + debrisRand(i, 79) * 0.52);
-    const r = drawW * (0.035 + debrisRand(i, 83) * 0.045) * (0.72 + damagePct * 0.8) * flicker;
-    const flameH = drawH * (0.055 + debrisRand(i, 89) * 0.075) * (0.6 + damagePct);
-    const aura = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(3, r * 2.6));
-    aura.addColorStop(0, `rgba(255, 238, 150, ${0.22 + damagePct * 0.18})`);
-    aura.addColorStop(0.38, `rgba(255, 111, 34, ${0.18 + damagePct * 0.2})`);
-    aura.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = aura;
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY, r * 2.4, flameH * 1.25, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = `rgba(255, 118, 36, ${0.28 + damagePct * 0.34})`;
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY - flameH * 1.2);
-    ctx.bezierCurveTo(centerX + r * 1.15, centerY - flameH * 0.35, centerX + r * 0.8, centerY + flameH * 0.6, centerX, centerY + flameH * 0.72);
-    ctx.bezierCurveTo(centerX - r * 0.9, centerY + flameH * 0.2, centerX - r * 0.95, centerY - flameH * 0.45, centerX, centerY - flameH * 1.2);
-    ctx.fill();
+    const burnW = drawW * (0.16 + debrisRand(i, 83) * 0.09) * (0.76 + damagePct * 0.55) * flicker;
+    const burnH = burnW * 1.25;
+    if (burnImg?.complete && burnImg.naturalWidth) {
+      ctx.globalAlpha = Math.min(0.92, 0.24 + damagePct * 0.72);
+      ctx.drawImage(burnImg, centerX - burnW / 2, centerY - burnH * 0.68, burnW, burnH);
+      ctx.globalAlpha = 1;
+    } else {
+      const aura = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(3, burnW * 0.8));
+      aura.addColorStop(0, `rgba(255, 238, 150, ${0.22 + damagePct * 0.18})`);
+      aura.addColorStop(0.38, `rgba(255, 111, 34, ${0.18 + damagePct * 0.2})`);
+      aura.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, burnW * 0.6, burnH * 0.42, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.fillStyle = `rgba(20, 12, 8, ${0.18 + damagePct * 0.26})`;
     ctx.globalCompositeOperation = 'multiply';
     ctx.beginPath();
-    ctx.ellipse(centerX, centerY + flameH * 0.42, r * 1.35, flameH * 0.42, 0, 0, Math.PI * 2);
+    ctx.ellipse(centerX, centerY + burnH * 0.18, burnW * 0.35, burnH * 0.13, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalCompositeOperation = 'lighter';
   }

@@ -75,9 +75,13 @@ const DEATH_BODY_FADE_DURATION_MS = 1200;
 const DEATH_PART_LIFE = 300;
 const spriteImages = {};
 const objectiveImages = {};
+const effectImages = {};
 const OBJECTIVE_TEXTURE_URLS = {
   sunTower: '/assets/objectives/tower-sun-blue.png',
   moonTower: '/assets/objectives/tower-moon-purple.png',
+};
+const EFFECT_TEXTURE_URLS = {
+  towerBurn: '/assets/effects/tower-burn.gif',
 };
 const monsterImages = {};
 const warriorVectorOverlayImages = {};
@@ -161,6 +165,12 @@ function preloadSpriteAssets() {
     const img = new Image();
     img.src = src;
     objectiveImages[key] = img;
+  });
+  Object.entries(EFFECT_TEXTURE_URLS).forEach(([key, src]) => {
+    if (effectImages[key]) return;
+    const img = new Image();
+    img.src = src;
+    effectImages[key] = img;
   });
   if (!warriorVectorAnimationsLoadStarted && typeof fetch === 'function') {
     warriorVectorAnimationsLoadStarted = true;
