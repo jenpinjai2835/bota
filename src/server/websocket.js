@@ -8,6 +8,8 @@ function setupWebSocket(server, rooms) {
   const wss = new WebSocket.Server({ server });
   const clients = new Map();
   const worldLoops = new Map();
+  const roomCleanupTimers = new Map();
+  const EMPTY_ROOM_GRACE_MS = 60000;
   const ASSIST_WINDOW_MS = 8000;
   const UNIT_DEATH_XP = 110;
   const CREEP_DEATH_XP = 38;
@@ -1913,6 +1915,35 @@ function setupWebSocket(server, rooms) {
     worldLoops.delete(roomId);
   }
 
+  function hasConnectedHuman(room) {
+    return (room?.players || []).some(pid => {
+      const player = room.playerData?.[pid];
+      return player && !player.isAI && player.connected !== false;
+    });
+  }
+
+  function cancelRoomCleanup(roomId) {
+    const timer = roomCleanupTimers.get(roomId);
+    if (!timer) return;
+    clearTimeout(timer);
+    roomCleanupTimers.delete(roomId);
+  }
+
+  function scheduleRoomCleanupIfEmpty(roomId) {
+    if (!roomId || roomCleanupTimers.has(roomId)) return;
+    const room = rooms.get(roomId);
+    if (!room || hasConnectedHuman(room)) return;
+    const timer = setTimeout(() => {
+      roomCleanupTimers.delete(roomId);
+      const latestRoom = rooms.get(roomId);
+      if (!latestRoom || hasConnectedHuman(latestRoom)) return;
+      stopWorldLoop(roomId);
+      rooms.remove(roomId);
+      broadcastRoomList();
+    }, EMPTY_ROOM_GRACE_MS);
+    roomCleanupTimers.set(roomId, timer);
+  }
+
   function startRoomAfterAssetLoad(roomId) {
     const room = rooms.get(roomId);
     if (!room || room.status !== 'loading') return;
@@ -2009,6 +2040,7 @@ function setupWebSocket(server, rooms) {
           clients.set(result.rejoinedPlayerId, ws);
           ws.playerId = result.rejoinedPlayerId;
           rooms.reconnectPlayer(roomId, result.rejoinedPlayerId);
+          cancelRoomCleanup(roomId);
           sendTo(result.rejoinedPlayerId, { type: 'connected', playerId: result.rejoinedPlayerId });
         }
         ws.roomId = roomId;
@@ -2032,6 +2064,7 @@ function setupWebSocket(server, rooms) {
         ws.playerId = seat.id;
         ws.sessionToken = msg.sessionToken;
         rooms.reconnectPlayer(roomId, seat.id);
+        cancelRoomCleanup(roomId);
         sendTo(seat.id, { type: 'connected', playerId: seat.id });
         sendTo(seat.id, { type: 'game_start', state: rooms.getState(roomId), rejoined: true });
         broadcast(roomId, { type: 'player_joined', state: rooms.getState(roomId) }, seat.id);
@@ -2324,6 +2357,7 @@ function setupWebSocket(server, rooms) {
 
       if (room) {
         broadcast(roomId, { type: 'player_left', playerId: activePlayerId, state: rooms.getState(roomId) });
+        scheduleRoomCleanupIfEmpty(roomId);
       }
 
       clients.delete(activePlayerId);

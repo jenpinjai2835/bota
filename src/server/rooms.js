@@ -156,6 +156,10 @@ class RoomStore {
     return this.rooms.get(roomId);
   }
 
+  remove(roomId) {
+    return this.rooms.delete(roomId);
+  }
+
   getState(roomId) {
     const room = this.get(roomId);
     if (!room) return null;
