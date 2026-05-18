@@ -371,11 +371,11 @@ function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3) {
   spawnEffect(cx, cy - 10, 'tower-smoke', '#6F6860', 112);
   spawnEffect(cx, cy + 4, 'tower-collapse-aura', teamColor, 120);
 
-  for (let i = 0; i < 58; i++) {
+  for (let i = 0; i < 36; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 0.8 + Math.random() * (2.8 + force * 0.25);
     const lift = 1.6 + Math.random() * 3.4;
-    const isFire = i < 26;
+    const isFire = i < 14;
     const size = isFire ? 3.4 + Math.random() * 5.4 : 7 + Math.random() * 12;
     const spreadX = Math.cos(angle) * (isFire ? 18 : 28);
     const spreadY = Math.sin(angle) * (isFire ? 8 : 14);
@@ -388,8 +388,8 @@ function spawnTowerCollapsePlumes(cx, cy, groundY, teamId, force = 3) {
       size,
       color: isFire ? (i % 3 === 0 ? '#FFE28A' : '#FF7A24') : (i % 2 === 0 ? '#6F6860' : '#4A4542'),
       groundY,
-      life: isFire ? 30 + Math.floor(Math.random() * 24) : 70 + Math.floor(Math.random() * 44),
-      maxLife: isFire ? 54 : 116,
+      life: isFire ? 24 + Math.floor(Math.random() * 16) : 48 + Math.floor(Math.random() * 28),
+      maxLife: isFire ? 42 : 88,
     });
   }
 }

@@ -2,6 +2,10 @@
 // ============================================================
 //  COMBAT
 // ============================================================
+const MAX_BLOOD_PARTICLES = 220;
+const MAX_TOWER_TRAIL_PARTICLES = 90;
+const TOWER_TRAIL_INTERVAL_TICKS = 3;
+
 function doMeleeHit(attacker, skill) {
   const all = attacker === myPlayer ? Object.values(remotePlayers) : (myPlayer ? [myPlayer] : []);
   const range = getMeleeHitRange(skill);
@@ -120,6 +124,12 @@ function spawnBloodBurst(x, y, dir = 1, amount = 14, groundY = null) {
   }
 }
 
+function countTowerTrailParticles() {
+  return bloodParticles.reduce((count, particle) => {
+    return count + (particle.kind === 'smoke' || particle.kind === 'fire' ? 1 : 0);
+  }, 0);
+}
+
 function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
   const files = [
     'Body.png',
@@ -168,23 +178,24 @@ function spawnDeathPartTrail(part) {
   const speed = Math.hypot(part.vx || 0, part.vy || 0);
   if (speed < 0.45) return;
   const lifePct = part.life / Math.max(1, part.maxLife || part.life);
+  part.trailTick = (part.trailTick || 0) + 1;
+  const interval = lifePct > 0.72 ? 2 : TOWER_TRAIL_INTERVAL_TICKS;
+  if (part.trailTick % interval !== 0) return;
+  if (countTowerTrailParticles() >= MAX_TOWER_TRAIL_PARTICLES) return;
   const tailX = part.x - part.vx * (0.8 + Math.random() * 0.9);
   const tailY = part.y - part.vy * (0.8 + Math.random() * 0.9);
-  const smokeCount = lifePct > 0.28 ? 2 : 1;
-  for (let i = 0; i < smokeCount; i++) {
-    bloodParticles.push({
-      kind: 'smoke',
-      x: tailX + (Math.random() - 0.5) * 10,
-      y: tailY + (Math.random() - 0.5) * 8,
-      vx: -(part.vx || 0) * (0.08 + Math.random() * 0.04) + (Math.random() - 0.5) * 0.45,
-      vy: -0.75 - Math.random() * 1.15,
-      size: 8 + Math.random() * 15,
-      color: Math.random() < 0.24 ? '#7C736B' : '#4A4542',
-      life: 56 + Math.floor(Math.random() * 38),
-      maxLife: 96,
-    });
-  }
-  if (Math.random() < 0.68 * lifePct) {
+  bloodParticles.push({
+    kind: 'smoke',
+    x: tailX + (Math.random() - 0.5) * 10,
+    y: tailY + (Math.random() - 0.5) * 8,
+    vx: -(part.vx || 0) * (0.08 + Math.random() * 0.04) + (Math.random() - 0.5) * 0.45,
+    vy: -0.75 - Math.random() * 1.05,
+    size: 9 + Math.random() * 13,
+    color: Math.random() < 0.24 ? '#7C736B' : '#4A4542',
+    life: 44 + Math.floor(Math.random() * 30),
+    maxLife: 78,
+  });
+  if (Math.random() < 0.32 * lifePct && countTowerTrailParticles() < MAX_TOWER_TRAIL_PARTICLES) {
     bloodParticles.push({
       kind: 'fire',
       x: tailX + (Math.random() - 0.5) * 7,
@@ -193,8 +204,8 @@ function spawnDeathPartTrail(part) {
       vy: -(part.vy || 0) * 0.08 - 0.5 - Math.random() * 1.2,
       size: 4 + Math.random() * 6,
       color: Math.random() < 0.28 ? '#FFE28A' : '#FF7A24',
-      life: 24 + Math.floor(Math.random() * 22),
-      maxLife: 48,
+      life: 20 + Math.floor(Math.random() * 16),
+      maxLife: 40,
     });
   }
 }
@@ -421,6 +432,9 @@ function updateProjectiles() {
     b.life--;
     return b.life > 0;
   });
+  if (bloodParticles.length > MAX_BLOOD_PARTICLES) {
+    bloodParticles = bloodParticles.slice(bloodParticles.length - MAX_BLOOD_PARTICLES);
+  }
   deathParts = deathParts.filter(part => {
     part.x += part.vx;
     part.y += part.vy;
