@@ -243,7 +243,8 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   const burstT = Math.max(0, Math.min(1, elapsed / burstFrames));
   const burstEase = 1 - Math.pow(1 - burstT, 5);
   const tailT = Math.max(0, Math.min(1, (progress - burstFrames / Math.max(1, e.maxLife || 1)) / (1 - burstFrames / Math.max(1, e.maxLife || 1))));
-  const tailEase = 1 - Math.pow(1 - tailT, 1.75);
+  const tailFastT = Math.max(0, Math.min(1, tailT * 2));
+  const tailEase = 1 - Math.pow(1 - tailFastT, 1.75);
   const earlyRadius = 0.08 + burstEase * 1.024;
   const ringScale = earlyRadius + tailEase * 0.52;
   const ringR = base * ringScale;
