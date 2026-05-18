@@ -234,38 +234,35 @@ function drawTowerWarpEffect(ctx, e, sx, sy) {
   const x = e.x * sx;
   const y = e.y * sy;
   const baseRadius = e.radius * scale;
+  const ease = 1 - Math.pow(1 - progress, 3);
+  const flashAlpha = Math.min(0.9, 0.9 * Math.sin(Math.max(0.08, progress) * Math.PI));
+  const radius = baseRadius * ease;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const coreRadius = baseRadius * (1.05 + progress * 0.82);
-  const core = ctx.createRadialGradient(x, y, 0, x, y, coreRadius);
-  core.addColorStop(0, `rgba(255, 248, 202, ${0.92 * alpha})`);
-  core.addColorStop(0.34, withAlpha(e.color, 0.76 * alpha));
-  core.addColorStop(0.72, `rgba(255, 116, 32, ${0.42 * alpha})`);
-  core.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = core;
+  ctx.fillStyle = withAlpha(e.color, flashAlpha);
   ctx.beginPath();
-  ctx.arc(x, y, coreRadius, 0, Math.PI * 2);
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = withAlpha(e.color, 0.28 * alpha);
+  ctx.fillStyle = `rgba(255, 248, 202, ${0.42 * flashAlpha})`;
   ctx.beginPath();
-  ctx.ellipse(x, y + baseRadius * 0.12, coreRadius * 0.88, coreRadius * 0.62, 0, 0, Math.PI * 2);
+  ctx.arc(x, y, radius * 0.48, 0, Math.PI * 2);
   ctx.fill();
 
   for (let i = 0; i < 3; i++) {
-    const ringRadius = baseRadius * (0.52 + progress * 1.0 + i * 0.26);
-    ctx.strokeStyle = i === 1 ? `rgba(255, 154, 55, ${0.26 * alpha})` : withAlpha(e.color, (0.32 - i * 0.07) * alpha);
-    ctx.lineWidth = Math.max(1, (2.2 - i * 0.28) * scale);
+    const ringRadius = radius * (0.88 + i * 0.12);
+    ctx.strokeStyle = i === 1 ? `rgba(255, 154, 55, ${0.18 * flashAlpha})` : withAlpha(e.color, (0.2 - i * 0.04) * flashAlpha);
+    ctx.lineWidth = Math.max(1, (1.8 - i * 0.22) * scale);
     ctx.beginPath();
-    ctx.ellipse(x, y + baseRadius * 0.18, ringRadius, ringRadius * (0.25 + i * 0.04), progress * Math.PI * 1.6, 0, Math.PI * 2);
+    ctx.ellipse(x, y + radius * 0.12, ringRadius, ringRadius * (0.28 + i * 0.04), progress * Math.PI * 1.6, 0, Math.PI * 2);
     ctx.stroke();
   }
 
   for (let i = 0; i < 12; i++) {
     const angle = (i / 12) * Math.PI * 2 + progress * Math.PI * 2.4;
-    const inner = baseRadius * (0.22 + progress * 0.22);
-    const outer = baseRadius * (0.86 + progress * 1.04);
-    ctx.strokeStyle = i % 3 === 0 ? `rgba(255, 120, 35, ${0.58 * alpha})` : withAlpha(e.color, 0.5 * alpha);
+    const inner = radius * 0.34;
+    const outer = radius * 0.98;
+    ctx.strokeStyle = i % 3 === 0 ? `rgba(255, 120, 35, ${0.3 * flashAlpha})` : withAlpha(e.color, 0.24 * flashAlpha);
     ctx.lineWidth = Math.max(0.9, 1.35 * scale);
     ctx.beginPath();
     ctx.moveTo(x + Math.cos(angle) * inner, y + Math.sin(angle) * inner * 0.6);
