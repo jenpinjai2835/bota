@@ -320,7 +320,7 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
   const groundY = foot.y;
   const cx = foot.x;
   const cy = groundY - (creep.h || 42) * 0.48;
-  const force = 2.1 + Math.min(5, Math.max(0, damage) * 0.035);
+  const force = 1 + Math.min(5, Math.max(0, damage) * 0.035);
   const partCount = 11;
   for (let i = 0; i < partCount; i++) {
     const col = i % 4;
