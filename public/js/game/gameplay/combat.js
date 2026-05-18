@@ -163,6 +163,42 @@ function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
   });
 }
 
+function spawnDeathPartTrail(part) {
+  if (!part?.trail || part.life < 8) return;
+  const speed = Math.hypot(part.vx || 0, part.vy || 0);
+  if (speed < 0.45) return;
+  const lifePct = part.life / Math.max(1, part.maxLife || part.life);
+  const tailX = part.x - part.vx * (0.8 + Math.random() * 0.9);
+  const tailY = part.y - part.vy * (0.8 + Math.random() * 0.9);
+  const smokeCount = lifePct > 0.28 ? 2 : 1;
+  for (let i = 0; i < smokeCount; i++) {
+    bloodParticles.push({
+      kind: 'smoke',
+      x: tailX + (Math.random() - 0.5) * 10,
+      y: tailY + (Math.random() - 0.5) * 8,
+      vx: -(part.vx || 0) * (0.08 + Math.random() * 0.04) + (Math.random() - 0.5) * 0.45,
+      vy: -0.75 - Math.random() * 1.15,
+      size: 8 + Math.random() * 15,
+      color: Math.random() < 0.24 ? '#7C736B' : '#4A4542',
+      life: 56 + Math.floor(Math.random() * 38),
+      maxLife: 96,
+    });
+  }
+  if (Math.random() < 0.68 * lifePct) {
+    bloodParticles.push({
+      kind: 'fire',
+      x: tailX + (Math.random() - 0.5) * 7,
+      y: tailY + (Math.random() - 0.5) * 6,
+      vx: -(part.vx || 0) * 0.16 + (Math.random() - 0.5) * 0.7,
+      vy: -(part.vy || 0) * 0.08 - 0.5 - Math.random() * 1.2,
+      size: 4 + Math.random() * 6,
+      color: Math.random() < 0.28 ? '#FFE28A' : '#FF7A24',
+      life: 24 + Math.floor(Math.random() * 22),
+      maxLife: 48,
+    });
+  }
+}
+
 function applyHitReaction(target, dir = 1, skillId = null) {
   if (!target) return;
   if (!shouldApplyHitReaction(skillId)) {
@@ -390,6 +426,7 @@ function updateProjectiles() {
     part.y += part.vy;
     part.vy += GRAVITY * 0.28;
     part.angle += part.spin;
+    spawnDeathPartTrail(part);
 
     let bounced = false;
     if (Number.isFinite(part.groundY)) {
