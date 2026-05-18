@@ -650,33 +650,23 @@ function drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH, teamColor, s
   const damagePct = 1 - hpPct;
   if (damagePct < 0.12) return;
   const burnImg = effectImages?.towerBurn;
-  const burnCount = Math.min(12, Math.max(2, Math.ceil(damagePct * 13)));
+  if (!burnImg?.complete || !burnImg.naturalWidth) return;
+  const burnCount = Math.min(6, Math.max(1, Math.ceil(damagePct * 6)));
   ctx.save();
   ctx.beginPath();
   ctx.rect(drawX, drawY, drawW, drawH);
   ctx.clip();
   ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < burnCount; i++) {
-    const flicker = 0.78 + Math.sin(t * (3.4 + i * 0.17) + i * 2.11) * 0.22;
-    const centerX = drawX + drawW * (0.36 + debrisRand(i, 71) * 0.28);
-    const centerY = drawY + drawH * (0.24 + debrisRand(i, 79) * 0.52);
-    const burnW = drawW * (0.16 + debrisRand(i, 83) * 0.09) * (0.76 + damagePct * 0.55) * flicker;
+    const slot = burnCount === 1 ? 0.5 : i / (burnCount - 1);
+    const wave = Math.sin(t * (2.6 + i * 0.13) + i * 2.11);
+    const centerX = drawX + drawW * (0.36 + slot * 0.28 + (debrisRand(i, 71) - 0.5) * 0.028);
+    const centerY = drawY + drawH * (0.3 + debrisRand(i, 79) * 0.42);
+    const burnW = drawW * (0.15 + debrisRand(i, 83) * 0.07) * (0.74 + damagePct * 0.46) * (0.94 + wave * 0.06);
     const burnH = burnW * 1.25;
-    if (burnImg?.complete && burnImg.naturalWidth) {
-      ctx.globalAlpha = Math.min(0.92, 0.24 + damagePct * 0.72);
-      ctx.drawImage(burnImg, centerX - burnW / 2, centerY - burnH * 0.68, burnW, burnH);
-      ctx.globalAlpha = 1;
-    } else {
-      const aura = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(3, burnW * 0.8));
-      aura.addColorStop(0, `rgba(255, 238, 150, ${0.22 + damagePct * 0.18})`);
-      aura.addColorStop(0.38, `rgba(255, 111, 34, ${0.18 + damagePct * 0.2})`);
-      aura.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = aura;
-      ctx.beginPath();
-      ctx.ellipse(centerX, centerY, burnW * 0.6, burnH * 0.42, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
+    ctx.globalAlpha = Math.min(0.9, 0.3 + damagePct * 0.62);
+    ctx.drawImage(burnImg, centerX - burnW / 2, centerY - burnH * 0.68, burnW, burnH);
+    ctx.globalAlpha = 1;
     ctx.fillStyle = `rgba(20, 12, 8, ${0.18 + damagePct * 0.26})`;
     ctx.globalCompositeOperation = 'multiply';
     ctx.beginPath();
