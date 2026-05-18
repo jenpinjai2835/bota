@@ -265,13 +265,13 @@ function drawTowerGroundDustEffect(ctx, e, sx, sy) {
   ctx.ellipse(x, y + ringR * 0.05, ringR * 1.24, ringR * 0.38, 0, 0, Math.PI * 2);
   ctx.stroke();
 
-  const puffCount = 14;
-  for (let i = 0; i < puffCount; i++) {
-    const a = (i / puffCount) * Math.PI * 2 + progress * 0.55;
+  const puffs = Array.isArray(e.dustPuffs) ? e.dustPuffs : [];
+  for (let i = 0; i < puffs.length; i++) {
+    const puffState = puffs[i];
     const rr = ringR * (0.9 + (i % 3) * 0.12);
-    const px = x + Math.cos(a) * rr;
-    const py = y + Math.sin(a) * rr * 0.33;
-    const pr = Math.max(2.2 * scale, ringR * (0.06 + (i % 4) * 0.01));
+    const px = x + Math.cos(puffState.wobble + progress * 0.2) * rr * 0.06 + puffState.ox;
+    const py = puffState.yBase * sy + Math.sin(puffState.wobble + progress * 0.35) * 1.2 + puffState.oy;
+    const pr = Math.max(2.2 * scale, ringR * 0.06 * (puffState.radiusScale || 1));
     const puff = ctx.createRadialGradient(px, py, pr * 0.2, px, py, pr);
     puff.addColorStop(0, `rgba(192, 170, 146, ${0.44 * fade})`);
     puff.addColorStop(0.6, `rgba(124, 112, 101, ${0.28 * fade})`);

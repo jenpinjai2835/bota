@@ -97,7 +97,28 @@ function executeSkillImpact(owner, skill) {
 
 function spawnEffect(x, y, id, color, radius = 40, options = {}) {
   const maxLife = id === 'level-up' ? 72 : 30;
-  effects.push({ x, y, color: color || '#fff', radius, maxRadius: radius, life: maxLife, maxLife, id, ...options });
+  const effect = { x, y, color: color || '#fff', radius, maxRadius: radius, life: maxLife, maxLife, id, ...options };
+  if (id === 'tower-ground-dust') {
+    const puffCount = 14;
+    const ringRadius = radius * 0.1;
+    const baseY = Number.isFinite(effect.groundY) ? effect.groundY - 7 : y;
+    effect.dustPuffs = Array.from({ length: puffCount }, (_, i) => {
+      const angle = (i / puffCount) * Math.PI * 2;
+      const dirX = Math.cos(angle);
+      const dirY = Math.sin(angle) * 0.22;
+      const speed = 0.4 + Math.random() * 0.95;
+      return {
+        ox: dirX * ringRadius,
+        oy: dirY * ringRadius,
+        vx: dirX * speed,
+        vy: -0.08 - Math.random() * 0.2,
+        radiusScale: 0.8 + Math.random() * 0.38,
+        wobble: Math.random() * Math.PI * 2,
+        yBase: baseY + Math.sin(angle) * 2,
+      };
+    });
+  }
+  effects.push(effect);
 }
 
 function syncEffectFollowTarget(effect) {
@@ -440,6 +461,15 @@ function updateProjectiles() {
 
   effects = effects.filter(e => {
     syncEffectFollowTarget(e);
+    if (e.id === 'tower-ground-dust' && Array.isArray(e.dustPuffs)) {
+      e.dustPuffs.forEach(puff => {
+        puff.ox += puff.vx;
+        puff.oy += puff.vy;
+        puff.vx *= 0.988;
+        puff.vy += 0.006;
+        puff.vy *= 0.985;
+      });
+    }
     e.life--;
     return e.life > 0;
   });
