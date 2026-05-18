@@ -658,14 +658,15 @@ function drawTowerDamageBurns(ctx, obj, drawX, drawY, drawW, drawH) {
   const frame = Math.floor(Date.now() / 80) % frameCount;
   const frameX = (frame % frameCols) * frameW;
   const frameY = Math.floor(frame / frameCols) * frameH;
-  const burnCount = Math.min(6, Math.max(1, Math.ceil(damagePct * 6)));
+  const maxBurnSlots = 6;
+  const burnCount = Math.min(maxBurnSlots, Math.max(1, Math.ceil(damagePct * maxBurnSlots)));
   ctx.save();
   ctx.beginPath();
   ctx.rect(drawX, drawY, drawW, drawH);
   ctx.clip();
   ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < burnCount; i++) {
-    const slot = burnCount === 1 ? 0.5 : i / (burnCount - 1);
+    const slot = i / (maxBurnSlots - 1);
     const centerX = drawX + drawW * (0.36 + slot * 0.28 + (debrisRand(i, 71) - 0.5) * 0.028);
     const centerY = drawY + drawH * (0.3 + debrisRand(i, 79) * 0.42);
     const burnW = drawW * (0.15 + debrisRand(i, 83) * 0.07) * (0.74 + damagePct * 0.46);
