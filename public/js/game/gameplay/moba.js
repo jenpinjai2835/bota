@@ -216,11 +216,13 @@ function drawUnitFootprint(ctx, unit, sx, sy, options = {}) {
   const ry = getUnitFootRadiusY(unit) * sy;
   const isObjective = unit.type === 'tower' || unit.type === 'ancient';
   const hostile = isHostileUnit(unit);
-  const stroke = hostile ? 'rgba(255, 66, 72, 0.28)' : 'rgba(86, 255, 146, 0.18)';
-  const fill = hostile ? 'rgba(255, 58, 68, 0.014)' : 'rgba(80, 255, 145, 0.01)';
+  const friendlyStroke = isObjective ? 'rgba(72,205,255,0.24)' : 'rgba(86, 255, 146, 0.18)';
+  const friendlyFill = isObjective ? 'rgba(70,190,255,0.01)' : 'rgba(80, 255, 145, 0.01)';
+  const stroke = hostile ? 'rgba(255, 66, 72, 0.28)' : friendlyStroke;
+  const fill = hostile ? 'rgba(255, 58, 68, 0.014)' : friendlyFill;
   ctx.save();
-  ctx.fillStyle = options.fillStyle || (isObjective ? 'rgba(70,190,255,0.01)' : fill);
-  ctx.strokeStyle = options.strokeStyle || (isObjective ? 'rgba(72,205,255,0.24)' : stroke);
+  ctx.fillStyle = options.fillStyle || fill;
+  ctx.strokeStyle = options.strokeStyle || stroke;
   ctx.lineWidth = Math.max(0.8, 0.78 * scale);
   ctx.setLineDash([Math.max(3, 4 * scale), Math.max(2, 3 * scale)]);
   ctx.beginPath();
