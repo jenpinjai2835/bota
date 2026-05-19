@@ -33,6 +33,9 @@ function render(canvas) {
   if (myPlayer) depthEntities.push({ kind: 'player', entity: myPlayer, depth: getUnitFoot(myPlayer).y, isMe: true });
   depthEntities
     .filter(item => item.kind !== 'deathPart')
+    .forEach(item => drawUnitGroundShadow(ctx, item.entity, scaleX, scaleY));
+  depthEntities
+    .filter(item => item.kind !== 'deathPart')
     .forEach(item => drawUnitFootprint(ctx, item.entity, scaleX, scaleY));
   depthEntities
     .sort((a, b) => a.depth - b.depth)

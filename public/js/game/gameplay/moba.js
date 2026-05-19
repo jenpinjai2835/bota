@@ -183,6 +183,27 @@ function isHostileUnit(unit, player = myPlayer) {
   return unit && player && unit.teamId && player.teamId && unit.teamId !== player.teamId && unit.hp > 0;
 }
 
+function drawUnitGroundShadow(ctx, unit, sx, sy) {
+  if (!unit || unit.hp <= 0) return;
+  const renderUnit = {
+    ...unit,
+    x: unit.renderX ?? unit.x,
+    y: unit.renderY ?? unit.y,
+  };
+  const foot = getUnitFoot(renderUnit);
+  const scale = Math.min(sx, sy);
+  const isObjective = unit.type === 'tower' || unit.type === 'ancient';
+  const rx = getUnitFootRadiusX(unit) * sx * (isObjective ? 1.34 : 1.18);
+  const ry = getUnitFootRadiusY(unit) * sy * (isObjective ? 0.92 : 0.58);
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = isObjective ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(foot.x * sx, foot.y * sy + (isObjective ? 4 : 2) * scale, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawUnitFootprint(ctx, unit, sx, sy, options = {}) {
   if (!unit || unit.hp <= 0) return;
   const foot = getUnitFoot({
@@ -194,16 +215,13 @@ function drawUnitFootprint(ctx, unit, sx, sy, options = {}) {
   const rx = getUnitFootRadiusX(unit) * sx;
   const ry = getUnitFootRadiusY(unit) * sy;
   const isObjective = unit.type === 'tower' || unit.type === 'ancient';
+  const hostile = isHostileUnit(unit);
+  const stroke = hostile ? 'rgba(255, 66, 72, 0.28)' : 'rgba(86, 255, 146, 0.18)';
+  const fill = hostile ? 'rgba(255, 58, 68, 0.014)' : 'rgba(80, 255, 145, 0.01)';
   ctx.save();
-  if (!isObjective) {
-    ctx.fillStyle = options.shadowFillStyle || 'rgba(0,0,0,0.075)';
-    ctx.beginPath();
-    ctx.ellipse(foot.x * sx, foot.y * sy, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.fillStyle = options.fillStyle || 'rgba(180,180,180,0.006)';
-  ctx.strokeStyle = options.strokeStyle || 'rgba(190,190,190,0.16)';
-  ctx.lineWidth = Math.max(1, 0.85 * scale);
+  ctx.fillStyle = options.fillStyle || (isObjective ? 'rgba(70,190,255,0.01)' : fill);
+  ctx.strokeStyle = options.strokeStyle || (isObjective ? 'rgba(72,205,255,0.24)' : stroke);
+  ctx.lineWidth = Math.max(0.8, 0.78 * scale);
   ctx.setLineDash([Math.max(3, 4 * scale), Math.max(2, 3 * scale)]);
   ctx.beginPath();
   ctx.ellipse(foot.x * sx, foot.y * sy, rx, ry, 0, 0, Math.PI * 2);

@@ -170,40 +170,63 @@ function drawCharacterDetails(ctx, ch, w, h, color, run) {
   ctx.restore();
 }
 
+function getPlayerPlateWidth(p, sx, sy) {
+  const scale = Math.min(sx, sy);
+  return Math.max(56 * scale, (p?.width || 36) * sx * 1.55);
+}
+
+function getPlayerPlateTopY(p, footY, sy) {
+  const ch = p?.charData || CHARACTERS.find(entry => entry.id === p?.character);
+  const idleSheet = ch?.sprite?.sheets?.idle;
+  const baseScale = idleSheet?.scale || ch?.sprite?.scale || 1.7;
+  const baseVisualHeight = idleSheet?.visualHeight || ch?.sprite?.visualHeight || 1;
+  return footY - (p?.height || 72) * sy * baseScale * CHARACTER_VISUAL_SCALE * baseVisualHeight + 4 * sy;
+}
+
+function isHostilePlayer(p) {
+  return Boolean(myPlayer && p?.teamId && myPlayer.teamId && p.teamId !== myPlayer.teamId);
+}
+
+function getPlayerOverheadLabel(p) {
+  return p?.name || getPlayerClassLabel(p);
+}
+
 function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
-  const nameW = Math.max(78, plateW * 0.88);
+  const scale = Math.min(sx, sy);
+  const nameW = Math.max(54 * scale, plateW);
   const level = p.progression?.level || 1;
-  const label = getPlayerClassLabel(p);
+  const label = getPlayerOverheadLabel(p);
+  const hostile = isHostilePlayer(p);
   if (p.hp <= 0 && p.deathUntil) {
     const remaining = Math.max(0, Math.ceil((p.deathUntil - Date.now()) / 1000));
-    const countdownY = topY - 36 * sy;
+    const countdownY = topY - 26 * scale;
     ctx.save();
     ctx.fillStyle = 'rgba(7,5,6,0.78)';
-    drawRoundRect(ctx, centerX - 12 * sy, countdownY - 14 * sy, 24 * sy, 20 * sy, 5);
+    drawRoundRect(ctx, centerX - 10 * scale, countdownY - 12 * scale, 20 * scale, 17 * scale, 4);
     ctx.fill();
     ctx.strokeStyle = 'rgba(255,61,70,0.9)';
     ctx.lineWidth = 1.2;
     ctx.stroke();
     ctx.fillStyle = '#FFDF8B';
-    ctx.font = `900 ${Math.max(13, 15 * Math.min(sx, sy))}px Cinzel, serif`;
+    ctx.font = `900 ${Math.max(11, 13 * scale)}px Cinzel, serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(remaining), centerX, countdownY - 4 * sy);
+    ctx.fillText(String(remaining), centerX, countdownY - 3 * scale);
     ctx.restore();
   }
-  drawRoundRect(ctx, centerX - nameW / 2, topY - 22 * sy, nameW, 17 * sy, 4);
+  drawRoundRect(ctx, centerX - nameW / 2, topY - 16 * scale, nameW, 12 * scale, 3);
   ctx.fillStyle = 'rgba(7,5,6,0.72)';
   ctx.fill();
-  ctx.strokeStyle = isMe ? 'rgba(76, 232, 128, 0.95)' : 'rgba(255, 72, 72, 0.92)';
-  ctx.lineWidth = Math.max(1, 1.35 * Math.min(sx, sy));
+  ctx.strokeStyle = hostile ? 'rgba(255, 72, 72, 0.92)' : (isMe ? 'rgba(76, 232, 128, 0.95)' : 'rgba(126, 232, 156, 0.76)');
+  ctx.lineWidth = Math.max(1, 1.05 * scale);
   ctx.stroke();
 
-  drawPlayerPlateLabel(ctx, label, level, centerX, topY - 8 * sy, nameW, sx, sy, isMe);
+  drawPlayerPlateLabel(ctx, p, label, level, centerX, topY - 6 * scale, nameW, sx, sy, isMe);
 
-  const bw = nameW - 8;
-  const bh = Math.max(3, 3.5 * sy);
+  const bw = nameW - 6 * scale;
+  const bh = Math.max(2.4, 2.8 * scale);
   const bx = centerX - bw / 2;
-  const by = topY - 9 * sy;
+  const by = topY - 6.2 * scale;
   drawRoundRect(ctx, bx, by, bw, bh, 3);
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fill();
@@ -214,38 +237,39 @@ function drawPlayerPlate(ctx, p, centerX, topY, plateW, sx, sy, isMe) {
   drawHealthSegmentTicks(ctx, bx, by, bw, bh, p.maxHp || 100);
 }
 
-function drawPlayerPlateLabel(ctx, label, level, centerX, baselineY, nameW, sx, sy, isMe) {
+function drawPlayerPlateLabel(ctx, p, label, level, centerX, baselineY, nameW, sx, sy, isMe) {
   const scale = Math.min(sx, sy);
-  const badgeR = Math.max(5.5, 6.5 * scale);
-  const badgeX = centerX - nameW / 2 + badgeR + 6 * scale;
-  const badgeY = baselineY - 5.5 * scale;
-  const textLeft = badgeX + badgeR + 5 * scale;
-  const textRight = centerX + nameW / 2 - 5 * scale;
+  const hostile = isHostilePlayer(p);
+  const badgeR = Math.max(4.4, 5 * scale);
+  const badgeX = centerX - nameW / 2 + badgeR + 4.5 * scale;
+  const badgeY = baselineY - 4.2 * scale;
+  const textLeft = badgeX + badgeR + 4 * scale;
+  const textRight = centerX + nameW / 2 - 4 * scale;
   const textCenter = (textLeft + textRight) / 2;
   const maxTextW = Math.max(22, textRight - textLeft);
 
   ctx.save();
   ctx.fillStyle = 'rgba(6,5,8,0.82)';
-  ctx.strokeStyle = isMe ? 'rgba(212,255,224,0.9)' : 'rgba(255,230,230,0.86)';
-  ctx.lineWidth = Math.max(1, 1.05 * scale);
+  ctx.strokeStyle = hostile ? 'rgba(255,190,190,0.84)' : (isMe ? 'rgba(212,255,224,0.9)' : 'rgba(210,255,220,0.72)');
+  ctx.lineWidth = Math.max(0.8, 0.95 * scale);
   ctx.beginPath();
   ctx.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = `400 ${Math.max(7, 8.5 * scale)}px Cinzel, serif`;
+  ctx.font = `400 ${Math.max(6, 7.4 * scale)}px Cinzel, serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(level), badgeX, badgeY + 0.15 * scale);
 
-  let nameFontSize = Math.max(8, 10 * scale);
+  let nameFontSize = Math.max(6.8, 8.4 * scale);
   ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
-  while (nameFontSize > 7 && ctx.measureText(label).width > maxTextW) {
+  while (nameFontSize > 5.8 && ctx.measureText(label).width > maxTextW) {
     nameFontSize -= 0.5;
     ctx.font = `700 ${nameFontSize}px Cinzel, serif`;
   }
-  ctx.fillStyle = isMe ? '#F5E182' : '#F3E8D2';
+  ctx.fillStyle = hostile ? '#FF5A5A' : (isMe ? '#F5E182' : '#D7FFE0');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.fillText(label, textCenter, baselineY);
@@ -253,13 +277,14 @@ function drawPlayerPlateLabel(ctx, label, level, centerX, baselineY, nameW, sx, 
 }
 
 function drawHealthSegmentTicks(ctx, x, y, w, h, maxHp) {
-  const count = Math.floor(maxHp / 100);
+  const segmentHp = 250;
+  const count = Math.floor(maxHp / segmentHp);
   if (count <= 1) return;
   ctx.save();
   ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = Math.max(1, h * 0.42);
   for (let i = 1; i < count; i++) {
-    const tx = x + w * (i * 100 / maxHp);
+    const tx = x + w * (i * segmentHp / maxHp);
     ctx.beginPath();
     ctx.moveTo(tx, y + 1);
     ctx.lineTo(tx, y + h - 1);
@@ -854,8 +879,9 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   const baseFacing = source.baseFacing || 1;
   const shouldFlip = (p.facing || 1) !== baseFacing;
   const bodyAlpha = getDeathBodyAlpha(p);
+  const plateTopY = getPlayerPlateTopY(p, footY, sy);
   if (p.hp <= 0 && p.bodyShattered) {
-    drawPlayerPlate(ctx, p, footX, footY - visualH - 6 * sy, Math.max(82, drawW * (source.plateWidth || 1.25)), sx, sy, isMe);
+    drawPlayerPlate(ctx, p, footX, plateTopY, getPlayerPlateWidth(p, sx, sy), sx, sy, isMe);
     return true;
   }
 
@@ -885,7 +911,7 @@ function drawSpritePlayer(ctx, p, sx, sy, isMe) {
   }
 
   if (p.hp > 0) drawSpriteActionOverlay(ctx, p, footX, footY, drawW, drawH, action);
-  drawPlayerPlate(ctx, p, footX, footY - visualH - 6 * sy, Math.max(82, drawW * (source.plateWidth || 1.25)), sx, sy, isMe);
+  drawPlayerPlate(ctx, p, footX, plateTopY, getPlayerPlateWidth(p, sx, sy), sx, sy, isMe);
   return true;
 }
 
@@ -897,7 +923,6 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   const y = baseY + baseH - h;
   const ch = p.charData;
   const color = ch?.color || '#D4AF37';
-  const label = getPlayerClassLabel(p);
   const t = Date.now() * 0.012;
   const bob = p.state === 'idle' ? Math.sin(t) * 1.2 * sy : 0;
   const run = p.state === 'run' ? Math.sin(t * 1.7) : 0;
@@ -995,29 +1020,6 @@ function drawPlayer(ctx, p, sx, sy, isMe) {
   drawCharacterDetails(ctx, ch, w, h, color, run);
   ctx.restore();
 
-  const nameY = y - 11 * sy;
-  const nameW = Math.max(58, w * 1.68);
-  const level = p.progression?.level || 1;
-  drawRoundRect(ctx, x + w / 2 - nameW / 2, nameY - 22 * sy, nameW, 17 * sy, 4);
-  ctx.fillStyle = 'rgba(7,5,6,0.72)';
-  ctx.fill();
-  ctx.strokeStyle = isMe ? 'rgba(76, 232, 128, 0.95)' : 'rgba(255, 72, 72, 0.92)';
-  ctx.lineWidth = Math.max(1, 1.35 * Math.min(sx, sy));
-  ctx.stroke();
-
-  drawPlayerPlateLabel(ctx, label, level, x + w / 2, nameY - 8 * sy, nameW, sx, sy, isMe);
-
-  const bw = nameW - 8;
-  const bh = Math.max(3, 3.5 * sy);
-  const bx = x + w / 2 - bw / 2;
-  const by = nameY - 9 * sy;
-  drawRoundRect(ctx, bx, by, bw, bh, 3);
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fill();
-  const hpPct = Math.max(0, p.hp / (p.maxHp || 100));
-  drawRoundRect(ctx, bx, by, bw * hpPct, bh, 3);
-  ctx.fillStyle = hpPct > 0.6 ? '#39D36A' : hpPct > 0.3 ? '#FFB02E' : '#FF3D46';
-  ctx.fill();
-  drawHealthSegmentTicks(ctx, bx, by, bw, bh, p.maxHp || 100);
+  drawPlayerPlate(ctx, p, x + w / 2, y + 1 * sy, getPlayerPlateWidth(p, sx, sy), sx, sy, isMe);
 
 }
