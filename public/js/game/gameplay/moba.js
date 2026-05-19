@@ -360,7 +360,9 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
     const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.1 + col * 0.21 + (debrisRand(i, 13) - 0.5) * 0.08)));
     const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.08 + row * 0.27 + (debrisRand(i, 17) - 0.5) * 0.1)));
     const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
-    const size = 12 + debrisRand(i, 21) * 10 + (i % 3) * 2;
+    const layerGroundY = getDebrisLayerGroundY(groundY, i + 301, 0.86);
+    const layerScale = getDebrisLayerScale(groundY, layerGroundY);
+    const size = (12 + debrisRand(i, 21) * 10 + (i % 3) * 2) * layerScale;
     deathParts.push({
       img,
       sx,
@@ -373,7 +375,7 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
       vy: -3.6 - debrisRand(i, 37) * 4.8,
       w: size,
       h: size * (sh / sw),
-      groundY,
+      groundY: layerGroundY,
       angle: (debrisRand(i, 41) - 0.5) * 1.7,
       spin: (debrisRand(i, 45) - 0.5 + dir * 0.28) * 0.16,
       gravityScale: 0.32,
@@ -434,7 +436,9 @@ function spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, 
     const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.18 + col * 0.105)));
     const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.13 + row * 0.16)));
     const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
-    const size = 14 + (i % 5) * 5;
+    const layerGroundY = getDebrisLayerGroundY(groundY, i + 701, isAncient ? 1.42 : 1.18);
+    const layerScale = getDebrisLayerScale(groundY, layerGroundY);
+    const size = (14 + (i % 5) * 5) * layerScale;
     deathParts.push({
       img,
       sx,
@@ -447,7 +451,7 @@ function spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, 
       vy: -5.8 - Math.random() * 8.4,
       w: size,
       h: size * (sh / sw),
-      groundY,
+      groundY: layerGroundY,
       angle: (Math.random() - 0.5) * 1.8,
       spin: (Math.random() - 0.5) * 0.08 + spread * 0.02,
       gravityScale: 0.22,
@@ -502,6 +506,24 @@ function createDebrisCracks(seed = 0, count = 3) {
 function debrisRand(seed, salt = 1) {
   const value = Math.sin((seed + 1) * (salt + 3) * 12.9898) * 43758.5453;
   return value - Math.floor(value);
+}
+
+function getDebrisLayerGroundY(baseGroundY, seed = 0, spreadScale = 1) {
+  if (!Number.isFinite(baseGroundY)) return baseGroundY;
+  const roll = debrisRand(seed, 347);
+  if (roll < 0.46) return baseGroundY;
+  const direction = debrisRand(seed, 353) < 0.56 ? 1 : -1;
+  const distance = (10 + debrisRand(seed, 359) * 30) * Math.max(0.25, spreadScale);
+  const offset = direction > 0 ? distance : -distance * 0.82;
+  const minY = (typeof BATTLEFIELD_TOP_Y === 'number' ? BATTLEFIELD_TOP_Y : 300) + 28;
+  const maxY = (typeof BATTLEFIELD_BOTTOM_Y === 'number' ? BATTLEFIELD_BOTTOM_Y : 506) - 8;
+  return Math.max(minY, Math.min(maxY, baseGroundY + offset));
+}
+
+function getDebrisLayerScale(baseGroundY, layerGroundY) {
+  if (!Number.isFinite(baseGroundY) || !Number.isFinite(layerGroundY)) return 1;
+  const delta = Math.max(-44, Math.min(44, layerGroundY - baseGroundY));
+  return Math.max(0.86, Math.min(1.13, 1 + delta * 0.0032));
 }
 
 function createDebrisPolygon(seed = 0, pointCount = 6) {

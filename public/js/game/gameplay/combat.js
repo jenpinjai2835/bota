@@ -252,7 +252,9 @@ function spawnPlayerTextureDeathBurst(target, dir = 1, damage = 0) {
     const sx = source.frameX + Math.max(0, Math.min(source.frameW - sw, source.frameW * (0.12 + col * 0.2 + (debrisRand(i, 213) - 0.5) * 0.09)));
     const sy = source.frameY + Math.max(0, Math.min(source.frameH - sh, source.frameH * (0.1 + row * 0.25 + (debrisRand(i, 217) - 0.5) * 0.11)));
     const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
-    const size = 13 + debrisRand(i, 221) * 12 + (i % 3) * 2.4;
+    const layerGroundY = getDebrisLayerGroundY(groundY, i + 901, 0.92);
+    const layerScale = getDebrisLayerScale(groundY, layerGroundY);
+    const size = (13 + debrisRand(i, 221) * 12 + (i % 3) * 2.4) * layerScale;
     deathParts.push({
       img: source.img,
       sx,
@@ -265,7 +267,7 @@ function spawnPlayerTextureDeathBurst(target, dir = 1, damage = 0) {
       vy: -3.8 - debrisRand(i, 237) * 5.1,
       w: size,
       h: size * (sh / sw),
-      groundY,
+      groundY: layerGroundY,
       angle: (debrisRand(i, 241) - 0.5) * 1.8,
       spin: (debrisRand(i, 245) - 0.5 + dir * 0.28) * 0.15,
       gravityScale: 0.32,
@@ -314,7 +316,9 @@ function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
     const img = warriorVectorOverlayImages[file];
     if (!img?.complete || !img.naturalWidth) return;
     const spread = (i / Math.max(1, files.length - 1) - 0.5) * 2;
-    const size = file.includes('Body') ? 33 : file.includes('Head') || file.includes('Hat') ? 24 : 18;
+    const layerGroundY = getDebrisLayerGroundY(groundY, i + 1101, 0.95);
+    const layerScale = getDebrisLayerScale(groundY, layerGroundY);
+    const size = (file.includes('Body') ? 33 : file.includes('Head') || file.includes('Hat') ? 24 : 18) * layerScale;
     deathParts.push({
       img,
       x: cx + spread * 7,
@@ -323,7 +327,7 @@ function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
       vy: -4.8 - Math.random() * (5 + Math.min(4, damage * 0.01)),
       w: size,
       h: size * (img.naturalHeight / img.naturalWidth),
-      groundY,
+      groundY: layerGroundY,
       angle: (Math.random() - 0.5) * 1.4,
       spin: (Math.random() - 0.5 + dir * 0.35) * (0.12 + Math.min(0.26, damage * 0.002)),
       life: DEATH_PART_LIFE,
