@@ -387,6 +387,7 @@ function handleInput() {
 
   if (keys['ArrowLeft'] || keys['a'] || keys['A']) { myPlayer.vx -= spd * 0.4; myPlayer.facing = -1; }
   if (keys['ArrowRight'] || keys['d'] || keys['D']) { myPlayer.vx += spd * 0.4; myPlayer.facing = 1; }
+  const depthMovePressed = keys['ArrowUp'] || keys['w'] || keys['W'] || keys['ArrowDown'] || keys['s'] || keys['S'];
   if (myPlayer.onGround) {
     if (keys['ArrowUp'] || keys['w'] || keys['W']) myPlayer.y -= spd * 0.34;
     if (keys['ArrowDown'] || keys['s'] || keys['S']) myPlayer.y += spd * 0.34;
@@ -399,7 +400,7 @@ function handleInput() {
 
   // State
   if (!myPlayer.onGround) myPlayer.state = myPlayer.vy < 0 ? 'jump' : 'fall';
-  else if (Math.abs(myPlayer.vx) > 0.5) myPlayer.state = 'run';
+  else if (Math.abs(myPlayer.vx) > 0.5 || depthMovePressed) myPlayer.state = 'run';
   else myPlayer.state = 'idle';
 }
 
