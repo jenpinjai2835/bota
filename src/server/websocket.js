@@ -35,6 +35,21 @@ function setupWebSocket(server, rooms) {
     rush: { damage: 54, range: 128, cooldown: 5200, windup: 210, type: 'dash' },
     roar: { damage: 34, range: 112, cooldown: 7800, windup: 500, type: 'aoe' },
   };
+  const AI_HERO_MODES = {
+    PUSH_LANE: 'push-lane',
+    FIGHT_HERO: 'fight-hero',
+    CLEAR_CREEP: 'clear-creep',
+    HIT_TOWER: 'hit-tower',
+    RETREAT: 'retreat',
+    RESPAWN: 'respawn',
+  };
+  const AI_HERO_STAT_BASE = {
+    speed: AI_HERO_SPEED,
+    attackDamage: 72,
+    attackSpeed: 1.35,
+    hpRegen: 1.6,
+    cooldownReduction: 0.12,
+  };
   const CREEP_TEAM_TYPES = {
     sun: { melee: ['monster_6', 'monster_7'], ranged: ['monster_9'] },
     moon: { melee: ['monster_8'], ranged: ['monster_10'] },
@@ -1828,19 +1843,88 @@ function setupWebSocket(server, rooms) {
     if (!moveCreepWithContactProcess(room, creep, navigationGoal.x, navigationGoal.y, target)) creep.state = 'idle';
   }
 
-  function getAiHeroTarget(room, hero) {
-    if (!room || !hero || hero.hp <= 0) return null;
+  function getAiHeroStats(hero) {
+    const level = Math.max(1, Math.min(30, Number(hero?.level || hero?.progression?.level || 30)));
+    const levelScale = 1 + (level - 1) * 0.018;
+    return {
+      speed: (hero?.stats?.speed || AI_HERO_STAT_BASE.speed) * levelScale,
+      attackDamage: Math.round((hero?.stats?.attackDamage || AI_HERO_STAT_BASE.attackDamage) * levelScale),
+      attackSpeed: Math.max(0.45, (hero?.stats?.attackSpeed || AI_HERO_STAT_BASE.attackSpeed) * (1 + (level - 1) * 0.006)),
+      hpRegen: (hero?.stats?.hpRegen || AI_HERO_STAT_BASE.hpRegen) * levelScale,
+      cooldownReduction: Math.min(0.35, hero?.stats?.cooldownReduction ?? AI_HERO_STAT_BASE.cooldownReduction),
+    };
+  }
+
+  function getAiHeroAttackDef(hero, skillId) {
+    const stats = getAiHeroStats(hero);
+    const base = AI_HERO_ATTACKS[skillId] || AI_HERO_ATTACKS.punch;
+    const damageMult = skillId === 'punch' ? 0.78 : skillId === 'roar' ? 0.62 : skillId === 'flame' ? 0.72 : 0.92;
+    const cooldownMult = skillId === 'punch' ? 1 / Math.max(0.35, stats.attackSpeed) : 1 - stats.cooldownReduction;
+    return {
+      ...base,
+      damage: Math.max(1, Math.round(stats.attackDamage * damageMult)),
+      cooldown: Math.max(160, Math.round(base.cooldown * cooldownMult)),
+    };
+  }
+
+  function getAiHeroNearbyEnemies(room, hero) {
     const enemyHeroes = Object.values(room.playerData || {})
-      .filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId && distanceBetween(hero, unit) <= AI_HERO_TARGET_SCAN_RANGE)
+      .filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId)
       .map(unit => ({ unit, distance: distanceBetween(hero, unit), priority: 0 }));
     const enemyCreeps = (room.creeps || [])
-      .filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId && distanceBetween(hero, unit) <= 210)
+      .filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId)
       .map(unit => ({ unit, distance: distanceBetween(hero, unit), priority: 1 }));
+    return { enemyHeroes, enemyCreeps };
+  }
+
+  function getCreepsBetweenHeroAndObjective(room, hero, objective) {
+    if (!objective) return [];
+    const hf = unitFoot(hero);
+    const of = unitFoot(objective);
+    const forward = Math.sign(of.x - hf.x) || TEAM_DIR[hero.teamId] || 1;
+    const maxX = Math.abs(of.x - hf.x) + 80;
+    return (room.creeps || [])
+      .filter(creep => {
+        if (creep.hp <= 0 || creep.teamId === hero.teamId) return false;
+        const cf = unitFoot(creep);
+        const ahead = (cf.x - hf.x) * forward > -36 && Math.abs(cf.x - hf.x) <= maxX;
+        const laneClose = Math.abs(cf.y - hf.y) <= 96 || Math.abs(cf.y - of.y) <= 96;
+        return ahead && laneClose;
+      })
+      .sort((a, b) => distanceBetween(hero, a) - distanceBetween(hero, b));
+  }
+
+  function selectAiHeroBehavior(room, hero) {
+    if (!room || !hero || hero.hp <= 0) return { mode: AI_HERO_MODES.RESPAWN, target: null };
     const nextObjective = getNextAttackableObjective(room, hero.teamId);
+    const { enemyHeroes, enemyCreeps } = getAiHeroNearbyEnemies(room, hero);
+    const hpPct = hero.hp / Math.max(1, hero.maxHp || 1);
+    const nearestThreatHero = enemyHeroes
+      .filter(entry => entry.distance <= AI_HERO_TARGET_SCAN_RANGE)
+      .sort((a, b) => a.distance - b.distance)[0]?.unit || null;
     const defender = getDefendingHeroesNearObjective(room, hero, nextObjective)[0];
-    if (defender) return defender;
-    const nearby = [...enemyHeroes, ...enemyCreeps].sort((a, b) => a.priority - b.priority || a.distance - b.distance)[0];
-    return nearby?.unit || nextObjective || null;
+
+    if (hpPct <= 0.22 && (nearestThreatHero || enemyCreeps.some(entry => entry.distance <= 170))) {
+      return { mode: AI_HERO_MODES.RETREAT, target: null, strategicTarget: nextObjective };
+    }
+    if (defender || nearestThreatHero) {
+      return { mode: AI_HERO_MODES.FIGHT_HERO, target: defender || nearestThreatHero, strategicTarget: nextObjective };
+    }
+
+    const laneCreeps = getCreepsBetweenHeroAndObjective(room, hero, nextObjective);
+    const nearestCreep = laneCreeps[0] || enemyCreeps
+      .filter(entry => entry.distance <= 230)
+      .sort((a, b) => a.distance - b.distance)[0]?.unit || null;
+    if (nearestCreep) {
+      return { mode: AI_HERO_MODES.CLEAR_CREEP, target: nearestCreep, strategicTarget: nextObjective };
+    }
+    if (nextObjective) {
+      const mode = isAiHeroAttackInRange(hero, nextObjective, getAiHeroAttackDef(hero, 'punch'))
+        ? AI_HERO_MODES.HIT_TOWER
+        : AI_HERO_MODES.PUSH_LANE;
+      return { mode, target: nextObjective, strategicTarget: nextObjective };
+    }
+    return { mode: AI_HERO_MODES.PUSH_LANE, target: null, strategicTarget: null };
   }
 
   function isAiHeroAttackInRange(hero, target, attack) {
@@ -1858,14 +1942,21 @@ function setupWebSocket(server, rooms) {
 
   function chooseAiHeroAttack(room, hero, target, now) {
     hero.aiCooldowns = hero.aiCooldowns || {};
+    const punch = getAiHeroAttackDef(hero, 'punch');
+    const flame = getAiHeroAttackDef(hero, 'flame');
+    const rush = getAiHeroAttackDef(hero, 'rush');
+    const roar = getAiHeroAttackDef(hero, 'roar');
     const enemiesAround = [
       ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId),
       ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId),
-    ].filter(unit => distanceBetween(hero, unit) <= AI_HERO_ATTACKS.roar.range).length;
+    ].filter(unit => distanceBetween(hero, unit) <= roar.range).length;
+    const targetDistance = target ? distanceBetween(hero, target) : Infinity;
+    const targetIsHero = Boolean(room.playerData?.[target?.id]);
+    const targetIsObjective = Boolean(target?.type === 'tower' || target?.type === 'ancient');
     if (enemiesAround >= 3 && (hero.aiCooldowns.roar || 0) <= now) return 'roar';
-    if ((hero.aiCooldowns.rush || 0) <= now && isAiHeroAttackInRange(hero, target, AI_HERO_ATTACKS.rush)) return 'rush';
-    if ((hero.aiCooldowns.flame || 0) <= now && isAiHeroAttackInRange(hero, target, AI_HERO_ATTACKS.flame)) return 'flame';
-    if ((hero.aiCooldowns.punch || 0) <= now && isAiHeroAttackInRange(hero, target, AI_HERO_ATTACKS.punch)) return 'punch';
+    if ((hero.aiCooldowns.rush || 0) <= now && targetDistance > punch.range + 16 && isAiHeroAttackInRange(hero, target, rush)) return 'rush';
+    if ((hero.aiCooldowns.flame || 0) <= now && (targetIsHero || targetIsObjective || targetDistance > punch.range + 8) && isAiHeroAttackInRange(hero, target, flame)) return 'flame';
+    if ((hero.aiCooldowns.punch || 0) <= now && isAiHeroAttackInRange(hero, target, punch)) return 'punch';
     return null;
   }
 
@@ -1883,6 +1974,7 @@ function setupWebSocket(server, rooms) {
       hp: player.hp,
       action,
       actionVariant,
+      aiMode: player.aiMode || null,
     };
     const room = rooms.get(roomId);
     room?.players.forEach(pid => sendTo(pid, message));
@@ -1896,7 +1988,7 @@ function setupWebSocket(server, rooms) {
     const desiredGap = Math.max(26, unitBlockRadiusX(target) * (target.type ? 0.65 : 0.38));
     const goalX = targetFoot.x - dir * desiredGap;
     const goalY = targetFoot.y;
-    hero.speed = hero.speed || AI_HERO_SPEED;
+    hero.speed = getAiHeroStats(hero).speed;
     hero.facing = dir;
     hero.debugGoalX = goalX;
     hero.debugGoalY = goalY;
@@ -1910,7 +2002,7 @@ function setupWebSocket(server, rooms) {
   }
 
   function queueAiHeroAction(room, roomId, hero, target, skillId, now) {
-    const attack = AI_HERO_ATTACKS[skillId] || AI_HERO_ATTACKS.punch;
+    const attack = getAiHeroAttackDef(hero, skillId);
     hero.aiCooldowns = hero.aiCooldowns || {};
     hero.aiCooldowns[skillId] = now + attack.cooldown;
     hero.state = 'attack';
@@ -1946,7 +2038,7 @@ function setupWebSocket(server, rooms) {
       const units = [
         ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId),
         ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId),
-      ].filter(unit => distanceBetween(hero, unit) <= AI_HERO_ATTACKS.roar.range + 10);
+      ].filter(unit => distanceBetween(hero, unit) <= getAiHeroAttackDef(hero, 'roar').range + 10);
       units.forEach(unit => applyAiHeroDamage(room, roomId, hero, unit, { ...action, skillId: 'punch', damage: action.damage }));
       return;
     }
@@ -1975,7 +2067,7 @@ function setupWebSocket(server, rooms) {
       if (action.hitAt > now) return true;
       const hero = room.playerData?.[action.heroId];
       const target = getUnitById(room, action.targetId);
-      if (hero && target && isAiHeroAttackInRange(hero, target, AI_HERO_ATTACKS[action.skillId])) {
+      if (hero && target && isAiHeroAttackInRange(hero, target, getAiHeroAttackDef(hero, action.skillId))) {
         applyAiHeroDamage(room, roomId, hero, target, action);
       }
       return false;
@@ -1989,16 +2081,32 @@ function setupWebSocket(server, rooms) {
         hero.vx = 0;
         hero.vy = 0;
         hero.state = 'dead';
+        hero.aiMode = AI_HERO_MODES.RESPAWN;
         return;
       }
-      hero.speed = AI_HERO_SPEED;
+      const stats = getAiHeroStats(hero);
+      hero.speed = stats.speed;
+      hero.hp = Math.min(hero.maxHp || hero.hp, hero.hp + stats.hpRegen * (AI_HERO_THINK_MS / 1000));
       if ((hero.aiNextThinkAt || 0) > now) return;
       hero.aiNextThinkAt = now + AI_HERO_THINK_MS;
       if ((hero.aiActionUntil || 0) > now) {
         broadcastPlayerState(roomId, hero);
         return;
       }
-      const target = getAiHeroTarget(room, hero);
+      const behavior = selectAiHeroBehavior(room, hero);
+      const target = behavior.target;
+      hero.aiMode = behavior.mode;
+      hero.debugMode = behavior.mode;
+      if (behavior.mode === AI_HERO_MODES.RETREAT) {
+        const retreat = CREEP_SPAWN[hero.teamId] || { x: hero.x, y: hero.y };
+        const footX = retreat.x + unitWidth(hero) / 2;
+        const footY = retreat.y + unitHeight(hero);
+        moveAiHeroTowardTarget(room, hero, { id: `${hero.teamId}_fountain_ai_goal`, teamId: hero.teamId === 'sun' ? 'moon' : 'sun', x: retreat.x, y: retreat.y, width: unitWidth(hero), height: unitHeight(hero), hp: 1 });
+        hero.debugGoalX = footX;
+        hero.debugGoalY = footY;
+        broadcastPlayerState(roomId, hero);
+        return;
+      }
       if (!target) {
         hero.state = 'idle';
         hero.vx = 0;

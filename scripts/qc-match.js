@@ -312,6 +312,13 @@ async function testAiHeroRespawnAndActions(port) {
   const ai = (match.state?.players || []).find(player => player.isAI && player.teamId === 'moon');
   if (!ai) throw new Error('AI hero missing from match state');
 
+  const modePromise = waitForMessage(
+    match.ws,
+    msg => msg.type === 'player_state' &&
+      msg.playerId === ai.id &&
+      ['push-lane', 'fight-hero', 'clear-creep', 'hit-tower'].includes(msg.aiMode),
+    8000,
+  );
   const castPromise = waitForMessage(match.ws, msg => msg.type === 'skill_cast' && msg.playerId === ai.id, 8000);
   match.send({
     type: 'player_input',
@@ -324,6 +331,7 @@ async function testAiHeroRespawnAndActions(port) {
     state: 'idle',
     hp: 648,
   });
+  const mode = await modePromise;
   const cast = await castPromise;
 
   match.send({ type: 'player_hit', targetId: ai.id, damage: 500, skillId: 'qc-ai-kill-1', hitDir: 1 });
@@ -331,7 +339,7 @@ async function testAiHeroRespawnAndActions(port) {
   const death = await waitForMessage(match.ws, msg => msg.type === 'player_hit' && msg.targetId === ai.id && msg.hp <= 0, 5000);
   const respawn = await waitForMessage(match.ws, msg => msg.type === 'player_respawn' && msg.playerId === ai.id && msg.hp > 0, 14000);
   match.close();
-  return { aiId: ai.id, firstSkill: cast.skillId, deathHp: death.hp, respawnHp: respawn.hp };
+  return { aiId: ai.id, firstMode: mode.aiMode, firstSkill: cast.skillId, deathHp: death.hp, respawnHp: respawn.hp };
 }
 
 async function testReconnect(port) {
