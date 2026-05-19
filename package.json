@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "ai:daemon": "node scripts/ai-daemon.js",
     "qc:match": "node scripts/qc-match.js"
   },
   "dependencies": {

@@ -2250,6 +2250,7 @@ function setupWebSocket(server, rooms) {
       creeps: room.creeps || [],
       creepProjectiles: room.creepProjectiles || [],
       objectives: room.objectives || [],
+      players: getWorldPlayerSnapshots(room),
       winner: room.winner || null,
     }));
     if (room.winner) {
@@ -2323,6 +2324,19 @@ function setupWebSocket(server, rooms) {
     sendTo(playerId, { type: 'room_list', rooms: rooms.listOpenRooms() });
   }
 
+  function normalizeBotClaim(msg) {
+    if (!msg?.isBot) return false;
+    const expectedToken = process.env.BOTA_AI_DAEMON_TOKEN;
+    return Boolean(expectedToken && msg.botToken && msg.botToken === expectedToken);
+  }
+
+  function getWorldPlayerSnapshots(room) {
+    return (room?.players || []).map(pid => {
+      const { sessionToken, recentAttackers, ...safePlayer } = room.playerData?.[pid] || {};
+      return safePlayer;
+    });
+  }
+
   function broadcastRoomList() {
     const message = { type: 'room_list', rooms: rooms.listOpenRooms() };
     clients.forEach((client, clientId) => {
@@ -2378,10 +2392,10 @@ function setupWebSocket(server, rooms) {
     } catch {
       return;
     }
-
     switch (msg.type) {
       case 'create_room': {
         msg.character = 'dragonfist';
+        msg.isBot = normalizeBotClaim(msg);
         const roomId = rooms.create(playerId, msg);
         ws.roomId = roomId;
         ws.playerId = playerId;
@@ -2399,6 +2413,11 @@ function setupWebSocket(server, rooms) {
       case 'join_room': {
         const roomId = String(msg.roomId || '').toUpperCase();
         msg.character = 'dragonfist';
+        if (msg.isBot && !normalizeBotClaim(msg)) {
+          sendTo(playerId, { type: 'error', msg: 'Bot daemon token rejected' });
+          break;
+        }
+        msg.isBot = normalizeBotClaim(msg);
         const result = rooms.addPlayer(roomId, playerId, msg);
         if (!result.ok) {
           sendTo(playerId, { type: 'error', msg: result.error });
@@ -2455,7 +2474,12 @@ function setupWebSocket(server, rooms) {
       case 'start_game': {
         const roomId = ws.roomId;
         const room = rooms.get(roomId);
-        if (!room || room.host !== playerId) break;
+        const starter = room?.playerData?.[playerId];
+        const isTrustedBotStart = Boolean(starter?.isBot && msg.botAutoStart);
+        if (!room || (room.host !== playerId && !isTrustedBotStart)) {
+          sendTo(playerId, { type: 'error', msg: 'Only the host can start this room' });
+          break;
+        }
         const canStart = rooms.canStart(roomId);
         if (!canStart.ok) {
           sendTo(playerId, { type: 'error', msg: canStart.reason });

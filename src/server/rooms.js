@@ -64,7 +64,7 @@ function normalizeCharacter(character) {
   return character === LOCKED_CHARACTER_ID ? character : LOCKED_CHARACTER_ID;
 }
 
-function createPlayer(playerId, { name, character, teamId, sessionToken, isAI = false }, index = 0) {
+function createPlayer(playerId, { name, character, teamId, sessionToken, isAI = false, isBot = false }, index = 0) {
   const selectedCharacter = normalizeCharacter(character);
   const maxHp = Math.max(MIN_CHARACTER_HP, CHARACTER_MAX_HP[selectedCharacter] || 100);
   const assignedTeamId = normalizeTeamId(teamId, index);
@@ -76,8 +76,9 @@ function createPlayer(playerId, { name, character, teamId, sessionToken, isAI = 
     teamId: assignedTeamId,
     sessionToken: sessionToken || null,
     isAI,
+    isBot,
     connected: !isAI,
-    ready: isAI,
+    ready: isAI || isBot,
     x: spawn.x,
     y: spawn.y,
     hp: maxHp,
@@ -97,7 +98,7 @@ function createPlayer(playerId, { name, character, teamId, sessionToken, isAI = 
     deaths: 0,
     recentAttackers: {},
     lastRespawnIndex: index % RESPAWN_POINTS.length,
-    testImmortal: !isAI,
+    testImmortal: !isAI && !isBot,
   };
 }
 
@@ -202,6 +203,10 @@ class RoomStore {
           hostName: host?.name || 'Unknown',
           players: room.players.length,
           maxPlayers: MAX_PLAYERS,
+          teams: TEAM_IDS.map(id => ({
+            id,
+            count: room.players.filter(pid => room.playerData[pid]?.teamId === id).length,
+          })),
         };
       });
   }
@@ -358,7 +363,7 @@ class RoomStore {
       player.y = spawn.y;
       player.teamId = normalizeTeamId(player.teamId, i);
       player.hp = player.maxHp;
-      player.testImmortal = !player.isAI;
+      player.testImmortal = !player.isAI && !player.isBot;
       player.state = 'idle';
       player.lastRespawnIndex = i % RESPAWN_POINTS.length;
       player.kills = 0;

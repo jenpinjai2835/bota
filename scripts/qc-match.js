@@ -19,7 +19,7 @@ function startServer(port) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['server.js'], {
       cwd: process.cwd(),
-      env: { ...process.env, PORT: String(port) },
+      env: { ...process.env, PORT: String(port), BOTA_AI_DAEMON_TOKEN: 'qc-daemon-token' },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
@@ -452,6 +452,91 @@ async function testAiHeroLaneMovementSmooth(port) {
   return { samples: samples.length, avgStep: Number(avgStep.toFixed(2)), maxStep: Number(maxStep.toFixed(2)), flips, firstMode: samples[0].aiMode, lastMode: samples.at(-1).aiMode };
 }
 
+async function testAiDaemonJoinsAndPlays(port) {
+  const ws = new WebSocket(`ws://localhost:${port}`);
+  const sessionToken = `qc-daemon-host-${Date.now()}`;
+  const send = msg => ws.send(JSON.stringify(msg), error => {
+    if (error) process.stdout.write(`[qc-daemon-send-error] ${error.message}\n`);
+  });
+  let roomId = null;
+  let playerId = null;
+  let bot = null;
+  let daemon = null;
+  let baitTimer = null;
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('AI daemon join/play timed out')), 20000);
+      function cleanup(value, error = null) {
+        clearTimeout(timer);
+        if (baitTimer) clearInterval(baitTimer);
+        ws.off('message', onMessage);
+        ws.off('error', reject);
+        if (error) reject(error);
+        else resolve(value);
+      }
+      function onMessage(raw) {
+        const msg = JSON.parse(raw);
+        if (msg.type === 'connected') playerId = msg.playerId;
+        if (msg.type === 'error') process.stdout.write(`[qc-daemon-host-error] ${msg.msg}\n`);
+        if (msg.type === 'room_created') {
+          roomId = msg.roomId;
+          daemon = spawn(process.execPath, ['scripts/ai-daemon.js'], {
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              BOTA_AI_SERVER: `ws://localhost:${port}`,
+              BOTA_AI_ROOM: roomId,
+              BOTA_AI_TEAM: 'moon',
+              BOTA_AI_ONCE: 'skill',
+              BOTA_AI_NAME: 'QC Daemon Bot',
+              BOTA_AI_TOKEN: 'qc-daemon-token',
+              BOTA_AI_AUTO_START: '1',
+            },
+            stdio: ['ignore', 'pipe', 'pipe'],
+            windowsHide: true,
+          });
+          daemon.stdout.on('data', data => process.stdout.write(data.toString()));
+          daemon.stderr.on('data', data => process.stderr.write(data.toString()));
+        }
+        if ((msg.type === 'room_update' || msg.type === 'player_joined') && msg.state?.players) {
+          bot = msg.state.players.find(player => player.isBot);
+        }
+        if (msg.type === 'asset_loading_start') send({ type: 'asset_progress', progress: 100 });
+        if (msg.type === 'game_start') {
+          bot = msg.state.players.find(player => player.isBot);
+          if (!bot) return cleanup(null, new Error('Daemon bot missing from game_start'));
+          const sendBait = () => {
+            send({
+              type: 'player_input',
+              x: bot.x - 58,
+              y: bot.y,
+              vx: 0,
+              vy: 0,
+              onGround: true,
+              facing: 1,
+              state: 'idle',
+              hp: 648,
+            });
+          };
+          setTimeout(sendBait, 180);
+          baitTimer = setInterval(sendBait, 260);
+        }
+        if (msg.type === 'skill_cast' && msg.playerId && msg.playerId !== playerId) {
+          cleanup({ roomId, botId: msg.playerId, expectedBotId: bot?.id || null, skillId: msg.skillId });
+        }
+      }
+      ws.on('open', () => send({ type: 'create_room', name: 'QC Daemon Host', teamId: 'sun', sessionToken }));
+      ws.on('message', onMessage);
+      ws.on('error', reject);
+    });
+    return result;
+  } finally {
+    try { ws.close(); } catch {}
+    if (daemon && !daemon.killed) daemon.kill();
+  }
+}
+
 async function testReconnect(port) {
   const match = await openMatch(port, 'QC Reconnect');
   const { roomId, sessionToken, playerId } = match;
@@ -480,6 +565,7 @@ async function run() {
     ['ai hero respawn/actions', testAiHeroRespawnAndActions],
     ['ai hero smooth/no-push', testAiHeroSmoothNoPush],
     ['ai hero lane smooth', testAiHeroLaneMovementSmooth],
+    ['ai daemon joins/plays', testAiDaemonJoinsAndPlays],
     ['reconnect match', testReconnect],
   ];
   const results = [];
