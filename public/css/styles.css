@@ -274,6 +274,41 @@
     padding: 7px 5px;
   }
   .team-actions button:hover { border-color: var(--gold-light); color: var(--gold-light); }
+  .lobby-room-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 10px 0 4px;
+  }
+  .lobby-action-btn {
+    height: 34px;
+    border: 1px solid rgba(245,225,130,0.38);
+    border-radius: 5px;
+    background: rgba(212,175,55,0.08);
+    color: var(--gold-light);
+    cursor: pointer;
+    font: 800 10px/1 'Cinzel', serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .lobby-action-btn:hover {
+    border-color: rgba(245,225,130,0.7);
+    background: rgba(212,175,55,0.14);
+  }
+  .lobby-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .lobby-action-btn.danger {
+    border-color: rgba(255,68,68,0.46);
+    color: #FFB3B3;
+    background: rgba(192,57,43,0.08);
+  }
+  .lobby-action-btn.danger:hover {
+    border-color: rgba(255,110,110,0.82);
+    color: #FFE0E0;
+    background: rgba(192,57,43,0.16);
+  }
   .player-row {
     display: flex;
     align-items: center;

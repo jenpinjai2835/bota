@@ -65,7 +65,11 @@ function showLobbyRoom(state) {
   showScreen('screen-lobby-room');
   document.getElementById('display-room-code').textContent = state.id;
   startLobbyAssetPreload(state);
+  renderLobbyStageControls(state);
+  updateLobbyUI(state);
+}
 
+function renderLobbyStageControls(state) {
   const stageSection = document.getElementById('stage-section');
   const stageSelect = document.getElementById('stage-select');
   if (isHost) {
@@ -88,7 +92,6 @@ function showLobbyRoom(state) {
 
   document.getElementById('host-controls').style.display = isHost ? 'block' : 'none';
   document.getElementById('guest-controls').style.display = isHost ? 'none' : 'block';
-  updateLobbyUI(state);
 }
 
 function updateLobbyUI(state) {
@@ -96,6 +99,10 @@ function updateLobbyUI(state) {
   startLobbyAssetPreload(state);
   const list = document.getElementById('player-list');
   const counts = getLobbyTeamCounts(state);
+  const me = state.players.find(p => p.id === myPlayerId) || null;
+  isHost = state.host === myPlayerId;
+  isReady = !!me?.ready;
+  renderLobbyStageControls(state);
   document.getElementById('lobby-title').textContent = `Lobby (${counts.sun} v ${counts.moon})`;
   list.innerHTML = '';
 
@@ -124,6 +131,18 @@ function updateLobbyUI(state) {
 
   const allReady = state.players.filter(p => p.id !== state.host && !p.isAI).every(p => p.ready);
   const balanced = counts.sun > 0 && counts.sun === counts.moon;
+  const switchBtn = document.getElementById('switch-team-btn');
+  if (switchBtn) {
+    const targetTeam = me?.teamId === 'sun' ? 'Team 2' : 'Team 1';
+    switchBtn.textContent = me ? `Switch to ${targetTeam}` : 'Switch Team';
+    switchBtn.disabled = !me || state.status !== 'lobby';
+  }
+  const readyBtn = document.getElementById('ready-btn');
+  if (readyBtn) {
+    readyBtn.textContent = isReady ? 'READY!' : 'NOT READY';
+    readyBtn.style.color = isReady ? '#4CAF50' : '';
+    readyBtn.style.borderColor = isReady ? '#4CAF50' : '';
+  }
   const startBtn = document.getElementById('start-btn');
   if (startBtn) {
     startBtn.disabled = !balanced || !allReady;
@@ -163,6 +182,30 @@ function addAI(teamId) {
 
 function removeAI(teamId) {
   send({ type: 'remove_ai', teamId });
+}
+
+function switchLobbyTeam() {
+  document.getElementById('room-error').textContent = '';
+  send({ type: 'switch_team' });
+}
+
+function leaveLobbyRoom() {
+  document.getElementById('room-error').textContent = '';
+  send({ type: 'leave_room' });
+}
+
+function returnToRoomSelect() {
+  if (typeof stopReconnectFlow === 'function') stopReconnectFlow();
+  isHost = false;
+  isReady = false;
+  roomState = null;
+  myRoomId = null;
+  assetLoadingStartedForRoomId = null;
+  localStorage.removeItem('bota_last_room_id');
+  document.getElementById('room-error').textContent = '';
+  document.getElementById('lobby-error').textContent = '';
+  showScreen('screen-lobby-select');
+  refreshRoomList();
 }
 
 function toggleReady() {

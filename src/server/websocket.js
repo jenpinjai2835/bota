@@ -2471,6 +2471,35 @@ function setupWebSocket(server, rooms) {
         break;
       }
 
+      case 'switch_team': {
+        const roomId = ws.roomId;
+        const result = rooms.switchTeam(roomId, playerId);
+        if (!result.ok) {
+          sendTo(playerId, { type: 'error', msg: result.error });
+          break;
+        }
+        broadcast(roomId, { type: 'room_update', state: rooms.getState(roomId) });
+        sendTo(playerId, { type: 'room_update', state: rooms.getState(roomId) });
+        broadcastRoomList();
+        break;
+      }
+
+      case 'leave_room': {
+        const roomId = ws.roomId;
+        const result = rooms.leaveLobby(roomId, playerId);
+        if (!result.ok) {
+          sendTo(playerId, { type: 'error', msg: result.error });
+          break;
+        }
+        ws.roomId = null;
+        sendTo(playerId, { type: 'room_left' });
+        if (result.room) {
+          broadcast(roomId, { type: 'player_left', playerId, state: rooms.getState(roomId) }, playerId);
+        }
+        broadcastRoomList();
+        break;
+      }
+
       case 'start_game': {
         const roomId = ws.roomId;
         const room = rooms.get(roomId);

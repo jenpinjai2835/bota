@@ -296,6 +296,44 @@ class RoomStore {
     return room;
   }
 
+  switchTeam(roomId, playerId) {
+    const room = this.get(roomId);
+    if (!room) return { ok: false, error: 'Room not found' };
+    if (room.status !== 'lobby') return { ok: false, error: 'Team can only be changed before the match starts' };
+    const player = room.playerData[playerId];
+    if (!player || player.isAI) return { ok: false, error: 'Player not found' };
+
+    const nextTeamId = player.teamId === 'sun' ? 'moon' : 'sun';
+    const sameTeamPlayers = room.players.filter(pid => room.playerData[pid]?.teamId === nextTeamId);
+    const spawn = SPAWN_POINTS.find(point => point.teamId === nextTeamId) || SPAWN_POINTS[0];
+    player.teamId = nextTeamId;
+    player.ready = player.id === room.host || player.isBot;
+    player.x = spawn.x;
+    player.y = spawn.y;
+    player.facing = nextTeamId === 'moon' ? -1 : 1;
+    player.lastRespawnIndex = sameTeamPlayers.length % RESPAWN_POINTS.length;
+    return { ok: true, room, teamId: nextTeamId };
+  }
+
+  leaveLobby(roomId, playerId) {
+    const room = this.get(roomId);
+    if (!room) return { ok: false, error: 'Room not found' };
+    if (room.status !== 'lobby') return { ok: false, error: 'Cannot leave lobby after the match has started' };
+    if (!room.playerData[playerId]) return { ok: false, error: 'Player not found' };
+
+    room.players = room.players.filter(pid => pid !== playerId);
+    delete room.playerData[playerId];
+    delete room.assetProgress?.[playerId];
+
+    if (room.players.length === 0) {
+      this.rooms.delete(roomId);
+      return { ok: true, room: null };
+    }
+
+    if (room.host === playerId) room.host = room.players[0];
+    return { ok: true, room };
+  }
+
   getTeamCounts(roomId) {
     const room = this.get(roomId);
     if (!room) return { sun: 0, moon: 0 };

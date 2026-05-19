@@ -131,9 +131,13 @@ function handleMessage(msg) {
       roomState = msg.state;
       showLobbyRoom(msg.state);
       break;
+    case 'room_left':
+      returnToRoomSelect();
+      break;
     case 'room_update':
     case 'player_joined':
     case 'player_left':
+      isHost = msg.state?.host === myPlayerId;
       roomState = msg.state;
       updateLobbyUI(msg.state);
       break;
