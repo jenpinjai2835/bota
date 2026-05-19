@@ -26,6 +26,15 @@ function setupWebSocket(server, rooms) {
   const CREEP_ATTACK_WINDUP_RATIO = { melee: 0.46, ranged: 0.58 };
   const TOWER_SHOT_TRAVEL_MS = 560;
   const CREEP_DEPTH_SPEED_MULTIPLIER = 0.56;
+  const AI_HERO_THINK_MS = 160;
+  const AI_HERO_SPEED = 4.5;
+  const AI_HERO_TARGET_SCAN_RANGE = 380;
+  const AI_HERO_ATTACKS = {
+    punch: { damage: 36, range: 48, cooldown: 760, windup: 170, type: 'melee' },
+    flame: { damage: 42, range: 185, cooldown: 3200, windup: 320, type: 'projectile' },
+    rush: { damage: 54, range: 128, cooldown: 5200, windup: 210, type: 'dash' },
+    roar: { damage: 34, range: 112, cooldown: 7800, windup: 500, type: 'aoe' },
+  };
   const CREEP_TEAM_TYPES = {
     sun: { melee: ['monster_6', 'monster_7'], ranged: ['monster_9'] },
     moon: { melee: ['monster_8'], ranged: ['monster_10'] },
@@ -355,6 +364,21 @@ function setupWebSocket(server, rooms) {
     });
   }
 
+  function clearCreepAggroTarget(room, targetId) {
+    if (!room?.creepAggro || !targetId) return;
+    Object.entries(room.creepAggro).forEach(([teamId, aggro]) => {
+      if (aggro?.targetId === targetId) delete room.creepAggro[teamId];
+    });
+  }
+
+  function clearPendingAttacksForTarget(room, targetId) {
+    if (!room || !targetId) return;
+    room.pendingCreepAttacks = (room.pendingCreepAttacks || []).filter(attack => attack.targetId !== targetId);
+    room.creepProjectiles = (room.creepProjectiles || []).filter(shot => shot.targetId !== targetId);
+    room.pendingTowerShots = (room.pendingTowerShots || []).filter(shot => shot.targetId !== targetId);
+    room.pendingHeroActions = (room.pendingHeroActions || []).filter(action => action.targetId !== targetId);
+  }
+
   function isHeroInAnyEnemyTowerAggro(room, defendingTeamId, hero) {
     if (!hero || hero.hp <= 0) return false;
     return getLivingObjectives(room, defendingTeamId).some(obj =>
@@ -541,6 +565,8 @@ function setupWebSocket(server, rooms) {
     if (target.hp <= 0) {
       target.deaths = (target.deaths || 0) + 1;
       clearTowerAggroTarget(room, target.id);
+      clearCreepAggroTarget(room, target.id);
+      clearPendingAttacksForTarget(room, target.id);
       if (attacker && room.playerData?.[attacker.id]) {
         attacker.kills = (attacker.kills || 0) + 1;
         attacker.score = (attacker.score || 0) + 100;
@@ -555,6 +581,9 @@ function setupWebSocket(server, rooms) {
         assister.score = (assister.score || 0) + 35;
       });
       target.recentAttackers = {};
+      target.state = 'dead';
+      target.vx = 0;
+      target.vy = 0;
       scheduleRespawn(roomId, target.id);
     }
 
@@ -751,7 +780,7 @@ function setupWebSocket(server, rooms) {
         (!canOverlapTarget || unit.id !== target?.id) &&
         !(ignoreAlliedCreeps && isAlliedCreepBlocker(creep, unit))
       ),
-      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && (!canOverlapTarget || unit.id !== target?.id)),
+      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.id !== creep.id && (!canOverlapTarget || unit.id !== target?.id)),
       ...(room.objectives || []).filter(unit => unit.hp > 0),
     ];
   }
@@ -1799,6 +1828,197 @@ function setupWebSocket(server, rooms) {
     if (!moveCreepWithContactProcess(room, creep, navigationGoal.x, navigationGoal.y, target)) creep.state = 'idle';
   }
 
+  function getAiHeroTarget(room, hero) {
+    if (!room || !hero || hero.hp <= 0) return null;
+    const enemyHeroes = Object.values(room.playerData || {})
+      .filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId && distanceBetween(hero, unit) <= AI_HERO_TARGET_SCAN_RANGE)
+      .map(unit => ({ unit, distance: distanceBetween(hero, unit), priority: 0 }));
+    const enemyCreeps = (room.creeps || [])
+      .filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId && distanceBetween(hero, unit) <= 210)
+      .map(unit => ({ unit, distance: distanceBetween(hero, unit), priority: 1 }));
+    const nextObjective = getNextAttackableObjective(room, hero.teamId);
+    const defender = getDefendingHeroesNearObjective(room, hero, nextObjective)[0];
+    if (defender) return defender;
+    const nearby = [...enemyHeroes, ...enemyCreeps].sort((a, b) => a.priority - b.priority || a.distance - b.distance)[0];
+    return nearby?.unit || nextObjective || null;
+  }
+
+  function isAiHeroAttackInRange(hero, target, attack) {
+    if (!hero || !target || !attack) return false;
+    const range = attack.range || 48;
+    if (target.type === 'tower' || target.type === 'ancient') {
+      const heroFoot = unitFoot(hero);
+      const targetFoot = unitFoot(target);
+      const dx = Math.abs(targetFoot.x - heroFoot.x);
+      const dy = Math.abs((targetFoot.y - heroFoot.y) * 1.35);
+      return dx <= range + unitBlockRadiusX(target) * 0.72 && dy <= unitBlockRadiusY(target) + 34;
+    }
+    return distanceBetween(hero, target) <= range + unitFootRadiusX(target) * 0.45;
+  }
+
+  function chooseAiHeroAttack(room, hero, target, now) {
+    hero.aiCooldowns = hero.aiCooldowns || {};
+    const enemiesAround = [
+      ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId),
+      ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId),
+    ].filter(unit => distanceBetween(hero, unit) <= AI_HERO_ATTACKS.roar.range).length;
+    if (enemiesAround >= 3 && (hero.aiCooldowns.roar || 0) <= now) return 'roar';
+    if ((hero.aiCooldowns.rush || 0) <= now && isAiHeroAttackInRange(hero, target, AI_HERO_ATTACKS.rush)) return 'rush';
+    if ((hero.aiCooldowns.flame || 0) <= now && isAiHeroAttackInRange(hero, target, AI_HERO_ATTACKS.flame)) return 'flame';
+    if ((hero.aiCooldowns.punch || 0) <= now && isAiHeroAttackInRange(hero, target, AI_HERO_ATTACKS.punch)) return 'punch';
+    return null;
+  }
+
+  function broadcastPlayerState(roomId, player, action = null, actionVariant = null) {
+    const message = {
+      type: 'player_state',
+      playerId: player.id,
+      x: player.x,
+      y: player.y,
+      vx: player.vx || 0,
+      vy: player.vy || 0,
+      onGround: player.onGround !== false,
+      facing: player.facing || 1,
+      state: player.hp <= 0 ? 'dead' : player.state || 'idle',
+      hp: player.hp,
+      action,
+      actionVariant,
+    };
+    const room = rooms.get(roomId);
+    room?.players.forEach(pid => sendTo(pid, message));
+  }
+
+  function moveAiHeroTowardTarget(room, hero, target) {
+    const heroFoot = unitFoot(hero);
+    const targetFoot = unitFoot(target);
+    const dx = targetFoot.x - heroFoot.x;
+    const dir = Math.sign(dx) || hero.facing || TEAM_DIR[hero.teamId] || 1;
+    const desiredGap = Math.max(26, unitBlockRadiusX(target) * (target.type ? 0.65 : 0.38));
+    const goalX = targetFoot.x - dir * desiredGap;
+    const goalY = targetFoot.y;
+    hero.speed = hero.speed || AI_HERO_SPEED;
+    hero.facing = dir;
+    hero.debugGoalX = goalX;
+    hero.debugGoalY = goalY;
+    hero.debugMode = 'ai-hero';
+    const before = { x: hero.x, y: hero.y };
+    const moved = moveCreepWithContactProcess(room, hero, goalX, goalY, target);
+    hero.vx = hero.x - before.x;
+    hero.vy = hero.y - before.y;
+    hero.state = moved ? 'run' : 'idle';
+    return moved;
+  }
+
+  function queueAiHeroAction(room, roomId, hero, target, skillId, now) {
+    const attack = AI_HERO_ATTACKS[skillId] || AI_HERO_ATTACKS.punch;
+    hero.aiCooldowns = hero.aiCooldowns || {};
+    hero.aiCooldowns[skillId] = now + attack.cooldown;
+    hero.state = 'attack';
+    hero.aiActionUntil = now + attack.windup + 240;
+    const actionVariant = skillId === 'punch' && Math.random() < 0.35 ? 'kick' : null;
+    room.pendingHeroActions = room.pendingHeroActions || [];
+    room.pendingHeroActions.push({
+      id: `ha_${hero.id}_${now}_${Math.random().toString(36).slice(2, 5)}`,
+      heroId: hero.id,
+      targetId: target.id,
+      skillId,
+      damage: attack.damage,
+      hitAt: now + attack.windup,
+      type: attack.type,
+    });
+    room.players.forEach(pid => sendTo(pid, {
+      type: 'skill_cast',
+      playerId: hero.id,
+      skillId,
+      x: hero.x,
+      y: hero.y,
+      facing: hero.facing || 1,
+      windup: attack.windup,
+      actionVariant,
+    }));
+    broadcastPlayerState(roomId, hero, skillId, actionVariant);
+  }
+
+  function applyAiHeroDamage(room, roomId, hero, target, action) {
+    if (!hero || !target || hero.hp <= 0 || target.hp <= 0 || target.teamId === hero.teamId) return;
+    const hitDir = getDamageDirection(target, hero, hero.facing || TEAM_DIR[hero.teamId] || 1);
+    if (action.skillId === 'roar') {
+      const units = [
+        ...(room.creeps || []).filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId),
+        ...Object.values(room.playerData || {}).filter(unit => unit.hp > 0 && unit.teamId !== hero.teamId),
+      ].filter(unit => distanceBetween(hero, unit) <= AI_HERO_ATTACKS.roar.range + 10);
+      units.forEach(unit => applyAiHeroDamage(room, roomId, hero, unit, { ...action, skillId: 'punch', damage: action.damage }));
+      return;
+    }
+    if (target.id?.startsWith?.('cr_')) {
+      const killed = damageCreep(room, target, action.damage, hero, hitDir, roomId, action.skillId);
+      if (!killed) {
+        room.players.forEach(pid => sendTo(pid, {
+          type: 'unit_hit_confirmed',
+          unitId: target.id,
+          hp: target.hp,
+          damage: action.damage,
+          skillId: action.skillId,
+          hitDir,
+        }));
+      }
+    } else if (room.playerData?.[target.id]) {
+      damagePlayer(room, roomId, target, action.damage, hero.id, action.skillId, hitDir);
+    } else {
+      damageObjective(room, target, action.damage, hero.teamId, roomId, hero, hitDir);
+      sendScores(roomId, hero.id);
+    }
+  }
+
+  function updateAiHeroActions(room, roomId, now) {
+    room.pendingHeroActions = (room.pendingHeroActions || []).filter(action => {
+      if (action.hitAt > now) return true;
+      const hero = room.playerData?.[action.heroId];
+      const target = getUnitById(room, action.targetId);
+      if (hero && target && isAiHeroAttackInRange(hero, target, AI_HERO_ATTACKS[action.skillId])) {
+        applyAiHeroDamage(room, roomId, hero, target, action);
+      }
+      return false;
+    });
+  }
+
+  function updateAiHeroes(room, roomId, now) {
+    Object.values(room.playerData || {}).forEach(hero => {
+      if (!hero?.isAI) return;
+      if (hero.hp <= 0) {
+        hero.vx = 0;
+        hero.vy = 0;
+        hero.state = 'dead';
+        return;
+      }
+      hero.speed = AI_HERO_SPEED;
+      if ((hero.aiNextThinkAt || 0) > now) return;
+      hero.aiNextThinkAt = now + AI_HERO_THINK_MS;
+      if ((hero.aiActionUntil || 0) > now) {
+        broadcastPlayerState(roomId, hero);
+        return;
+      }
+      const target = getAiHeroTarget(room, hero);
+      if (!target) {
+        hero.state = 'idle';
+        hero.vx = 0;
+        hero.vy = 0;
+        broadcastPlayerState(roomId, hero);
+        return;
+      }
+      const targetFoot = unitFoot(target);
+      const heroFoot = unitFoot(hero);
+      hero.facing = Math.sign(targetFoot.x - heroFoot.x) || hero.facing || TEAM_DIR[hero.teamId] || 1;
+      const skillId = chooseAiHeroAttack(room, hero, target, now);
+      if (skillId) {
+        queueAiHeroAction(room, roomId, hero, target, skillId, now);
+        return;
+      }
+      moveAiHeroTowardTarget(room, hero, target);
+      broadcastPlayerState(roomId, hero);
+    });
+  }
+
   function tickWorld(roomId) {
     const room = rooms.get(roomId);
     if (!room || room.status !== 'playing') return stopWorldLoop(roomId);
@@ -1816,6 +2036,8 @@ function setupWebSocket(server, rooms) {
     updateCreepAttacks(room, roomId, now);
     updateCreepProjectiles(room, roomId);
     updateTowerShotImpacts(room, roomId, now);
+    updateAiHeroActions(room, roomId, now);
+    updateAiHeroes(room, roomId, now);
 
     (room.creeps || []).forEach(creep => {
       if (creep.hp <= 0) return;
@@ -1977,10 +2199,21 @@ function setupWebSocket(server, rooms) {
   const RESPAWN_DELAY_MS = 10000;
 
   function scheduleRespawn(roomId, targetId) {
+    const room = rooms.get(roomId);
+    const currentTarget = room?.playerData?.[targetId];
+    if (currentTarget) {
+      const now = Date.now();
+      if (currentTarget.respawnAt && currentTarget.respawnAt > now) return;
+      currentTarget.respawnAt = now + RESPAWN_DELAY_MS;
+    }
     setTimeout(() => {
       const room = rooms.get(roomId);
       const target = room?.playerData[targetId];
       if (!room || !target) return;
+      target.respawnAt = 0;
+      clearCreepAggroTarget(room, targetId);
+      clearTowerAggroTarget(room, targetId);
+      clearPendingAttacksForTarget(room, targetId);
 
       const spawn = rooms.getTeamRespawnPoint(target.teamId, target.lastRespawnIndex);
       target.lastRespawnIndex = spawn.index;
@@ -1990,6 +2223,8 @@ function setupWebSocket(server, rooms) {
       target.vx = 0;
       target.vy = 0;
       target.state = 'idle';
+      target.aiActionUntil = 0;
+      target.aiNextThinkAt = 0;
 
       room.players.forEach(pid => sendTo(pid, {
         type: 'player_respawn',

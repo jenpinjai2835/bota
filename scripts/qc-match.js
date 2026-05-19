@@ -55,6 +55,7 @@ function openMatch(port, name = 'QC') {
   const ws = new WebSocket(url);
   let roomId = null;
   let playerId = null;
+  let matchState = null;
   const sessionToken = `qc-${Date.now()}-${Math.random()}`;
   const send = msg => ws.send(JSON.stringify(msg));
   const close = () => {
@@ -72,9 +73,10 @@ function openMatch(port, name = 'QC') {
         setTimeout(() => send({ type: 'start_game' }), 100);
       }
       if (msg.type === 'asset_loading_start') send({ type: 'asset_progress', progress: 100 });
+      if (msg.type === 'game_start') matchState = msg.state;
       if (msg.type === 'world_state' && (msg.creeps || []).length >= 10) {
         clearTimeout(timer);
-        resolve({ ws, send, close, roomId, playerId, sessionToken, firstWorld: msg });
+        resolve({ ws, send, close, roomId, playerId, sessionToken, state: matchState, firstWorld: msg });
       }
     });
     ws.on('error', reject);
@@ -305,6 +307,33 @@ async function testTowerShootsHero(port) {
   return { towerId: shot.towerId, targetId: shot.targetId };
 }
 
+async function testAiHeroRespawnAndActions(port) {
+  const match = await openMatch(port, 'QC AI Hero');
+  const ai = (match.state?.players || []).find(player => player.isAI && player.teamId === 'moon');
+  if (!ai) throw new Error('AI hero missing from match state');
+
+  const castPromise = waitForMessage(match.ws, msg => msg.type === 'skill_cast' && msg.playerId === ai.id, 8000);
+  match.send({
+    type: 'player_input',
+    x: ai.x - 54,
+    y: ai.y,
+    vx: 0,
+    vy: 0,
+    onGround: true,
+    facing: 1,
+    state: 'idle',
+    hp: 648,
+  });
+  const cast = await castPromise;
+
+  match.send({ type: 'player_hit', targetId: ai.id, damage: 500, skillId: 'qc-ai-kill-1', hitDir: 1 });
+  setTimeout(() => match.send({ type: 'player_hit', targetId: ai.id, damage: 500, skillId: 'qc-ai-kill-2', hitDir: 1 }), 80);
+  const death = await waitForMessage(match.ws, msg => msg.type === 'player_hit' && msg.targetId === ai.id && msg.hp <= 0, 5000);
+  const respawn = await waitForMessage(match.ws, msg => msg.type === 'player_respawn' && msg.playerId === ai.id && msg.hp > 0, 14000);
+  match.close();
+  return { aiId: ai.id, firstSkill: cast.skillId, deathHp: death.hp, respawnHp: respawn.hp };
+}
+
 async function testReconnect(port) {
   const match = await openMatch(port, 'QC Reconnect');
   const { roomId, sessionToken, playerId } = match;
@@ -330,6 +359,7 @@ async function run() {
     ['objective chain', testObjectiveChain],
     ['creep damage/death', testCreepDamage],
     ['tower shoots hero', testTowerShootsHero],
+    ['ai hero respawn/actions', testAiHeroRespawnAndActions],
     ['reconnect match', testReconnect],
   ];
   const results = [];
