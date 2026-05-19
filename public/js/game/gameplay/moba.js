@@ -352,17 +352,19 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
   const cy = groundY - (creep.h || 42) * 0.48;
   const force = 1 + Math.min(5, Math.max(0, damage) * 0.035);
   const partCount = 11;
+  const burstSeed = createDebrisBurstSeed(creep, damage);
   for (let i = 0; i < partCount; i++) {
+    const partSeed = burstSeed + i * 37;
     const col = i % 4;
     const row = Math.floor(i / 4);
-    const sw = img.naturalWidth * (0.22 + debrisRand(i, 5) * 0.12);
-    const sh = img.naturalHeight * (0.2 + debrisRand(i, 9) * 0.14);
-    const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.1 + col * 0.21 + (debrisRand(i, 13) - 0.5) * 0.08)));
-    const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.08 + row * 0.27 + (debrisRand(i, 17) - 0.5) * 0.1)));
+    const sw = img.naturalWidth * (0.22 + debrisRand(partSeed, 5) * 0.12);
+    const sh = img.naturalHeight * (0.2 + debrisRand(partSeed, 9) * 0.14);
+    const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.1 + col * 0.21 + (debrisRand(partSeed, 13) - 0.5) * 0.08)));
+    const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.08 + row * 0.27 + (debrisRand(partSeed, 17) - 0.5) * 0.1)));
     const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
-    const layerGroundY = getDebrisLayerGroundY(groundY, i + 301, 0.86);
+    const layerGroundY = getDebrisLayerGroundY(groundY, partSeed + 301, 0.86);
     const layerScale = getDebrisLayerScale(groundY, layerGroundY);
-    const size = (12 + debrisRand(i, 21) * 10 + (i % 3) * 2) * layerScale;
+    const size = (12 + debrisRand(partSeed, 21) * 10 + (i % 3) * 2) * layerScale;
     deathParts.push({
       img,
       sx,
@@ -370,22 +372,22 @@ function spawnCreepDeathBurst(creep, dir = 1, damage = 0) {
       sw,
       sh,
       x: cx + spread * 7,
-      y: cy + (debrisRand(i, 25) - 0.5) * 18,
-      vx: dir * (force + debrisRand(i, 29) * 3.2) + spread * (2.5 + debrisRand(i, 33) * 1.8),
-      vy: -3.6 - debrisRand(i, 37) * 4.8,
+      y: cy + (debrisRand(partSeed, 25) - 0.5) * 18,
+      vx: dir * (force + debrisRand(partSeed, 29) * 3.2) + spread * (2.5 + debrisRand(partSeed, 33) * 1.8),
+      vy: -3.6 - debrisRand(partSeed, 37) * 4.8,
       w: size,
       h: size * (sh / sw),
       groundY: layerGroundY,
-      angle: (debrisRand(i, 41) - 0.5) * 1.7,
-      spin: (debrisRand(i, 45) - 0.5 + dir * 0.28) * 0.16,
+      angle: (debrisRand(partSeed, 41) - 0.5) * 1.7,
+      spin: (debrisRand(partSeed, 45) - 0.5 + dir * 0.28) * 0.16,
       gravityScale: 0.32,
       bounceScale: 0.28,
       groundFriction: 0.7,
       airFriction: 0.986,
       spinBounceScale: -0.52,
       tint: creep.teamId === 'sun' ? 'rgba(160, 220, 255, 0.08)' : 'rgba(216, 154, 255, 0.08)',
-      cracks: createDebrisCracks(i + 61, 1 + (i % 2)),
-      polygon: createDebrisPolygon(i + 91, 5 + (i % 4)),
+      cracks: createDebrisCracks(partSeed + 61, 1 + (i % 2)),
+      polygon: createDebrisPolygon(partSeed + 91, 5 + (i % 4)),
       life: Math.round(DEATH_PART_LIFE * 0.82),
       maxLife: Math.round(DEATH_PART_LIFE * 0.82),
     });
@@ -428,7 +430,9 @@ function spawnObjectiveDeathBurst(obj, damage = 0, options = {}) {
 
 function spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, partCount, force, teamColor }) {
   spawnTowerRuinBase(img, cx, groundY, obj.teamId);
+  const burstSeed = createDebrisBurstSeed(obj, force + partCount);
   for (let i = 0; i < partCount; i++) {
+    const partSeed = burstSeed + i * 41;
     const col = i % 6;
     const row = Math.floor(i / 6);
     const sw = img.naturalWidth * (0.12 + (i % 3) * 0.025);
@@ -436,7 +440,7 @@ function spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, 
     const sx = Math.max(0, Math.min(img.naturalWidth - sw, img.naturalWidth * (0.18 + col * 0.105)));
     const sy = Math.max(0, Math.min(img.naturalHeight - sh, img.naturalHeight * (0.13 + row * 0.16)));
     const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
-    const layerGroundY = getDebrisLayerGroundY(groundY, i + 701, isAncient ? 1.42 : 1.18);
+    const layerGroundY = getDebrisLayerGroundY(groundY, partSeed + 701, isAncient ? 1.42 : 1.18);
     const layerScale = getDebrisLayerScale(groundY, layerGroundY);
     const size = (14 + (i % 5) * 5) * layerScale;
     deathParts.push({
@@ -476,8 +480,8 @@ function spawnObjectiveDebrisBurst({ obj, img, cx, cy, groundY, dir, isAncient, 
       trailFireLifeRange: 52,
       trailFireMaxLife: 142,
       tint: obj.teamId === 'sun' ? 'rgba(91, 179, 210, 0.13)' : 'rgba(165, 103, 224, 0.14)',
-      cracks: createDebrisCracks(i, 3),
-      polygon: createDebrisPolygon(i, 5 + (i % 4)),
+      cracks: createDebrisCracks(partSeed, 3),
+      polygon: createDebrisPolygon(partSeed + 19, 5 + (i % 4)),
       life: Math.round(DEATH_PART_LIFE * 1.6),
       maxLife: Math.round(DEATH_PART_LIFE * 1.6),
     });
@@ -506,6 +510,17 @@ function createDebrisCracks(seed = 0, count = 3) {
 function debrisRand(seed, salt = 1) {
   const value = Math.sin((seed + 1) * (salt + 3) * 12.9898) * 43758.5453;
   return value - Math.floor(value);
+}
+
+function createDebrisBurstSeed(source = null, salt = 0) {
+  const id = String(source?.id || source?.name || source?.type || 'debris');
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const eventNoise = Math.floor((Date.now() % 1000000) + Math.random() * 1000000 + Number(salt || 0) * 97);
+  return Math.abs((hash ^ eventNoise) >>> 0) % 1000000;
 }
 
 function getDebrisLayerGroundY(baseGroundY, seed = 0, spreadScale = 1) {

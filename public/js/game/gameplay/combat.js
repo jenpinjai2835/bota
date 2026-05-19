@@ -244,17 +244,19 @@ function spawnPlayerTextureDeathBurst(target, dir = 1, damage = 0) {
   const partCount = 13;
   const force = 1 + Math.min(5, Math.max(0, damage) * 0.035);
   const damageTint = target.teamId === 'sun' ? 'rgba(160, 220, 255, 0.08)' : 'rgba(216, 154, 255, 0.08)';
+  const burstSeed = createDebrisBurstSeed(target, damage);
   for (let i = 0; i < partCount; i++) {
+    const partSeed = burstSeed + i * 43;
     const col = i % 4;
     const row = Math.floor(i / 4);
-    const sw = source.frameW * (0.19 + debrisRand(i, 205) * 0.11);
-    const sh = source.frameH * (0.19 + debrisRand(i, 209) * 0.12);
-    const sx = source.frameX + Math.max(0, Math.min(source.frameW - sw, source.frameW * (0.12 + col * 0.2 + (debrisRand(i, 213) - 0.5) * 0.09)));
-    const sy = source.frameY + Math.max(0, Math.min(source.frameH - sh, source.frameH * (0.1 + row * 0.25 + (debrisRand(i, 217) - 0.5) * 0.11)));
+    const sw = source.frameW * (0.19 + debrisRand(partSeed, 205) * 0.11);
+    const sh = source.frameH * (0.19 + debrisRand(partSeed, 209) * 0.12);
+    const sx = source.frameX + Math.max(0, Math.min(source.frameW - sw, source.frameW * (0.12 + col * 0.2 + (debrisRand(partSeed, 213) - 0.5) * 0.09)));
+    const sy = source.frameY + Math.max(0, Math.min(source.frameH - sh, source.frameH * (0.1 + row * 0.25 + (debrisRand(partSeed, 217) - 0.5) * 0.11)));
     const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
-    const layerGroundY = getDebrisLayerGroundY(groundY, i + 901, 0.92);
+    const layerGroundY = getDebrisLayerGroundY(groundY, partSeed + 901, 0.92);
     const layerScale = getDebrisLayerScale(groundY, layerGroundY);
-    const size = (13 + debrisRand(i, 221) * 12 + (i % 3) * 2.4) * layerScale;
+    const size = (13 + debrisRand(partSeed, 221) * 12 + (i % 3) * 2.4) * layerScale;
     deathParts.push({
       img: source.img,
       sx,
@@ -262,22 +264,22 @@ function spawnPlayerTextureDeathBurst(target, dir = 1, damage = 0) {
       sw,
       sh,
       x: cx + spread * 8,
-      y: cy + (debrisRand(i, 225) - 0.5) * 20,
-      vx: dir * (force + debrisRand(i, 229) * 3.4) + spread * (2.7 + debrisRand(i, 233) * 2),
-      vy: -3.8 - debrisRand(i, 237) * 5.1,
+      y: cy + (debrisRand(partSeed, 225) - 0.5) * 20,
+      vx: dir * (force + debrisRand(partSeed, 229) * 3.4) + spread * (2.7 + debrisRand(partSeed, 233) * 2),
+      vy: -3.8 - debrisRand(partSeed, 237) * 5.1,
       w: size,
       h: size * (sh / sw),
       groundY: layerGroundY,
-      angle: (debrisRand(i, 241) - 0.5) * 1.8,
-      spin: (debrisRand(i, 245) - 0.5 + dir * 0.28) * 0.15,
+      angle: (debrisRand(partSeed, 241) - 0.5) * 1.8,
+      spin: (debrisRand(partSeed, 245) - 0.5 + dir * 0.28) * 0.15,
       gravityScale: 0.32,
       bounceScale: 0.28,
       groundFriction: 0.7,
       airFriction: 0.986,
       spinBounceScale: -0.52,
       tint: damageTint,
-      cracks: createDebrisCracks(i + 181, 1 + (i % 2)),
-      polygon: createDebrisPolygon(i + 211, 5 + (i % 4)),
+      cracks: createDebrisCracks(partSeed + 181, 1 + (i % 2)),
+      polygon: createDebrisPolygon(partSeed + 211, 5 + (i % 4)),
       life: Math.round(DEATH_PART_LIFE * 0.82),
       maxLife: Math.round(DEATH_PART_LIFE * 0.82),
     });
@@ -312,24 +314,27 @@ function spawnDeathPartsBurst(target, dir = 1, damage = 0) {
   const cx = foot.x;
   const cy = groundY - target.height * 0.58;
   const force = 2.6 + Math.min(8, Math.max(0, damage) * 0.018);
+  const burstSeed = createDebrisBurstSeed(target, damage + 17);
   files.forEach((file, i) => {
     const img = warriorVectorOverlayImages[file];
     if (!img?.complete || !img.naturalWidth) return;
+    const partSeed = burstSeed + i * 47;
     const spread = (i / Math.max(1, files.length - 1) - 0.5) * 2;
-    const layerGroundY = getDebrisLayerGroundY(groundY, i + 1101, 0.95);
+    const layerGroundY = getDebrisLayerGroundY(groundY, partSeed + 1101, 0.95);
     const layerScale = getDebrisLayerScale(groundY, layerGroundY);
     const size = (file.includes('Body') ? 33 : file.includes('Head') || file.includes('Hat') ? 24 : 18) * layerScale;
+    const drift = debrisRand(partSeed, 1107) - 0.5;
     deathParts.push({
       img,
       x: cx + spread * 7,
-      y: cy + (Math.random() - 0.5) * 18,
-      vx: dir * (force + Math.random() * 4.5) + spread * 2.8,
-      vy: -4.8 - Math.random() * (5 + Math.min(4, damage * 0.01)),
+      y: cy + drift * 18,
+      vx: dir * (force + debrisRand(partSeed, 1111) * 4.5) + spread * 2.8,
+      vy: -4.8 - debrisRand(partSeed, 1117) * (5 + Math.min(4, damage * 0.01)),
       w: size,
       h: size * (img.naturalHeight / img.naturalWidth),
       groundY: layerGroundY,
-      angle: (Math.random() - 0.5) * 1.4,
-      spin: (Math.random() - 0.5 + dir * 0.35) * (0.12 + Math.min(0.26, damage * 0.002)),
+      angle: (debrisRand(partSeed, 1123) - 0.5) * 1.4,
+      spin: (debrisRand(partSeed, 1129) - 0.5 + dir * 0.35) * (0.12 + Math.min(0.26, damage * 0.002)),
       life: DEATH_PART_LIFE,
       maxLife: DEATH_PART_LIFE,
     });
