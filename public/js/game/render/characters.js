@@ -798,7 +798,11 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
   if (shouldFlip) ctx.scale(-1, 1);
   ctx.scale(1 + punchDrive * 0.01, 1 + idleBreath - rushDrive * 0.015);
   if (source.ch?.id === 'dragonfist') {
-    drawWarriorVectorCharacter(ctx, drawW, drawH, p, action, source);
+    if (source.sheetId === 'idle' && source.sheet) {
+      drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action);
+    } else {
+      drawWarriorVectorCharacter(ctx, drawW, drawH, p, action, source);
+    }
   } else if (source.sheet) {
     drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action);
   } else {
