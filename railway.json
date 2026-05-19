@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "node server.js",
+    "startCommand": "npm run ai:daemon",
     "numReplicas": 1,
     "healthcheckPath": "/",
     "restartPolicyType": "ON_FAILURE",
