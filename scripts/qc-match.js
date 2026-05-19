@@ -342,6 +342,116 @@ async function testAiHeroRespawnAndActions(port) {
   return { aiId: ai.id, firstMode: mode.aiMode, firstSkill: cast.skillId, deathHp: death.hp, respawnHp: respawn.hp };
 }
 
+function heroFoot(unit) {
+  return { x: unit.x + 22, y: unit.y + 66 };
+}
+
+function heroBlockOverlap(a, b) {
+  const af = heroFoot(a);
+  const bf = heroFoot(b);
+  return Math.abs(af.x - bf.x) < 30 && Math.abs(af.y - bf.y) < 20;
+}
+
+async function testAiHeroSmoothNoPush(port) {
+  const match = await openMatch(port, 'QC AI Smooth No Push');
+  const ai = (match.state?.players || []).find(player => player.isAI && player.teamId === 'moon');
+  if (!ai) throw new Error('AI hero missing from match state');
+
+  const blocker = { x: ai.x - 52, y: ai.y };
+  match.send({
+    type: 'player_input',
+    x: blocker.x,
+    y: blocker.y,
+    vx: 0,
+    vy: 0,
+    onGround: true,
+    facing: 1,
+    state: 'idle',
+    hp: 648,
+  });
+
+  const samples = [];
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, 2600);
+    const onMessage = raw => {
+      const msg = JSON.parse(raw);
+      if (msg.type !== 'player_state' || msg.playerId !== ai.id) return;
+      samples.push({ t: Date.now(), x: msg.x, y: msg.y, vx: msg.vx || 0, vy: msg.vy || 0, state: msg.state, aiMode: msg.aiMode });
+    };
+    match.ws.on('message', onMessage);
+    setTimeout(() => {
+      match.ws.off('message', onMessage);
+      clearTimeout(timer);
+      resolve();
+    }, 2600);
+    match.ws.on('error', reject);
+  });
+  match.close();
+
+  if (samples.length < 8) throw new Error(`Too few AI samples: ${samples.length}`);
+  const overlaps = samples.filter(sample => heroBlockOverlap(sample, blocker)).length;
+  if (overlaps > 0) throw new Error(`AI overlapped/pushed hero blocker in ${overlaps} samples`);
+
+  const steps = samples.slice(1).map((sample, i) => Math.hypot(sample.x - samples[i].x, sample.y - samples[i].y));
+  const maxStep = Math.max(...steps);
+  if (maxStep > 11) throw new Error(`AI movement step too large: ${maxStep.toFixed(2)}`);
+
+  let flips = 0;
+  let lastSign = 0;
+  samples.slice(1).forEach((sample, i) => {
+    const dx = sample.x - samples[i].x;
+    const sign = Math.abs(dx) < 0.25 ? 0 : Math.sign(dx);
+    if (sign && lastSign && sign !== lastSign) flips += 1;
+    if (sign) lastSign = sign;
+  });
+  if (flips > 2) throw new Error(`AI jittered front/back too much: ${flips} flips`);
+  return { samples: samples.length, maxStep: Number(maxStep.toFixed(2)), flips, firstMode: samples[0].aiMode, lastMode: samples.at(-1).aiMode };
+}
+
+async function testAiHeroLaneMovementSmooth(port) {
+  const match = await openMatch(port, 'QC AI Lane Smooth');
+  const ai = (match.state?.players || []).find(player => player.isAI && player.teamId === 'moon');
+  if (!ai) throw new Error('AI hero missing from match state');
+  const samples = [];
+
+  await new Promise((resolve, reject) => {
+    const onMessage = raw => {
+      const msg = JSON.parse(raw);
+      if (msg.type !== 'player_state' || msg.playerId !== ai.id) return;
+      if (!['push-lane', 'hit-tower', 'clear-creep'].includes(msg.aiMode)) return;
+      samples.push({ x: msg.x, y: msg.y, vx: msg.vx || 0, vy: msg.vy || 0, aiMode: msg.aiMode });
+      if (samples.length >= 18) cleanup(resolve);
+    };
+    const timer = setTimeout(() => cleanup(resolve), 5000);
+    function cleanup(done) {
+      clearTimeout(timer);
+      match.ws.off('message', onMessage);
+      done();
+    }
+    match.ws.on('message', onMessage);
+    match.ws.on('error', reject);
+  });
+  match.close();
+
+  if (samples.length < 12) throw new Error(`Too few lane AI samples: ${samples.length}`);
+  const steps = samples.slice(1).map((sample, i) => Math.hypot(sample.x - samples[i].x, sample.y - samples[i].y));
+  const maxStep = Math.max(...steps);
+  const avgStep = steps.reduce((sum, step) => sum + step, 0) / steps.length;
+  if (maxStep > 9) throw new Error(`AI lane step too large: ${maxStep.toFixed(2)}`);
+  if (avgStep < 0.4) throw new Error(`AI lane movement stalled: ${avgStep.toFixed(2)}`);
+
+  let flips = 0;
+  let lastSign = 0;
+  samples.slice(1).forEach((sample, i) => {
+    const dx = sample.x - samples[i].x;
+    const sign = Math.abs(dx) < 0.25 ? 0 : Math.sign(dx);
+    if (sign && lastSign && sign !== lastSign) flips += 1;
+    if (sign) lastSign = sign;
+  });
+  if (flips > 1) throw new Error(`AI lane jittered front/back: ${flips} flips`);
+  return { samples: samples.length, avgStep: Number(avgStep.toFixed(2)), maxStep: Number(maxStep.toFixed(2)), flips, firstMode: samples[0].aiMode, lastMode: samples.at(-1).aiMode };
+}
+
 async function testReconnect(port) {
   const match = await openMatch(port, 'QC Reconnect');
   const { roomId, sessionToken, playerId } = match;
@@ -368,6 +478,8 @@ async function run() {
     ['creep damage/death', testCreepDamage],
     ['tower shoots hero', testTowerShootsHero],
     ['ai hero respawn/actions', testAiHeroRespawnAndActions],
+    ['ai hero smooth/no-push', testAiHeroSmoothNoPush],
+    ['ai hero lane smooth', testAiHeroLaneMovementSmooth],
     ['reconnect match', testReconnect],
   ];
   const results = [];

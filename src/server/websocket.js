@@ -27,7 +27,7 @@ function setupWebSocket(server, rooms) {
   const TOWER_SHOT_TRAVEL_MS = 560;
   const CREEP_DEPTH_SPEED_MULTIPLIER = 0.56;
   const AI_HERO_THINK_MS = 100;
-  const AI_HERO_SPEED = 9.2;
+  const AI_HERO_SPEED = 4.6;
   const AI_HERO_TARGET_SCAN_RANGE = 380;
   const AI_HERO_ATTACKS = {
     punch: { damage: 36, range: 48, cooldown: 760, windup: 170, type: 'melee' },
@@ -786,7 +786,8 @@ function setupWebSocket(server, rooms) {
   }
 
   function getCreepMoveBlockers(room, creep, target = null, options = {}) {
-    const canOverlapTarget = target && !target.type;
+    const movingHero = Boolean(room.playerData?.[creep?.id]);
+    const canOverlapTarget = target && !target.type && !movingHero && options.allowTargetOverlap !== false;
     const ignoreAlliedCreeps = !!options.ignoreAlliedCreeps;
     return [
       ...(room.creeps || []).filter(unit =>
@@ -1847,7 +1848,7 @@ function setupWebSocket(server, rooms) {
     const level = Math.max(1, Math.min(30, Number(hero?.level || hero?.progression?.level || 30)));
     const levelScale = 1 + (level - 1) * 0.018;
     return {
-      speed: (hero?.stats?.speed || AI_HERO_STAT_BASE.speed) * levelScale,
+      speed: hero?.stats?.speed || AI_HERO_STAT_BASE.speed,
       attackDamage: Math.round((hero?.stats?.attackDamage || AI_HERO_STAT_BASE.attackDamage) * levelScale),
       attackSpeed: Math.max(0.45, (hero?.stats?.attackSpeed || AI_HERO_STAT_BASE.attackSpeed) * (1 + (level - 1) * 0.006)),
       hpRegen: (hero?.stats?.hpRegen || AI_HERO_STAT_BASE.hpRegen) * levelScale,
@@ -2001,6 +2002,27 @@ function setupWebSocket(server, rooms) {
     return moved;
   }
 
+  function shouldAiHeroHoldAttackPosition(hero, target) {
+    if (!hero || !target) return false;
+    const punch = getAiHeroAttackDef(hero, 'punch');
+    if (isAiHeroAttackInRange(hero, target, punch)) return true;
+    if (target.type === 'tower' || target.type === 'ancient') {
+      const flame = getAiHeroAttackDef(hero, 'flame');
+      return isAiHeroAttackInRange(hero, target, flame);
+    }
+    return false;
+  }
+
+  function holdAiHeroPosition(roomId, hero, target = null) {
+    const targetFoot = target ? unitFoot(target) : null;
+    const heroFoot = unitFoot(hero);
+    if (targetFoot) hero.facing = Math.sign(targetFoot.x - heroFoot.x) || hero.facing || TEAM_DIR[hero.teamId] || 1;
+    hero.vx = 0;
+    hero.vy = 0;
+    hero.state = 'idle';
+    broadcastPlayerState(roomId, hero);
+  }
+
   function queueAiHeroAction(room, roomId, hero, target, skillId, now) {
     const attack = getAiHeroAttackDef(hero, skillId);
     hero.aiCooldowns = hero.aiCooldowns || {};
@@ -2120,6 +2142,10 @@ function setupWebSocket(server, rooms) {
       const skillId = chooseAiHeroAttack(room, hero, target, now);
       if (skillId) {
         queueAiHeroAction(room, roomId, hero, target, skillId, now);
+        return;
+      }
+      if (shouldAiHeroHoldAttackPosition(hero, target)) {
+        holdAiHeroPosition(roomId, hero, target);
         return;
       }
       moveAiHeroTowardTarget(room, hero, target);
