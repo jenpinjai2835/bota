@@ -2139,7 +2139,7 @@ function setupWebSocket(server, rooms) {
         const player = room.playerData[playerId];
         if (!player) break;
 
-        const { x, y, hp, vx, vy, onGround, facing, state: pstate, action } = msg;
+        const { x, y, hp, vx, vy, onGround, facing, state: pstate, action, actionVariant } = msg;
         const nextX = Number.isFinite(Number(x)) ? Number(x) : player.x;
         const nextY = Number.isFinite(Number(y)) ? Number(y) : player.y;
         const blockedByUnit = isPlayerMoveBlocked(room, player, nextX, nextY);
@@ -2173,6 +2173,7 @@ function setupWebSocket(server, rooms) {
           state: player.state,
           hp: player.hp,
           action,
+          actionVariant: actionVariant || null,
         }, playerId);
         if (blockedByUnit) {
           sendTo(playerId, {
@@ -2187,6 +2188,7 @@ function setupWebSocket(server, rooms) {
             state: player.state,
             hp: player.hp,
             action,
+            actionVariant: actionVariant || null,
           });
         }
         break;
@@ -2255,6 +2257,7 @@ function setupWebSocket(server, rooms) {
           y: msg.y,
           facing: msg.facing,
           windup: msg.windup,
+          actionVariant: msg.actionVariant || null,
         }, playerId);
         break;
       }

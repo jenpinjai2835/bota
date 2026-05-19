@@ -461,9 +461,9 @@ function getSpriteSheetId(ch, p, action) {
   const skill = getSkillForAction(ch, action);
   if (ch?.id === 'dragonfist') {
     if (p.hp <= 0 || p.state === 'dead' || p.state === 'hurt' || p.hitStunUntil > Date.now()) return 'idle';
+    if (action === 'punch') return p.actionVariant === 'attackKick' && (p.facing || 1) === 1 ? 'attackKick' : 'attack';
     if (p.state === 'idle') return 'idle';
     if (p.state === 'jump' || p.state === 'fall') return 'jump';
-    if (['punch', 'flame', 'roar'].includes(action)) return 'attack';
     if (p.state === 'run' || action === 'rush') return 'run';
     return null;
   }
@@ -538,7 +538,7 @@ function drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action) {
   const frameH = img.naturalHeight / sheet.rows;
   let frame = 0;
 
-  if (sheetId === 'attack') {
+  if (sheetId && sheetId.startsWith('attack')) {
     frame = Math.min(sheet.frames - 1, Math.floor(getActionProgress(p) * sheet.frames));
   } else if (sheetId === 'jump' && source.ch?.id === 'dragonfist') {
     frame = getDragonfistJumpFrame(p, sheet.frames);
@@ -798,7 +798,7 @@ function drawDragonfistSprite(ctx, source, footX, footY, drawW, drawH, p, bob, l
   if (shouldFlip) ctx.scale(-1, 1);
   ctx.scale(1 + punchDrive * 0.01, 1 + idleBreath - rushDrive * 0.015);
   if (source.ch?.id === 'dragonfist') {
-    if ((source.sheetId === 'idle' || source.sheetId === 'run') && source.sheet) {
+    if ((source.sheetId === 'idle' || source.sheetId === 'run' || source.sheetId?.startsWith('attack')) && source.sheet) {
       drawSpriteSheetFrame(ctx, source, drawW, drawH, p, action);
     } else {
       drawWarriorVectorCharacter(ctx, drawW, drawH, p, action, source);

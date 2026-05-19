@@ -193,7 +193,7 @@ function handleMessage(msg) {
           hp: msg.hp,
         });
         if (msg.action) {
-          setPlayerAction(remotePlayers[msg.playerId], msg.action);
+          setPlayerAction(remotePlayers[msg.playerId], msg.action, undefined, msg.actionVariant || null);
           spawnEffect(msg.x, msg.y, msg.action, remotePlayers[msg.playerId].charData?.color || '#fff');
         }
       }

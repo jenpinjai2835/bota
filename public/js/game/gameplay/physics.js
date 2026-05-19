@@ -453,7 +453,7 @@ function trySkill(skillIndex) {
   }
 
   const windup = getSkillAttackWindup(skill, myPlayer);
-  send({ type: 'skill_cast', skillId: skill.id, x: myPlayer.x, y: myPlayer.y, facing: myPlayer.facing, windup });
+  send({ type: 'skill_cast', skillId: skill.id, x: myPlayer.x, y: myPlayer.y, facing: myPlayer.facing, windup, actionVariant: myPlayer.actionVariant || null });
   spawnEffect(myPlayer.x + myPlayer.width/2, myPlayer.y + myPlayer.height/2, `${skill.id}-windup`, skill.color, 26);
   setTimeout(() => {
     executeSkillImpact(myPlayer, skill);

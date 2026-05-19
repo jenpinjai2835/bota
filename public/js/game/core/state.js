@@ -122,7 +122,7 @@ const WARRIOR_VECTOR_OVERLAY_FILES = [
 ];
 let warriorVectorAnimationsData = null;
 let warriorVectorAnimationsLoadStarted = false;
-let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0 };
+let localActionState = { action: null, actionStartedAt: 0, actionUntil: 0, actionVariant: null };
 let basicAttackReadyAt = 0;
 const predictedHitEffects = [];
 const ACTION_DURATIONS = {
@@ -392,15 +392,24 @@ function getSkillActionDuration(action, player = null) {
   return ACTION_DURATIONS.default;
 }
 
-function setPlayerAction(player, action, duration = getSkillActionDuration(action, player)) {
+function getDragonfistBasicAttackVariant(player, action, requestedVariant = null) {
+  if (player?.character !== 'dragonfist' || action !== 'punch') return requestedVariant || null;
+  if (requestedVariant === 'attackKick' && (player.facing || 1) === 1) return requestedVariant;
+  if (requestedVariant === 'attack') return requestedVariant;
+  return (player.facing || 1) === 1 && Math.random() < 0.38 ? 'attackKick' : 'attack';
+}
+
+function setPlayerAction(player, action, duration = getSkillActionDuration(action, player), actionVariant = null) {
   if (!player || !action) return;
   const actionStartedAt = Date.now();
   const actionUntil = actionStartedAt + duration;
+  const resolvedVariant = getDragonfistBasicAttackVariant(player, action, actionVariant);
   player.action = action;
   player.actionStartedAt = actionStartedAt;
   player.actionUntil = actionUntil;
+  player.actionVariant = resolvedVariant;
   if (player === myPlayer) {
-    localActionState = { action, actionStartedAt, actionUntil };
+    localActionState = { action, actionStartedAt, actionUntil, actionVariant: resolvedVariant };
   }
 }
 

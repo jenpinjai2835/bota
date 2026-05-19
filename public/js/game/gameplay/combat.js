@@ -385,7 +385,8 @@ function handleRemoteSkill(msg) {
   const ch = p.charData;
   const skill = ch?.skills?.find(s => s.id === msg.skillId);
   if (!skill) return;
-  setPlayerAction(p, msg.skillId);
+  if (Number.isFinite(msg.facing)) p.facing = msg.facing;
+  setPlayerAction(p, msg.skillId, undefined, msg.actionVariant || null);
   const windup = Number.isFinite(msg.windup) ? msg.windup : getSkillAttackWindup(skill, p);
   spawnEffect(msg.x + 18, msg.y + 27, `${msg.skillId}-windup`, skill.color, 32);
 
