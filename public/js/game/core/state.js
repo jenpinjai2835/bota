@@ -213,6 +213,7 @@ function collectInitialClientAssetUrls() {
   ].forEach(file => urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}${file}`));
   urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`);
   Object.values(OBJECTIVE_TEXTURE_URLS).forEach(src => urls.add(src));
+  Object.values(EFFECT_TEXTURE_URLS).forEach(src => urls.add(src));
   return Array.from(urls);
 }
 
@@ -227,6 +228,7 @@ function collectMatchAssetUrls() {
   WARRIOR_VECTOR_OVERLAY_FILES.forEach(file => urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}${file}`));
   urls.add(`${WARRIOR_VECTOR_OVERLAY_BASE}animations.json`);
   Object.values(OBJECTIVE_TEXTURE_URLS).forEach(src => urls.add(src));
+  Object.values(EFFECT_TEXTURE_URLS).forEach(src => urls.add(src));
 
   const monsterTypes = typeof MONSTER_TYPES !== 'undefined' ? MONSTER_TYPES : [];
   const monsterActions = typeof MONSTER_ACTIONS !== 'undefined' ? MONSTER_ACTIONS : {};

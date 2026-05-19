@@ -212,6 +212,10 @@ function drawEffect(ctx, e, sx, sy) {
     drawTowerGroundDustEffect(ctx, e, sx, sy);
     return;
   }
+  if (e.id === 'attack-dust') {
+    drawAttackDustEffect(ctx, e, sx, sy);
+    return;
+  }
   const alpha = e.life / e.maxLife;
   const r = e.radius * (1 - alpha * 0.35) * Math.min(sx, sy);
   const x = e.x * sx;
@@ -229,6 +233,27 @@ function drawEffect(ctx, e, sx, sy) {
   ctx.beginPath();
   ctx.arc(x, y, r * 0.82, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+function drawAttackDustEffect(ctx, e, sx, sy) {
+  const alpha = Math.max(0, Math.min(1, e.life / e.maxLife));
+  const progress = 1 - alpha;
+  const scale = Math.min(sx, sy);
+  const x = e.x * sx;
+  const y = e.y * sy;
+  const base = e.radius * scale;
+  const dustSprite = effectImages.dustPuff?.complete && effectImages.dustPuff.naturalWidth ? effectImages.dustPuff : null;
+  const puffs = Array.isArray(e.dustPuffs) ? e.dustPuffs : [];
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < puffs.length; i++) {
+    const puff = puffs[i];
+    const px = x + puff.ox * sx;
+    const py = y + puff.oy * sy;
+    const radius = Math.max(3.5 * scale, base * (puff.radiusScale || 0.34) * (0.82 + progress * 0.65));
+    drawDustPuff(ctx, dustSprite, px, py, radius, 0.32 * Math.pow(alpha, 0.72) * (puff.alphaScale || 1));
+  }
+  ctx.restore();
 }
 
 function drawTowerGroundDustEffect(ctx, e, sx, sy) {

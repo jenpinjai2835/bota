@@ -98,6 +98,24 @@ function executeSkillImpact(owner, skill) {
 function spawnEffect(x, y, id, color, radius = 40, options = {}) {
   const maxLife = id === 'level-up' ? 72 : 30;
   const effect = { x, y, color: color || '#fff', radius, maxRadius: radius, life: maxLife, maxLife, id, ...options };
+  if (id === 'attack-dust') {
+    const dir = Math.sign(effect.hitDir || 0) || 1;
+    const count = 11;
+    effect.maxLife = effect.maxLife || effect.life || 20;
+    effect.life = effect.life || effect.maxLife;
+    effect.dustPuffs = Array.from({ length: count }, (_, i) => {
+      const spread = (i / Math.max(1, count - 1) - 0.5) * 2;
+      const burst = 0.7 + Math.random() * 1.75;
+      return {
+        ox: (Math.random() - 0.5) * radius * 0.36,
+        oy: (Math.random() - 0.5) * radius * 0.24,
+        vx: -dir * burst + spread * 0.8 + (Math.random() - 0.5) * 0.6,
+        vy: -0.5 - Math.random() * 1.1 + Math.abs(spread) * 0.18,
+        radiusScale: 0.26 + Math.random() * 0.34,
+        alphaScale: 0.75 + Math.random() * 0.3,
+      };
+    });
+  }
   if (id === 'tower-ground-dust') {
     const puffCount = 44;
     const ringRadius = radius * 0.14;
@@ -166,6 +184,103 @@ function spawnBloodBurst(x, y, dir = 1, amount = 14, groundY = null) {
       maxLife: 52,
     });
   }
+}
+
+function getPlayerDeathSpriteSource(target) {
+  const ch = target?.charData || CHARACTERS.find(entry => entry.id === target?.character);
+  if (!ch?.sprite) return null;
+  const sheets = ch.sprite.sheets || {};
+  const action = typeof getActiveAction === 'function' ? getActiveAction(target) : null;
+  const preferredIds = [];
+  if (ch.id === 'dragonfist' && action === 'punch') {
+    preferredIds.push(target.actionVariant === 'attackKick' ? 'attackKick' : 'attack');
+  }
+  if (target?.state === 'run') preferredIds.push('run');
+  preferredIds.push('idle', 'run', 'attack');
+
+  for (const sheetId of preferredIds) {
+    const sheet = sheets[sheetId];
+    const img = spriteImages[`${ch.id}:${sheetId}`];
+    if (sheet && img?.complete && img.naturalWidth) {
+      const cols = Math.max(1, sheet.cols || 1);
+      const rows = Math.max(1, sheet.rows || 1);
+      const frames = Math.max(1, sheet.frames || cols * rows);
+      const frameW = img.naturalWidth / cols;
+      const frameH = img.naturalHeight / rows;
+      let frame = 0;
+      if (sheetId === 'idle' || sheetId === 'run') {
+        const fps = sheet.fps || 12;
+        frame = Math.floor(Date.now() / Math.max(1, 1000 / fps)) % frames;
+      } else if (target.actionStartedAt) {
+        const duration = Math.max(1, (target.actionUntil || Date.now()) - target.actionStartedAt);
+        const progress = Math.max(0, Math.min(0.999, (Date.now() - target.actionStartedAt) / duration));
+        frame = Math.floor(progress * frames);
+      }
+      return {
+        img,
+        sheet,
+        frameX: (frame % cols) * frameW,
+        frameY: Math.floor(frame / cols) * frameH,
+        frameW,
+        frameH,
+      };
+    }
+  }
+
+  const img = spriteImages[ch.id];
+  if (img?.complete && img.naturalWidth) {
+    return { img, frameX: 0, frameY: 0, frameW: img.naturalWidth, frameH: img.naturalHeight };
+  }
+  return null;
+}
+
+function spawnPlayerTextureDeathBurst(target, dir = 1, damage = 0) {
+  const source = getPlayerDeathSpriteSource(target);
+  if (!source?.img) return false;
+  const foot = getUnitFoot(target);
+  const groundY = foot.y;
+  const cx = foot.x;
+  const cy = groundY - (target.height || 72) * 0.58;
+  const partCount = 13;
+  const force = 1 + Math.min(5, Math.max(0, damage) * 0.035);
+  const damageTint = target.teamId === 'sun' ? 'rgba(160, 220, 255, 0.08)' : 'rgba(216, 154, 255, 0.08)';
+  for (let i = 0; i < partCount; i++) {
+    const col = i % 4;
+    const row = Math.floor(i / 4);
+    const sw = source.frameW * (0.19 + debrisRand(i, 205) * 0.11);
+    const sh = source.frameH * (0.19 + debrisRand(i, 209) * 0.12);
+    const sx = source.frameX + Math.max(0, Math.min(source.frameW - sw, source.frameW * (0.12 + col * 0.2 + (debrisRand(i, 213) - 0.5) * 0.09)));
+    const sy = source.frameY + Math.max(0, Math.min(source.frameH - sh, source.frameH * (0.1 + row * 0.25 + (debrisRand(i, 217) - 0.5) * 0.11)));
+    const spread = (i / Math.max(1, partCount - 1) - 0.5) * 2;
+    const size = 13 + debrisRand(i, 221) * 12 + (i % 3) * 2.4;
+    deathParts.push({
+      img: source.img,
+      sx,
+      sy,
+      sw,
+      sh,
+      x: cx + spread * 8,
+      y: cy + (debrisRand(i, 225) - 0.5) * 20,
+      vx: dir * (force + debrisRand(i, 229) * 3.4) + spread * (2.7 + debrisRand(i, 233) * 2),
+      vy: -3.8 - debrisRand(i, 237) * 5.1,
+      w: size,
+      h: size * (sh / sw),
+      groundY,
+      angle: (debrisRand(i, 241) - 0.5) * 1.8,
+      spin: (debrisRand(i, 245) - 0.5 + dir * 0.28) * 0.15,
+      gravityScale: 0.32,
+      bounceScale: 0.28,
+      groundFriction: 0.7,
+      airFriction: 0.986,
+      spinBounceScale: -0.52,
+      tint: damageTint,
+      cracks: createDebrisCracks(i + 181, 1 + (i % 2)),
+      polygon: createDebrisPolygon(i + 211, 5 + (i % 4)),
+      life: Math.round(DEATH_PART_LIFE * 0.82),
+      maxLife: Math.round(DEATH_PART_LIFE * 0.82),
+    });
+  }
+  return true;
 }
 
 function countTowerTrailParticles() {
@@ -299,24 +414,45 @@ function getHitReactionForce(skillId = null, damage = 0) {
 function startDeathMotion(target, dir = 1, damage = 0, skillId = null) {
   if (!target) return;
   const now = Date.now();
-  const force = getHitReactionForce(skillId, damage) * Math.max(0.25, 1 - getPlayerStat(target, 'knockbackResist'));
   target.hp = 0;
   target.state = 'dead';
   target.deathStartedAt = now;
   target.deathFadeStartedAt = now + DEATH_BODY_FADE_START_MS;
   target.deathUntil = now + RESPAWN_DELAY_MS;
   target.hitDir = dir;
-  target.vx = dir * (force + 4 + Math.min(7, Math.max(0, damage) * 0.05));
-  target.vy = -5.4 - Math.min(6, Math.max(0, damage) * 0.035);
+  target.vx = 0;
+  target.vy = 0;
   target.deathAngle = target.deathAngle || 0;
-  target.deathSpin = dir * (0.15 + Math.min(0.34, Math.max(0, damage) * 0.006));
-  target.onGround = false;
+  target.deathSpin = 0;
+  target.onGround = true;
   if (!target.bodyShattered) {
     target.bodyShattered = true;
-    spawnDeathPartsBurst(target, dir, damage);
+    if (!spawnPlayerTextureDeathBurst(target, dir, damage)) spawnDeathPartsBurst(target, dir, damage);
     const foot = getUnitFoot(target);
     spawnBloodBurst(foot.x, foot.y - target.height * 0.58, dir, 30, foot.y);
   }
+}
+
+function isDragonfistAttackHit(skillId, attackerId = null) {
+  if (skillId !== 'punch') return false;
+  const attacker = attackerId ? getPlayerById(attackerId) : myPlayer;
+  return (attacker?.character || attacker?.charData?.id) === 'dragonfist';
+}
+
+function spawnDragonfistImpactDust(target, hitDir = 1, skillId = null, attackerId = null) {
+  if (!target || !isDragonfistAttackHit(skillId, attackerId)) return;
+  const renderedTarget = getRenderedWorldUnit(target) || target;
+  const foot = getUnitFoot(renderedTarget);
+  const width = getUnitWidth(renderedTarget);
+  const height = getUnitHeight(renderedTarget);
+  const dir = Math.sign(hitDir || 0) || 1;
+  const impactX = foot.x - dir * Math.max(8, width * 0.28);
+  const impactY = foot.y - Math.max(12, height * 0.38);
+  spawnEffect(impactX, impactY, 'attack-dust', '#B7A083', Math.max(26, Math.min(46, width * 0.82)), {
+    life: 20,
+    maxLife: 20,
+    hitDir: dir,
+  });
 }
 
 function dealDamage(target, damage, skillId, hitDir = 1) {
@@ -334,6 +470,7 @@ function dealDamage(target, damage, skillId, hitDir = 1) {
   const targetId = target.id || (target === myPlayer ? myPlayerId : null);
   send({ type: 'player_hit', targetId, damage: finalDamage, skillId, hitDir });
   spawnEffect(target.x + target.width/2, target.y + target.height/2, skillId, '#FF4444', 30);
+  spawnDragonfistImpactDust(target, hitDir, skillId, myPlayerId);
   spawnDamageNumber(target.x + target.width/2, target.y + 8, finalDamage, '#FFD166');
   spawnBloodBurst(target.x + target.width/2, target.y + target.height * 0.38, hitDir);
   applyHitReaction(target, hitDir, skillId);
@@ -366,6 +503,7 @@ function handleHitEffect(msg) {
     applyHitReaction(target, hitDir, msg.skillId);
     if (!alreadyShown) {
       spawnEffect(target.x + target.width/2, target.y + target.height/2, msg.skillId, '#FF4444', 35);
+      spawnDragonfistImpactDust(target, hitDir, msg.skillId, msg.attackerId);
       spawnDamageNumber(target.x + target.width/2, target.y + 8, msg.damage, '#FFD166');
       spawnBloodBurst(target.x + target.width/2, target.y + target.height * 0.38, hitDir);
     }
@@ -485,6 +623,15 @@ function updateProjectiles() {
 
   effects = effects.filter(e => {
     syncEffectFollowTarget(e);
+    if (e.id === 'attack-dust' && Array.isArray(e.dustPuffs)) {
+      e.dustPuffs.forEach(puff => {
+        puff.ox += puff.vx;
+        puff.oy += puff.vy;
+        puff.vx *= 0.91;
+        puff.vy += 0.045;
+        puff.vy *= 0.96;
+      });
+    }
     if (e.id === 'tower-ground-dust' && Array.isArray(e.dustPuffs)) {
       e.dustPuffs.forEach(puff => {
         puff.ox += puff.vx;

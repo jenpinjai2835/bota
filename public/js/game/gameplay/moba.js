@@ -155,6 +155,9 @@ function handleWorldUnitDeath(msg) {
   if (hasRecentCreepDeathBurst(creep.id)) return;
   const hitDir = msg.hitDir || creep.lastHitDir || creep.facing || (creep.teamId === 'sun' ? 1 : -1);
   rememberCreepDeathBurst(creep.id);
+  if (typeof spawnDragonfistImpactDust === 'function' && msg.attackerId && Date.now() - (creep.lastDragonfistImpactAt || 0) > 180) {
+    spawnDragonfistImpactDust(creep, hitDir, msg.skillId || 'punch', msg.attackerId);
+  }
   spawnCreepDeathBurst(creep, hitDir, msg.damage || creep.lastDamage || 34);
 }
 
@@ -164,6 +167,9 @@ function handleWorldUnitHitConfirmed(msg) {
   unit.hp = Math.max(0, Number(msg.hp) || 0);
   unit.lastDamage = msg.damage || unit.lastDamage || 0;
   unit.lastHitDir = msg.hitDir || unit.lastHitDir || unit.facing || 1;
+  if (typeof spawnDragonfistImpactDust === 'function' && Date.now() - (unit.lastDragonfistImpactAt || 0) > 180) {
+    spawnDragonfistImpactDust(unit, unit.lastHitDir, msg.skillId, myPlayerId);
+  }
 }
 
 function getUnitCenter(unit) {
@@ -227,6 +233,10 @@ function damageWorldUnit(unit, damage, skillId, hitDir = 1) {
   unit.hp = Math.max(0, unit.hp - damage);
   send({ type: 'unit_hit', unitId: unit.id, damage, skillId, hitDir });
   const center = getUnitCenter(unit);
+  if (typeof spawnDragonfistImpactDust === 'function') {
+    unit.lastDragonfistImpactAt = Date.now();
+    spawnDragonfistImpactDust(unit, hitDir, skillId, myPlayerId);
+  }
   spawnDamageNumber(center.x, unit.y, damage, '#FFE082');
   spawnEffect(center.x, center.y, skillId, '#FFD166', unit.type === 'ancient' ? 48 : 28);
 }

@@ -473,7 +473,7 @@ function setupWebSocket(server, rooms) {
     });
   }
 
-  function damageCreep(room, creep, amount, attacker = null, hitDir = null, roomId = null) {
+  function damageCreep(room, creep, amount, attacker = null, hitDir = null, roomId = null, skillId = null) {
     if (!creep || creep.hp <= 0) return false;
     const resolvedHitDir = hitDir || getDamageDirection(creep, attacker, creep.facing || TEAM_DIR[creep.teamId] || 1);
     creep.lastHitDir = resolvedHitDir;
@@ -488,6 +488,7 @@ function setupWebSocket(server, rooms) {
         unit: creep,
         hitDir: resolvedHitDir,
         damage: amount,
+        skillId,
         attackerId: attacker?.id || null,
       }));
     }
@@ -2272,7 +2273,7 @@ function setupWebSocket(server, rooms) {
         const unitId = String(msg.unitId || '');
         const creep = (room.creeps || []).find(entry => entry.id === unitId);
         if (creep && creep.teamId !== attacker.teamId) {
-          const killed = damageCreep(room, creep, damage, attacker, msg.hitDir || null, roomId);
+          const killed = damageCreep(room, creep, damage, attacker, msg.hitDir || null, roomId, msg.skillId || null);
           if (!killed) {
             sendTo(playerId, {
               type: 'unit_hit_confirmed',
