@@ -26,8 +26,8 @@ function setupWebSocket(server, rooms) {
   const CREEP_ATTACK_WINDUP_RATIO = { melee: 0.46, ranged: 0.58 };
   const TOWER_SHOT_TRAVEL_MS = 560;
   const CREEP_DEPTH_SPEED_MULTIPLIER = 0.56;
-  const AI_HERO_THINK_MS = 160;
-  const AI_HERO_SPEED = 4.5;
+  const AI_HERO_THINK_MS = 100;
+  const AI_HERO_SPEED = 9.2;
   const AI_HERO_TARGET_SCAN_RANGE = 380;
   const AI_HERO_ATTACKS = {
     punch: { damage: 36, range: 48, cooldown: 760, windup: 170, type: 'melee' },
@@ -1915,7 +1915,7 @@ function setupWebSocket(server, rooms) {
     hero.aiCooldowns[skillId] = now + attack.cooldown;
     hero.state = 'attack';
     hero.aiActionUntil = now + attack.windup + 240;
-    const actionVariant = skillId === 'punch' && Math.random() < 0.35 ? 'kick' : null;
+    const actionVariant = skillId === 'punch' && Math.random() < 0.35 ? 'attackKick' : null;
     room.pendingHeroActions = room.pendingHeroActions || [];
     room.pendingHeroActions.push({
       id: `ha_${hero.id}_${now}_${Math.random().toString(36).slice(2, 5)}`,

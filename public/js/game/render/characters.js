@@ -487,9 +487,10 @@ function getSpriteSheetId(ch, p, action) {
   if (ch?.id === 'dragonfist') {
     if (p.hp <= 0 || p.state === 'dead' || p.state === 'hurt' || p.hitStunUntil > Date.now()) return 'idle';
     if (action === 'punch') return p.actionVariant === 'attackKick' && (p.facing || 1) === 1 ? 'attackKick' : 'attack';
+    if (p.state === 'run' || action === 'rush') return 'run';
+    if (action) return 'attack';
     if (p.state === 'idle') return 'idle';
     if (p.state === 'jump' || p.state === 'fall') return 'jump';
-    if (p.state === 'run' || action === 'rush') return 'run';
     return null;
   }
 
